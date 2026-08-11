@@ -23,6 +23,8 @@ RARITY_MAP = {
     "Rare Holo V": "Rarities.RareHoloV",
     "Rare Holo VMAX": "Rarities.RareHoloVMAX",
     "Rare Holo VSTAR": "Rarities.RareHoloVSTAR",
+    "Rare Holo EX": "Rarities.RareHoloEX",
+    "Double Rare": "Rarities.RareHoloEX",
     "Rare Ultra": "Rarities.RareUltra",
     "Rare Secret": "Rarities.RareSecret",
     "Rare Rainbow": "Rarities.RareRainbow",

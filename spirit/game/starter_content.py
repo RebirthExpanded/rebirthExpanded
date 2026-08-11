@@ -37,6 +37,10 @@ SET_CODE_MAP = {
     "CRZ": "CZ",
     "CEL": "CEL25",
     "PGO": "PGO",
+    "TEF": "SV05",
+    "SV05": "SV05",
+    "TWM": "SV06",
+    "SV06": "SV06",
 }
 
 # (count, live set code, collector number)

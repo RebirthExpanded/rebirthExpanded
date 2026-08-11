@@ -93,6 +93,13 @@ class DeckValidator:
                 f"A deck can't contain more than {MAX_COPIES} cards with the same name: {names}.",
                 offenders))
 
+        ace_spec = [c for c in self.cards if "ACE SPEC" in (c.subtypes or [])]
+        if len(ace_spec) > 1:
+            details.append(_detail(
+                "MaxDuplicates",
+                "A deck can contain only 1 ACE SPEC card.",
+                sorted({c.guid.lower() for c in ace_spec})))
+
         if not any(_is_basic_pokemon_card(c) for c in self.cards):
             details.append(_detail(
                 "MustContain",

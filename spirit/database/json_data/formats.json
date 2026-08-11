@@ -6,24 +6,8 @@
       "formatName": "Modified",
       "sets": [
         "Free_Energy",
-        "CUSTOM",
-        "SWSH1",
-        "SWSH2",
-        "SWSH3",
-        "SWSH35",
-        "SWSH4",
-        "SWSH45",
-        "SWSH5",
-        "SWSH6",
-        "SWSH7",
-        "SWSH8",
-        "SWSH9",
-        "SWSH10",
-        "SWSH11",
-        "SWSH12",
-        "CEL25",
-        "PGO",
-        "CZ"
+        "SV05",
+        "SV06"
       ],
       "allSets": false,
       "bannedCards": [],
@@ -54,7 +38,9 @@
         "SWSH12",
         "CEL25",
         "PGO",
-        "CZ"
+        "CZ",
+        "SV05",
+        "SV06"
       ],
       "allSets": false,
       "bannedCards": [],

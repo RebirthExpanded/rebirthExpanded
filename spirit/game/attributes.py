@@ -20,6 +20,11 @@ class AttrID(IntEnum):
     # Product contents / preview cards (ArchetypeID[]): the pack "i" popup marquee reads this
     # via the cache-safe GetArchetype filter; the unfiltered set-featured fallback crashes instead.
     PACK_PREVIEW_CARDS = 201505
+    # Client Dictionary attribute (see scenario stubs in data_sync). NOT a
+    # printed regulation-mark letter — sending a string here crashes the client
+    # when introducing cards. Keep regulation letters on CardDefinition only.
+    REGULATION_MARK = 202260
+
     RARITY = 200550
     CARD_TYPE = 200300
     COLLECTION_ID = 200000

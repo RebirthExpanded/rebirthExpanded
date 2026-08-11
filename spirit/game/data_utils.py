@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import os
 import uuid
@@ -5,11 +6,214 @@ from typing import Any, Callable, Optional, List, Dict
 from spirit.game.attributes import AttrID, CardType, TrainerType, PokemonStage, PokemonTypes, ProductType, AbilityTypes, Rarities, CLIENT_POKEMON_TYPE_NAMES
 
 _ABILITY_ID_NAMESPACE = uuid.UUID("a3f2c6e8-9d41-4d7a-8b5f-2e7c90d13a64")
+_REPRINT_GUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_DNS, "spiritptcgo.card.reprint")
+_SIBLING_CARD_CACHE: Dict[str, "CardDefinition"] = {}
 
 
 def ability_id_for(card_guid: str, slot: int) -> str:
     """Deterministic GUID for a card's ability/attack slot (must be a GUID: the client runs new Guid(id))."""
     return str(uuid.uuid5(_ABILITY_ID_NAMESPACE, f"{card_guid}:ability:{slot}"))
+
+
+def reprint_guid(set_code: str, collector_number: int, base_guid: str) -> str:
+    """Stable GUID for an alternate printing of an existing card."""
+    return str(uuid.uuid5(
+        _REPRINT_GUID_NAMESPACE,
+        f"{set_code.upper()}:{int(collector_number)}:{base_guid.lower()}",
+    ))
+
+
+def sibling_card(caller_file: str, sibling_filename: str) -> "CardDefinition":
+    """Load `card` from another script in the same set folder (for reprint stubs)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(caller_file)), sibling_filename)
+    cached = _SIBLING_CARD_CACHE.get(path)
+    if cached is not None:
+        return cached
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"sibling card script not found: {path}")
+    module_name = f"_sibling_card_{abs(hash(path))}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"could not load sibling card script: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    if not hasattr(module, "card"):
+        raise AttributeError(f"{sibling_filename} does not define card")
+    _SIBLING_CARD_CACHE[path] = module.card
+    return module.card
+
+
+def _clone_ability(ability: "Ability") -> "Ability":
+    """Copy an Ability/Attack, sharing effect callables; clears ability_id."""
+    if isinstance(ability, Attack):
+        clone: Ability = Attack(
+            title=ability.title,
+            game_text=ability.game_text,
+            cost=dict(ability.cost),
+            damage=ability.damage,
+            damage_operator=ability.damage_operator,
+            ability_type=ability.ability_type,
+            effect=ability.effect,
+            vstar=ability.vstar,
+            locks_next_turn=ability.locks_next_turn,
+            condition=ability.condition,
+            usable_first_turn=ability.usable_first_turn,
+            usable_despite_conditions=ability.usable_despite_conditions,
+        )
+    else:
+        clone = Ability(
+            title=ability.title,
+            game_text=ability.game_text,
+            ability_type=ability.ability_type,
+            effect=ability.effect,
+            trigger=ability.trigger,
+            activation=ability.activation,
+            vstar=ability.vstar,
+            passive=ability.passive,
+            condition=ability.condition,
+            shared_once_per_turn=ability.shared_once_per_turn,
+            ends_turn=ability.ends_turn,
+            usable_from=ability.usable_from,
+        )
+    clone.is_granted = ability.is_granted
+    return clone
+
+
+def _attr_value(definition: "CardDefinition", attr_id: AttrID, default: Any = None) -> Any:
+    spec = definition.extra_attributes.get(str(attr_id.value))
+    if not isinstance(spec, dict):
+        return default
+    return spec.get("value", default)
+
+
+def reprint(
+    base: "CardDefinition",
+    *,
+    collector_number: int,
+    rarity: Optional[int] = None,
+    guid: Optional[str] = None,
+) -> "CardDefinition":
+    """Another printing of `base`: new GUID / collector number / rarity, same mechanics.
+
+    Pair each reprint with matching art:
+      spirit/assets/cards/<SET>/<SameStem>_<collector_number>.png
+    and a thin stub script of the same basename that calls this helper.
+    """
+    new_guid = guid or reprint_guid(base.set_code, collector_number, base.guid)
+    new_rarity = base.rarity if rarity is None else rarity
+    abilities = [_clone_ability(a) for a in getattr(base, "abilities", []) or []]
+
+    if isinstance(base, PokemonCardDef):
+        types_raw = json.loads(_attr_value(base, AttrID.POKEMON_TYPES, "[]") or "[]")
+        weak_raw = json.loads(_attr_value(base, AttrID.WEAKNESS_TYPES, "[]") or "[]")
+        evolves_raw = _attr_value(base, AttrID.EVOLVES_FROM)
+        evolves_from = None
+        if isinstance(evolves_raw, str) and evolves_raw.startswith("{"):
+            try:
+                evolves_from = json.loads(evolves_raw).get("id")
+            except Exception:
+                evolves_from = None
+        return PokemonCardDef(
+            guid=new_guid,
+            key=base.key,
+            name=base.name,
+            collector_number=collector_number,
+            set_code=base.set_code,
+            rarity=new_rarity,
+            hp=int(_attr_value(base, AttrID.HP, 0) or 0),
+            elements=[PokemonTypes(t) for t in types_raw],
+            stage=PokemonStage(int(_attr_value(base, AttrID.STAGE, 0) or 0)),
+            retreat_cost=int(_attr_value(base, AttrID.RETREAT_COST, 1) or 1),
+            weakness_type=PokemonTypes(weak_raw[0]) if weak_raw else PokemonTypes.UNSET,
+            weakness_amount=int(_attr_value(base, AttrID.WEAKNESS_AMOUNT, 2) or 2),
+            resistance_type=PokemonTypes(int(_attr_value(base, AttrID.RESISTANCE_TYPES, PokemonTypes.UNSET.value))),
+            resistance_amount=int(_attr_value(base, AttrID.RESISTANCE_AMOUNT, 30) or 30),
+            evolves_from=evolves_from,
+            family_id=_attr_value(base, AttrID.FAMILY_ID),
+            abilities=abilities,
+            display_name=base.display_name,
+            searchable_by=list(base.searchable_by or []),
+            subtypes=list(base.subtypes or []),
+            regulation_mark=base.regulation_mark,
+            passive=getattr(base, "passive", None),
+            unplayable_from_hand=bool(getattr(base, "unplayable_from_hand", False)),
+            setup_as_active=bool(getattr(base, "setup_as_active", False)),
+        )
+
+    if isinstance(base, TrainerCardDef):
+        trainer_type = TrainerType(int(_attr_value(base, AttrID.TRAINER_TYPE, TrainerType.ITEM.value)))
+        kwargs = dict(
+            guid=new_guid,
+            key=base.key,
+            name=base.name,
+            collector_number=collector_number,
+            set_code=base.set_code,
+            rarity=new_rarity,
+            trainer_type=trainer_type,
+            effect=getattr(base, "effect", None),
+            condition=getattr(base, "condition", None),
+            abilities=abilities,
+            display_name=base.display_name,
+            searchable_by=list(base.searchable_by or []),
+            subtypes=list(base.subtypes or []),
+            regulation_mark=base.regulation_mark,
+        )
+        if isinstance(base, FossilItemCardDef):
+            return FossilItemCardDef(
+                hp=int(_attr_value(base, AttrID.HP, 0) or 0),
+                passive=getattr(base, "passive", None),
+                **{k: v for k, v in kwargs.items() if k != "trainer_type"},
+            )
+        if isinstance(base, StadiumCardDef):
+            return StadiumCardDef(
+                passive=getattr(base, "passive", None),
+                ability=getattr(base, "ability", None),
+                **{k: v for k, v in kwargs.items() if k != "trainer_type"},
+            )
+        if isinstance(base, PokemonToolCardDef):
+            return PokemonToolCardDef(
+                **{k: v for k, v in kwargs.items() if k != "trainer_type"},
+                passive=getattr(base, "passive", None),
+                granted_abilities=[
+                    _clone_ability(a) for a in getattr(base, "granted_abilities", []) or []
+                ],
+                attach_to=getattr(base, "attach_to", None),
+            )
+        if isinstance(base, ItemCardDef):
+            return ItemCardDef(**{k: v for k, v in kwargs.items() if k != "trainer_type"})
+        if isinstance(base, SupporterCardDef):
+            return SupporterCardDef(**{k: v for k, v in kwargs.items() if k != "trainer_type"})
+        return TrainerCardDef(**kwargs)
+
+    if isinstance(base, EnergyCardDef):
+        energy_info = json.loads(_attr_value(base, AttrID.ENERGY_INFO, '{"options": []}') or '{"options": []}')
+        options = energy_info.get("options") or [[PokemonTypes.COLORLESS.value]]
+        provides = [[PokemonTypes(t) for t in option] for option in options]
+        types_raw = json.loads(_attr_value(base, AttrID.POKEMON_TYPES, "[]") or "[]")
+        energy_type = PokemonTypes(types_raw[0]) if types_raw else PokemonTypes.COLORLESS
+        return EnergyCardDef(
+            guid=new_guid,
+            key=base.key,
+            name=base.name,
+            collector_number=collector_number,
+            set_code=base.set_code,
+            rarity=new_rarity,
+            energy_type=energy_type,
+            is_special=bool(_attr_value(base, AttrID.IS_SPECIAL_ENERGY, False)),
+            provides=provides,
+            attach_to=getattr(base, "attach_to", None),
+            attach_condition=getattr(base, "attach_condition", None),
+            attach_cost=getattr(base, "attach_cost", None),
+            on_attach=getattr(base, "on_attach", None),
+            on_carrier_knocked_out=getattr(base, "on_carrier_knocked_out", None),
+            passive=getattr(base, "passive", None),
+            display_name=base.display_name,
+            searchable_by=list(base.searchable_by or []),
+            subtypes=list(base.subtypes or []),
+            regulation_mark=base.regulation_mark,
+        )
+
+    raise TypeError(f"reprint() unsupported for {type(base).__name__}")
 
 
 class _Unimplemented:
@@ -43,13 +247,21 @@ def subtypes_for(archetype_id: Optional[str]) -> List[str]:
 
 
 # Rule-box subtypes and the prizes an attacker takes for knocking one out.
-_MULTI_PRIZE_SUBTYPES = {"V": 2, "VSTAR": 2, "V-UNION": 3, "VMAX": 3, "GX": 2, "EX": 2}
+# "EX" is the XY-era uppercase rule box; "ex" is the SV-era lowercase rule box.
+_MULTI_PRIZE_SUBTYPES = {
+    "V": 2, "VSTAR": 2, "V-UNION": 3, "VMAX": 3, "GX": 2, "EX": 2, "ex": 2,
+}
 _RULE_BOX_SUBTYPES = set(_MULTI_PRIZE_SUBTYPES) | {"Radiant"}
 
 
 def is_pokemon_v(archetype_id: Optional[str]) -> bool:
     """Pokemon V of any kind (V, VSTAR, VMAX, V-UNION)."""
     return any(s in ("V", "VSTAR", "VMAX", "V-UNION") for s in subtypes_for(archetype_id))
+
+
+def is_pokemon_ex(archetype_id: Optional[str]) -> bool:
+    """Pokemon-ex of either era (lowercase SV "ex" or uppercase XY "EX")."""
+    return any(s in ("ex", "EX") for s in subtypes_for(archetype_id))
 
 
 def has_rule_box(archetype_id: Optional[str]) -> bool:
@@ -302,7 +514,8 @@ class CardDefinition:
         display_name: Optional[str] = None,
         searchable_by: Optional[List[str]] = None,
         subtypes: Optional[List[str]] = None,
-        attributes: Optional[dict] = None
+        attributes: Optional[dict] = None,
+        regulation_mark: Optional[str] = None,
     ):
         self.guid = guid
         self.key = key
@@ -313,7 +526,12 @@ class CardDefinition:
         self.display_name = display_name
         self.searchable_by = searchable_by or []
         self.subtypes = subtypes or []
-        self.extra_attributes = attributes or {}
+        self.extra_attributes = dict(attributes or {})
+        # Server-only metadata for format/legality tooling. Do NOT emit this as
+        # AttrID.REGULATION_MARK (202260): on the PTCGO client that ID is a
+        # Dictionary attribute, and a string like "H" fails EntityIntroduced
+        # deserialization (Char -> KeyValuePair), which breaks opening hands.
+        self.regulation_mark = regulation_mark
         # Continuous effect while in play/attached (tools, special energies).
         self.passive: Optional[Any] = None
         CARD_DEFS_BY_GUID[guid.lower()] = self
@@ -375,11 +593,16 @@ class PokemonCardDef(CardDefinition):
         searchable_by: Optional[List[str]] = None,
         subtypes: Optional[List[str]] = None,
         attributes: Optional[dict] = None,
+        regulation_mark: Optional[str] = None,
         passive: Optional[Any] = None,
         unplayable_from_hand: bool = False,
         setup_as_active: bool = False
     ):
-        super().__init__(guid, key, name, collector_number, set_code, rarity, display_name, searchable_by, subtypes, attributes)
+        super().__init__(
+            guid, key, name, collector_number, set_code, rarity,
+            display_name, searchable_by, subtypes, attributes,
+            regulation_mark=regulation_mark,
+        )
         # Card-level continuous effect while this Pokemon is top-level in play
         # (attack-rules passives, e.g. Swanna); distinct from Ability(passive=).
         self.passive = passive
@@ -475,9 +698,14 @@ class TrainerCardDef(CardDefinition):
         display_name: Optional[str] = None,
         searchable_by: Optional[List[str]] = None,
         subtypes: Optional[List[str]] = None,
-        attributes: Optional[dict] = None
+        attributes: Optional[dict] = None,
+        regulation_mark: Optional[str] = None,
     ):
-        super().__init__(guid, key, name, collector_number, set_code, rarity, display_name, searchable_by, subtypes, attributes)
+        super().__init__(
+            guid, key, name, collector_number, set_code, rarity,
+            display_name, searchable_by, subtypes, attributes,
+            regulation_mark=regulation_mark,
+        )
         self.effect = effect
         self.condition = condition
         # Trainers have no PIE_ABILITIES slot; declared abilities register for
@@ -606,9 +834,14 @@ class EnergyCardDef(CardDefinition):
         display_name: Optional[str] = None,
         searchable_by: Optional[List[str]] = None,
         subtypes: Optional[List[str]] = None,
-        attributes: Optional[dict] = None
+        attributes: Optional[dict] = None,
+        regulation_mark: Optional[str] = None,
     ):
-        super().__init__(guid, key, name, collector_number, set_code, rarity, display_name, searchable_by, subtypes, attributes)
+        super().__init__(
+            guid, key, name, collector_number, set_code, rarity,
+            display_name, searchable_by, subtypes, attributes,
+            regulation_mark=regulation_mark,
+        )
         self.energy_type = energy_type
         self.attach_to = attach_to
         self.attach_condition = attach_condition

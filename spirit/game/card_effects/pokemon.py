@@ -1015,6 +1015,64 @@ class FluffyBarragePassive(Passive):
         return len(uses) == 1
 
 
+# --- Festival Lead (TWM Dipplin / Goldeen) --------------------------------
+
+def festival_grounds_in_play(board_or_ctx) -> bool:
+    """True when the Stadium Festival Grounds is currently in play."""
+    stadium_in_play = getattr(board_or_ctx, "stadium_in_play", None)
+    if callable(stadium_in_play):
+        stadium = stadium_in_play()
+    else:
+        area = board_or_ctx.find_global_area("activeStadium")
+        stadium = next(iter(area.children), None) if area else None
+    if stadium is None:
+        return False
+    definition = def_for(getattr(stadium, "archetype_id", None) or "")
+    return definition is not None and definition.display_name == "Festival Grounds"
+
+
+def pokemon_has_ability_titled(pokemon, title: str) -> bool:
+    """Whether `pokemon`'s printed abilities include a non-Attack titled `title`."""
+    for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
+        if not isinstance(entry, dict):
+            continue
+        ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
+        if ability is not None:
+            if isinstance(ability, Attack):
+                continue
+            if ability.title == title:
+                return True
+            continue
+        if entry.get("abilityType") == "Attack":
+            continue
+        t = entry.get("title")
+        if isinstance(t, dict) and t.get("id") == title:
+            return True
+    return False
+
+
+class FestivalLeadPassive(Passive):
+    """If Festival Grounds is in play, this Pokemon may attack twice each turn
+    (same timing as Fluffy Barrage)."""
+
+    def attack_keeps_turn(self, attacker, ability, ctx, carrier):
+        if attacker is not carrier or not festival_grounds_in_play(ctx):
+            return False
+        uses = [e for e in ctx.session.turn_state.attacks_used
+                if e[0] == carrier.entity_id]
+        return len(uses) == 1
+
+
+# --- Tera rule: bench damage prevention -----------------------------------
+
+class TeraRulePassive(Passive):
+    """As long as this Pokemon is on the Bench, prevent all damage done to it
+    by attacks (yours and your opponent's)."""
+
+    def prevents_damage(self, calc, carrier):
+        return calc.is_attack and calc.target is carrier and not calc.to_active
+
+
 # --- Devolution (Rewind Beam / Downgrading Beam / Curse of Devolution) ----
 
 def devolvable(pokemon) -> bool:
