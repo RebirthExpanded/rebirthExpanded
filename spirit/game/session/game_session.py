@@ -48,6 +48,7 @@ from .constants import (
     PROMPT_WAIT_OPPONENT_SETUP,
     PROMPT_WAIT_OPPONENT_DECISION,
     PROMPT_MULLIGAN_EXTRA_DRAW,
+    PROMPT_ANOTHER_ATTACK,
     PROMPT_TAKE_PRIZE,
     PROMPT_CHOOSE_NEW_ACTIVE,
     PROMPT_REVEAL_BASIC_FROM_PRIZE,
@@ -3611,7 +3612,11 @@ class GameSession:
                 f"{len(target_map)} legal action(s) on turn "
                 f"{self.turn_state.turn_number}."
             )
-            offer = self._main_offer_value(active_id, target_map)
+            auto_select = self.turn_state.auto_select_attack_entity_id
+            self.turn_state.auto_select_attack_entity_id = None
+            offer = self._main_offer_value(
+                active_id, target_map, auto_select_entity_id=auto_select
+            )
             reply = await self.prompt_selection_message(
                 player,
                 OutboundMsg.SELECTION_WITH_TARGETS_AND_ACTIONS_REQUIRED.value,
@@ -3647,9 +3652,15 @@ class GameSession:
         )
 
     def _main_offer_value(
-        self, player_id: str, target_map: List[Dict[str, Any]]
+        self, player_id: str, target_map: List[Dict[str, Any]],
+        auto_select_entity_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Builds the main-turn SelectionWithTargetsAndActionsRequired value."""
+        """Builds the main-turn SelectionWithTargetsAndActionsRequired value.
+
+        When `auto_select_entity_id` is set (second strike after Festival Lead
+        / Fluffy Barrage), ignoreFirst + sourceID pre-select that Pokemon so
+        the attack panel opens immediately.
+        """
         return {
             "gameID": self.game_id,
             "counter": self._next_selection_counter(player_id),
@@ -3660,10 +3671,10 @@ class GameSession:
             "startingTimestamp": int(time.time() * 1000),
             "forced": False,
             "targetType": TARGET_TYPE_MAIN_TURN,
-            "ignoreFirst": False,
+            "ignoreFirst": auto_select_entity_id is not None,
             "selectionParams": {},
             "optimalPlayMap": [],
-            "sourceID": None,
+            "sourceID": auto_select_entity_id,
             "targetMap": target_map,
         }
 
@@ -4981,6 +4992,22 @@ class GameSession:
                 f"[Session {self.game_id}] Attack kept the turn going for "
                 f"{self.players[player_id].screen_name}."
             )
+            # Optional second strike (Festival Lead / Fluffy Barrage): ask,
+            # then auto-select the attacker so the attack panel opens.
+            can_attack_again = any(
+                e.get("selectableAction", {}).get("description") == ACTION_USE_ATTACK
+                for e in compute_legal_actions(
+                    self.board_state, self.turn_state, player_id, self.game_id
+                )
+            )
+            if not can_attack_again:
+                return True
+            wants_another = await self.prompt_player_choice(
+                player_id, PROMPT_ANOTHER_ATTACK, [PROMPT_YES, PROMPT_NO],
+            ) == 0
+            if not wants_another:
+                return True
+            self.turn_state.auto_select_attack_entity_id = card.entity_id
             return False
         return True
 

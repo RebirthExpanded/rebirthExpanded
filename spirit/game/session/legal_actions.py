@@ -159,6 +159,10 @@ class TurnState:
     # {player_id, attacker_predicate, target_predicate, prizes}; consulted by
     # resolve_knockouts on attack-damage KOs, cleared every begin_turn.
     extra_prize_watchers: List[Dict[str, Any]] = field(default_factory=list)
+    # After a keep-turn attack (Festival Lead / Fluffy Barrage), Yes on the
+    # second-attack prompt stamps the attacker here so the next main offer
+    # auto-selects it and opens the attack panel.
+    auto_select_attack_entity_id: Optional[str] = None
 
     def begin_turn(self, player_id: str, board: Optional[Any] = None):
         """Advances to the next turn, resets the once-per-turn flags, rotates
@@ -212,6 +216,7 @@ class TurnState:
         }
         self.ignore_target_effects_entities = set()
         self.extra_prize_watchers = []
+        self.auto_select_attack_entity_id = None
         if board is not None:
             board.temporary_passives = [
                 tp for tp in (getattr(board, "temporary_passives", None) or [])
@@ -526,8 +531,9 @@ def compute_legal_actions(
     entries.extend(_attack_entries(board, state, player_id, game_id, immobilized))
     if not immobilized:
         entries.extend(_retreat_entry(board, state, player_id, game_id))
-    # A turn kept alive past an attack (Fluffy Barrage's second strike) stays
-    # in the attack phase: only attacking (or End Turn) remains legal.
+    # A turn kept alive past an attack (Fluffy Barrage / Festival Lead) stays
+    # in the attack phase: only attacking (or End Turn) remains legal. The
+    # session asks "perform another attack?" before re-offering.
     if state.attacks_used:
         entries = [
             e for e in entries

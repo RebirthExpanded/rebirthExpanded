@@ -1003,9 +1003,8 @@ async def yoga_loop(ctx):
 
 class FluffyBarragePassive(Passive):
     """May attack twice each turn (the printed KO sentence is timing reminder
-    text, not a condition): the first attack keeps the turn, and legal
-    actions collapse to attacks-only afterwards, so the player either attacks
-    again or clicks End Turn."""
+    text, not a condition): the first attack keeps the turn; the session then
+    asks whether to attack again and, on Yes, auto-selects this Pokemon."""
 
     def attack_keeps_turn(self, attacker, ability, ctx, carrier):
         if attacker is not carrier:
@@ -1053,7 +1052,7 @@ def pokemon_has_ability_titled(pokemon, title: str) -> bool:
 
 class FestivalLeadPassive(Passive):
     """If Festival Grounds is in play, this Pokemon may attack twice each turn
-    (same timing as Fluffy Barrage)."""
+    (same timing as Fluffy Barrage: Yes/No prompt, then auto-select)."""
 
     def attack_keeps_turn(self, attacker, ability, ctx, carrier):
         if attacker is not carrier or not festival_grounds_in_play(ctx):
