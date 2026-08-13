@@ -498,7 +498,12 @@ def compute_legal_actions(
                     action_id_for(card.entity_id, "item"), ACTION_USE_TRAINER,
                 ))
             elif trainer_type == TrainerType.SUPPORTER.value:
-                if not state.supporter_played and state.turn_number > 1:
+                # Normally Supporters are illegal on turn 1 (going first).
+                # Cards like Team Rocket's Proton set usable_first_turn.
+                first_ok = bool(getattr(definition, "usable_first_turn", False))
+                if not state.supporter_played and (
+                    state.turn_number > 1 or first_ok
+                ):
                     entries.append(_target_map_entry(
                         game_id, card.entity_id,
                         action_id_for(card.entity_id, "supporter"), ACTION_USE_TRAINER,

@@ -45,6 +45,10 @@ SET_CODE_MAP = {
     "SV07": "SV07",
     "SSP": "SV08",
     "SV08": "SV08",
+    "PRE": "SV085",
+    "SV085": "SV085",
+    "DRI": "SV10",
+    "SV10": "SV10",
 }
 
 # (count, live set code, collector number)

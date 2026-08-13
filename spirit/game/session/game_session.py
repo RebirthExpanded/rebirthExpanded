@@ -110,7 +110,7 @@ from .passives import (
     burn_recovery_blocked, effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, energy_attach_taxer, evolve_heal_amount,
     granted_extra_attacks, retreat_energy_destination, tool_slots_free,
-    tool_suppressed,
+    tool_suppressed, special_energy_suppressed,
 )
 from .legal_actions import (
     ACTION_ATTACH_TOOL,
@@ -3986,6 +3986,8 @@ class GameSession:
             [card],
         )
         await self._refresh_max_hp(target, max_before)
+        if definition is not None and getattr(definition, "granted_abilities", None):
+            await self.refresh_granted_abilities(target)
 
         attach_ctx = await resolve_energy_on_attach(self, player_id, card, target)
         if attach_ctx is not None:
@@ -4100,11 +4102,15 @@ class GameSession:
         definition = def_for(pokemon.archetype_id)
         entries = [a.to_dict() for a in (getattr(definition, "abilities", None) or [])]
         for child in pokemon.children:
-            tool_def = def_for(child.archetype_id)
-            grants = getattr(tool_def, "granted_abilities", None) or []
-            # A jammed tool has "no effect": its grants drop out of the attr
-            # (re-synced by _refresh_dynamic_attacks before every offer).
-            if grants and tool_suppressed(self.board_state, child):
+            child_def = def_for(child.archetype_id)
+            grants = getattr(child_def, "granted_abilities", None) or []
+            # A jammed tool / suppressed Special Energy has "no effect": its
+            # grants drop out of the attr (re-synced by _refresh_dynamic_attacks
+            # before every offer).
+            if grants and (
+                tool_suppressed(self.board_state, child)
+                or special_energy_suppressed(self.board_state, child)
+            ):
                 continue
             for granted in grants:
                 entries.append(granted.to_dict())

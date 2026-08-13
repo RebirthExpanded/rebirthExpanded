@@ -1625,6 +1625,36 @@
     "promo": false
   },
   {
+    "name": "SV085",
+    "externalId": "PRE",
+    "number": 1195,
+    "count": 4,
+    "filter": true,
+    "block": "SV",
+    "legalFormats": [
+      "6402e830-7fed-4cd1-b172-2a320047c2bb",
+      "98c83df9-ec82-4193-84a8-104115ce4e25"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
+  },
+  {
+    "name": "SV10",
+    "externalId": "DRI",
+    "number": 1200,
+    "count": 29,
+    "filter": true,
+    "block": "SV",
+    "legalFormats": [
+      "6402e830-7fed-4cd1-b172-2a320047c2bb",
+      "98c83df9-ec82-4193-84a8-104115ce4e25"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
+  },
+  {
     "name": "CUSTOM",
     "externalId": "CUSTOM",
     "number": 9999,

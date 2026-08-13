@@ -207,6 +207,9 @@ def reprint(
             on_attach=getattr(base, "on_attach", None),
             on_carrier_knocked_out=getattr(base, "on_carrier_knocked_out", None),
             passive=getattr(base, "passive", None),
+            granted_abilities=[
+                _clone_ability(a) for a in getattr(base, "granted_abilities", []) or []
+            ],
             display_name=base.display_name,
             searchable_by=list(base.searchable_by or []),
             subtypes=list(base.subtypes or []),
@@ -700,6 +703,7 @@ class TrainerCardDef(CardDefinition):
         subtypes: Optional[List[str]] = None,
         attributes: Optional[dict] = None,
         regulation_mark: Optional[str] = None,
+        usable_first_turn: bool = False,
     ):
         super().__init__(
             guid, key, name, collector_number, set_code, rarity,
@@ -708,6 +712,8 @@ class TrainerCardDef(CardDefinition):
         )
         self.effect = effect
         self.condition = condition
+        # Exempt from the "no Supporters on turn 1" rule (Team Rocket's Proton).
+        self.usable_first_turn = usable_first_turn
         # Trainers have no PIE_ABILITIES slot; declared abilities register for
         # the session's trigger scans only (Dream Ball's ON_TAKEN_AS_PRIZE).
         self.abilities: List[Ability] = abilities or []
@@ -813,6 +819,9 @@ class EnergyCardDef(CardDefinition):
                         search, Speed Lightning's draw). ctx.source is the
                         energy, ctx.attached_to the Pokemon.
     passive          -- continuous effect while attached (a passives.Passive).
+    granted_abilities -- Abilities the energy grants its holder while attached
+                        (Spiky Energy's ON_DAMAGED_BY_ATTACK), mirrored onto
+                        PIE_ABILITIES like Pokemon Tool grants.
     """
     def __init__(
         self,
@@ -831,6 +840,7 @@ class EnergyCardDef(CardDefinition):
         on_attach: Optional[Any] = None,
         on_carrier_knocked_out: Optional[Any] = None,
         passive: Optional[Any] = None,
+        granted_abilities: Optional[List[Ability]] = None,
         display_name: Optional[str] = None,
         searchable_by: Optional[List[str]] = None,
         subtypes: Optional[List[str]] = None,
@@ -851,6 +861,12 @@ class EnergyCardDef(CardDefinition):
         # opponent's attack (Gift Energy's draw); ctx.source is the energy.
         self.on_carrier_knocked_out = on_carrier_knocked_out
         self.passive = passive
+        self.granted_abilities: List[Ability] = granted_abilities or []
+        for idx, a in enumerate(self.granted_abilities):
+            if not a.ability_id:
+                a.ability_id = ability_id_for(guid, idx)
+            a.is_granted = True
+            ABILITIES_BY_ID[a.ability_id] = a
 
         options = [[t.value for t in option] for option in provides] \
             if provides else [[energy_type.value]]

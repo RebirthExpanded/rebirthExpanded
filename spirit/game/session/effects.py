@@ -1757,6 +1757,8 @@ class EffectContext:
         if not self.board.attach_card(energy.entity_id, pokemon.entity_id):
             return False
         self._queue_intro_and_move(energy, pokemon.entity_id, position)
+        if getattr(def_for(energy.archetype_id), "granted_abilities", None):
+            await self.session.refresh_granted_abilities(pokemon)
         if counts_as_attachment:
             self.deferred_actions.append(
                 lambda e=energy, p=pokemon: self.session.fire_energy_attached_triggers(
@@ -1785,6 +1787,8 @@ class EffectContext:
         )
         if granted_holder is not None:
             await self.session.refresh_granted_abilities(granted_holder)
+        if getattr(def_for(energy.archetype_id), "granted_abilities", None):
+            await self.session.refresh_granted_abilities(to_pokemon)
         if old_holder is not None:
             self._shift_max_hp(old_holder, max_before_old)
         self._shift_max_hp(to_pokemon, max_before_new)

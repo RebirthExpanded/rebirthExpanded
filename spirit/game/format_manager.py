@@ -16,6 +16,7 @@ FORMATS_PATH = os.path.abspath(os.path.join(
 LEGACY_SETS = {"BW1"}
 STANDARD_NON_SWSH_SETS = {
     "CEL25", "PGO", "CZ", "CUSTOM", "Free_Energy", "SV05", "SV06", "SV065", "SV07", "SV08",
+    "SV085", "SV10",
 }
 
 
