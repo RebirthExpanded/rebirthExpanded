@@ -84,8 +84,10 @@ The reason is that the login handshake redirects the client to a follow-up addre
    assetURL=http://your.public.ip.or.domain:8000/
    ```
 
-> **Hosting on a VPS?** See [`deploy/`](deploy/README.md) Not needed for local
-> development only for reliable remote hosting.
+> **Hosting on a VPS?** See [`deploy/`](deploy/README.md). For a full DigitalOcean
+> Droplet walkthrough (Ubuntu, nginx, systemd, firewall), see
+> [`deploy/DIGITALOCEAN.md`](deploy/DIGITALOCEAN.md). Not needed for local
+> development — only for reliable remote hosting.
 
 ## Custom Card Creation
 
