@@ -47,7 +47,15 @@ For each attack, ability, or Trainer effect:
 
 Then click **Generate card** and copy the Python output.
 
-Click **Save to spirit scripts** to write the `.py` file under `spirit/game/scripts/cards/<SET>/` and download art. Existing files require confirmation before overwrite. If the Spirit set is missing from `sets.json`, the UI warns (formats are not auto-edited).
+## Save / new sets
+
+Saving a card:
+
+1. Writes the Python script under `spirit/game/scripts/cards/<SET>/`
+2. Downloads art to `spirit/assets/cards/<SET>/`
+3. If `<SET>` is missing from `sets.json`, registers it (block, externalId/ptcgoCode, count) and adds it to the appropriate entries in `formats.json` (Expanded always; Standard for modern SV/SWSH-era sets; Legacy for BW)
+
+Existing files require confirmation before overwrite.
 
 ## Reprints
 

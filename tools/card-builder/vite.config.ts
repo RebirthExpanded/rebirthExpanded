@@ -48,6 +48,180 @@ const implementedCardIdsPath = join(rootDir, 'implementedCardIds.json');
 const scriptsRoot = join(repoRoot, 'spirit/game/scripts/cards');
 const assetsRoot = join(repoRoot, 'spirit/assets/cards');
 const setsJsonPath = join(repoRoot, 'spirit/database/json_data/sets.json');
+const formatsJsonPath = join(repoRoot, 'spirit/database/json_data/formats.json');
+
+const FORMAT_GUIDS = {
+  Standard: '6402e830-7fed-4cd1-b172-2a320047c2bb',
+  Expanded: '98c83df9-ec82-4193-84a8-104115ce4e25',
+  Legacy: '6b33d420-73cc-40d4-ada5-88a7d68063a9',
+  Unlimited: '6a1dec5a-34db-4cee-a503-4ee759304135',
+} as const;
+
+/** Sets currently treated as Standard in formats.json / format_manager. */
+const STANDARD_SET_RE = /^(SV0?5|SV0?6|SV065|SV0?7|SV0?8|SV085|SV0?9|SV10|CEL25|PGO|CZ)$/i;
+
+function countScriptsInSet(spiritCode: string): number {
+  const dir = join(scriptsRoot, spiritCode);
+  if (!existsSync(dir)) return 0;
+  return readdirSync(dir).filter(f => f.endsWith('.py') && f !== '__init__.py').length;
+}
+
+function loadCatalogSetMeta(catalogId?: string): {
+  id: string;
+  name: string;
+  series: string;
+  ptcgoCode?: string;
+  total?: number;
+  printedTotal?: number;
+} | null {
+  if (!catalogId) return null;
+  const dash = catalogId.indexOf('-');
+  if (dash <= 0) return null;
+  const setId = catalogId.slice(0, dash);
+  const setsFile = join(dataRoot, 'sets/en.json');
+  if (!existsSync(setsFile)) return null;
+  const sets = JSON.parse(readFileSync(setsFile, 'utf8')) as Array<{
+    id: string;
+    name: string;
+    series: string;
+    ptcgoCode?: string;
+    total?: number;
+    printedTotal?: number;
+  }>;
+  return sets.find(s => s.id === setId) || null;
+}
+
+function inferBlock(spiritCode: string, series?: string): string {
+  const code = spiritCode.toUpperCase();
+  if (code.startsWith('SV')) return 'SV';
+  if (code.startsWith('SWSH')) return 'SWSH';
+  if (code.startsWith('BW')) return 'BW';
+  if (code.startsWith('SM')) return 'SM';
+  if (code.startsWith('XY')) return 'XY';
+  if (code.startsWith('HGSS')) return 'HGSS';
+  const s = (series || '').toLowerCase();
+  if (s.includes('scarlet') || s.includes('violet')) return 'SV';
+  if (s.includes('sword') || s.includes('shield')) return 'SWSH';
+  if (s.includes('black') || s.includes('white')) return 'BW';
+  if (s.includes('sun') || s.includes('moon')) return 'SM';
+  if (s.includes('xy') || s.includes('kalos')) return 'XY';
+  return 'NONE';
+}
+
+function formatKeysForNewSet(spiritCode: string): Array<keyof typeof FORMAT_GUIDS> {
+  const keys: Array<keyof typeof FORMAT_GUIDS> = ['Expanded', 'Unlimited'];
+  if (
+    STANDARD_SET_RE.test(spiritCode) ||
+    /^SV(0?[5-9]|10|065|085)$/i.test(spiritCode)
+  ) {
+    keys.unshift('Standard');
+  }
+  if (/^BW/i.test(spiritCode)) keys.push('Legacy');
+  return [...new Set(keys)];
+}
+
+function nextSetNumber(sets: Array<{ number: number }>): number {
+  const max = Math.max(0, ...sets.map(s => (s.number < 9000 ? s.number : 0)));
+  return max + 10;
+}
+
+/**
+ * Ensures Spirit set folders exist and the set is indexed in sets.json + formats.json
+ * so the client catalog / format legality can see it.
+ */
+function ensureSetRegistered(
+  spiritCode: string,
+  catalogId?: string
+): { created: boolean; messages: string[] } {
+  const messages: string[] = [];
+  mkdirSync(join(scriptsRoot, spiritCode), { recursive: true });
+  mkdirSync(join(assetsRoot, spiritCode), { recursive: true });
+
+  const meta = loadCatalogSetMeta(catalogId);
+  const scriptCount = countScriptsInSet(spiritCode);
+  const formatKeys = formatKeysForNewSet(spiritCode);
+  const legalFormats = formatKeys.map(k => FORMAT_GUIDS[k]);
+
+  let created = false;
+  if (existsSync(setsJsonPath)) {
+    const sets = JSON.parse(readFileSync(setsJsonPath, 'utf8')) as Array<{
+      name: string;
+      externalId: string;
+      number: number;
+      count: number;
+      filter: boolean;
+      block: string;
+      legalFormats: string[];
+      featuredArchetypes: string[];
+      visibleUnfilterable: boolean;
+      promo: boolean;
+    }>;
+    const idx = sets.findIndex(s => String(s.name).toUpperCase() === spiritCode.toUpperCase());
+    if (idx < 0) {
+      const entry = {
+        name: spiritCode,
+        externalId: meta?.ptcgoCode || meta?.id?.toUpperCase() || spiritCode,
+        number: nextSetNumber(sets),
+        count: Math.max(scriptCount, 1),
+        filter: true,
+        block: inferBlock(spiritCode, meta?.series),
+        legalFormats,
+        featuredArchetypes: [] as string[],
+        visibleUnfilterable: false,
+        promo: /promo/i.test(spiritCode) || /promo/i.test(meta?.name || ''),
+      };
+      sets.push(entry);
+      writeFileSync(setsJsonPath, `${JSON.stringify(sets, null, 2)}\n`, 'utf8');
+      created = true;
+      messages.push(`Registered ${spiritCode} in sets.json (block=${entry.block}, externalId=${entry.externalId}).`);
+    } else {
+      const prev = sets[idx];
+      const nextCount = Math.max(prev.count || 0, scriptCount);
+      let changed = false;
+      if (nextCount !== prev.count) {
+        prev.count = nextCount;
+        changed = true;
+      }
+      for (const guid of legalFormats) {
+        if (!prev.legalFormats.includes(guid)) {
+          prev.legalFormats.push(guid);
+          changed = true;
+        }
+      }
+      if (changed) {
+        writeFileSync(setsJsonPath, `${JSON.stringify(sets, null, 2)}\n`, 'utf8');
+        messages.push(`Updated ${spiritCode} entry in sets.json (count=${prev.count}).`);
+      }
+    }
+  } else {
+    messages.push('sets.json missing — could not register set.');
+  }
+
+  if (existsSync(formatsJsonPath)) {
+    const data = JSON.parse(readFileSync(formatsJsonPath, 'utf8')) as {
+      formats: Array<{ key: string; sets: string[]; allSets?: boolean }>;
+    };
+    let formatsChanged = false;
+    for (const fmt of data.formats || []) {
+      if (fmt.allSets) continue; // Unlimited
+      const shouldInclude =
+        (fmt.key === 'Expanded' && formatKeys.includes('Expanded')) ||
+        (fmt.key === 'Standard' && formatKeys.includes('Standard')) ||
+        (fmt.key === 'Legacy' && formatKeys.includes('Legacy'));
+      if (!shouldInclude) continue;
+      if (!fmt.sets.includes(spiritCode)) {
+        fmt.sets.push(spiritCode);
+        formatsChanged = true;
+        messages.push(`Added ${spiritCode} to formats.json ${fmt.key}.`);
+      }
+    }
+    if (formatsChanged) {
+      writeFileSync(formatsJsonPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+    }
+  }
+
+  return { created, messages };
+}
 
 interface ScriptEffect {
   source: string;
@@ -284,12 +458,6 @@ function findReprintCandidates(spiritSet: string, name: string, excludeNumber = 
     });
 }
 
-function setExistsInCatalog(spiritCode: string): boolean {
-  if (!existsSync(setsJsonPath)) return false;
-  const sets = JSON.parse(readFileSync(setsJsonPath, 'utf8')) as Array<{ name: string }>;
-  return sets.some(s => String(s.name).toUpperCase() === spiritCode.toUpperCase());
-}
-
 function downloadFile(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const getter = url.startsWith('https') ? httpsGet : httpGet;
@@ -320,7 +488,8 @@ function resolveSpiritSet(payloadSet: string, catalogId?: string): string {
     const fromCat = spiritSetCodeFromCatalogId(catalogId);
     if (fromCat) return fromCat;
   }
-  if (SPIRIT_TO_TCG_SET_IDS[upper]) return upper;
+  const spiritMap = SPIRIT_TO_TCG_SET_IDS as Record<string, string[]>;
+  if (spiritMap[upper]) return upper;
   if (TCG_SET_ID_TO_SPIRIT[payloadSet?.toLowerCase()]) {
     return TCG_SET_ID_TO_SPIRIT[payloadSet.toLowerCase()];
   }
@@ -414,13 +583,24 @@ function spiritCardBuilderPlugin(): Plugin {
               mkdirSync(dir, { recursive: true });
               mkdirSync(join(assetsRoot, spiritSet), { recursive: true });
 
-              const inSetsJson = setExistsInCatalog(spiritSet);
               const warnings: string[] = [];
-              if (!inSetsJson) {
-                warnings.push(
-                  `Set ${spiritSet} is not in spirit/database/json_data/sets.json — cards load from scripts but may be missing from the client catalog.`
-                );
-              }
+
+              const finishSave = (
+                outPath: string,
+                imagePath: string | undefined,
+                label: string
+              ) => {
+                const reg = ensureSetRegistered(spiritSet, payload.catalogId);
+                warnings.push(...reg.messages);
+                jsonResponse(res, 200, {
+                  message: `${label}${reg.created ? ` · registered set ${spiritSet}` : ''}`,
+                  path: outPath,
+                  imagePath,
+                  warnings,
+                  setRegistered: true,
+                  setCreated: reg.created,
+                });
+              };
 
               if (payload.reprint) {
                 const sibling = payload.reprint.fileName;
@@ -454,13 +634,7 @@ function spiritCardBuilderPlugin(): Plugin {
                     }
                   }
                 }
-                jsonResponse(res, 200, {
-                  message: `Saved reprint ${outName}`,
-                  path: outPath,
-                  imagePath,
-                  warnings,
-                  setRegistered: inSetsJson,
-                });
+                finishSave(outPath, imagePath, `Saved reprint ${outName}`);
                 return;
               }
 
@@ -496,13 +670,7 @@ function spiritCardBuilderPlugin(): Plugin {
                 }
               }
 
-              jsonResponse(res, 200, {
-                message: `Saved ${relative(repoRoot, outPath)}`,
-                path: outPath,
-                imagePath,
-                warnings,
-                setRegistered: inSetsJson,
-              });
+              finishSave(outPath, imagePath, `Saved ${relative(repoRoot, outPath)}`);
             } catch (e) {
               jsonResponse(res, 500, { error: String(e) });
             }

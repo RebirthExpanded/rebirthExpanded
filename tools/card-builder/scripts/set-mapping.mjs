@@ -36,6 +36,7 @@ export const SPIRIT_TO_TCG_SET_IDS = {
   SV085: ['sv8pt5'],
   SV09: ['sv9'],
   SV10: ['sv10'],
+  BASE1: ['base1'],
   BW1: ['bw1'],
 };
 

@@ -50,7 +50,9 @@
         "SV07",
         "SV08",
         "SV085",
-        "SV10"
+        "SV10",
+        "BASE1",
+        "BASE2"
       ],
       "allSets": false,
       "bannedCards": [],
