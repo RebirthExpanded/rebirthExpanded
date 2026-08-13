@@ -39,3 +39,9 @@ MAX_CONNECTIONS = int(os.environ.get("SPIRIT_MAX_CONNECTIONS", "0"))
 # that normal offer/reply cadence and reconnect replay never trip it.
 INBOUND_RATE_PER_SEC = float(os.environ.get("SPIRIT_INBOUND_RATE", "80"))
 INBOUND_RATE_BURST = float(os.environ.get("SPIRIT_INBOUND_BURST", "240"))
+
+# On login, top every account up to 4 tradable copies of each non-basic card
+# (same as admin "grant-all-cards"). Set SPIRIT_GRANT_ALL_CARDS_ON_LOGIN=0 to disable.
+GRANT_ALL_CARDS_ON_LOGIN = os.environ.get(
+    "SPIRIT_GRANT_ALL_CARDS_ON_LOGIN", "1"
+).strip().lower() not in ("0", "false", "no", "off")

@@ -289,6 +289,74 @@ def attack_discount_passive(count, self_only=True, pred=None) -> Passive:
     return AttackDiscountPassive(count, self_only, pred)
 
 
+class AnyTypeAttackDiscountPassive(Passive):
+    """Attacks cost 1 Energy less of any type (Sparkling Crystal).
+
+    Colorless is removed first when present. Otherwise one typed symbol is
+    dropped — preferring a reduction that the attached Energy can still pay
+    (so [R][P] with only Fire attached becomes [R], not [P]).
+    """
+
+    def __init__(self, count=1, holder_pred=None):
+        self.count = count
+        self.holder_pred = holder_pred
+
+    def modify_attack_cost(self, cost, pokemon, carrier, board):
+        if carrier_pokemon(carrier) is not pokemon:
+            return cost
+        if self.holder_pred is not None and not self.holder_pred(pokemon):
+            return cost
+        if not cost or self.count <= 0:
+            return cost
+
+        remaining = self.count
+        if cost.get("Colorless", 0) > 0:
+            take = min(remaining, cost["Colorless"])
+            left = cost["Colorless"] - take
+            if left > 0:
+                cost["Colorless"] = left
+            else:
+                del cost["Colorless"]
+            remaining -= take
+            if remaining <= 0:
+                return cost
+
+        if remaining <= 0 or not cost:
+            return cost
+
+        # Lazy import: legal_actions imports passives at module load.
+        from spirit.game.session.legal_actions import attack_cost_satisfied
+
+        energies = board.attached_energies(pokemon) if board is not None else []
+        typed_keys = [k for k, n in cost.items() if k != "Colorless" and n > 0]
+        for _ in range(remaining):
+            if not typed_keys:
+                break
+            chosen = None
+            for key in typed_keys:
+                trial = dict(cost)
+                if trial[key] <= 1:
+                    del trial[key]
+                else:
+                    trial[key] -= 1
+                if attack_cost_satisfied(trial, energies, board):
+                    chosen = key
+                    break
+            if chosen is None:
+                chosen = typed_keys[0]
+            if cost[chosen] <= 1:
+                del cost[chosen]
+                typed_keys = [k for k in typed_keys if k in cost]
+            else:
+                cost[chosen] -= 1
+        return cost
+
+
+def any_type_attack_discount(count=1, holder_pred=None) -> Passive:
+    """Attacks cost N Energy less of any type; holder_pred(pokemon) optional."""
+    return AnyTypeAttackDiscountPassive(count, holder_pred)
+
+
 class NoWeaknessPassive(Passive):
     """Protected Pokemon have no Weakness."""
 

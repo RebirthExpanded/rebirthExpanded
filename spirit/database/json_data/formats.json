@@ -7,7 +7,9 @@
       "sets": [
         "Free_Energy",
         "SV05",
-        "SV06"
+        "SV06",
+        "SV065",
+        "SV07"
       ],
       "allSets": false,
       "bannedCards": [],
@@ -40,7 +42,9 @@
         "PGO",
         "CZ",
         "SV05",
-        "SV06"
+        "SV06",
+        "SV065",
+        "SV07"
       ],
       "allSets": false,
       "bannedCards": [],

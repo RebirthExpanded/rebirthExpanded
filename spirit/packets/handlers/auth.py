@@ -14,8 +14,10 @@ from spirit.game.session.manager import GameSessionManager
 from spirit.game.session.constants import GamePhase
 from spirit.database.async_utils import run_db
 from spirit.database.daily_rewards import process_daily_login
+from spirit.database.player_data import grant_all_cards
 from spirit.game.daily_rewards import DailyRewardManager
 from spirit.server import metrics
+from spirit.config import GRANT_ALL_CARDS_ON_LOGIN
 
 
 def _get_or_create_account(username, password):
@@ -155,6 +157,10 @@ class AuthHandler(BaseHandler):
         # One thread hop for the whole DB-heavy login load (player profile,
         # account attributes, daily login progress).
         def _load_login_state():
+            # Top up missing cards before the client pulls collection so new
+            # scripts land in every account without an admin grant pass.
+            if GRANT_ALL_CARDS_ON_LOGIN:
+                grant_all_cards(account_id, count=4, is_tradable=True)
             player = Player(account_data)
             # Anchor the versus-ladder animation to current points BEFORE building
             # attributes, so a relog never replays the points/reward animation.

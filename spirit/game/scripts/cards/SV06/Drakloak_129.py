@@ -5,13 +5,11 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 async def recon_directive(ctx):
     """Look at the top 2 cards; put 1 into your hand and the other on
     the bottom of your deck."""
-    if not await ctx.ask_yes_no("Look at the top 2 cards of your deck?"):
-        return
     top = ctx.deck_top(2)
     if not top:
         return
     picks = await ctx.choose_cards(
-        top, 1, minimum=0,
+        top, 1,
         prompt="Choose 1 of the top 2 cards to put into your hand.",
         display_cards=top,
     )
