@@ -1628,12 +1628,13 @@
     "name": "SV085",
     "externalId": "PRE",
     "number": 1195,
-    "count": 4,
+    "count": 40,
     "filter": true,
     "block": "SV",
     "legalFormats": [
       "6402e830-7fed-4cd1-b172-2a320047c2bb",
-      "98c83df9-ec82-4193-84a8-104115ce4e25"
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
     ],
     "featuredArchetypes": [],
     "visibleUnfilterable": false,
