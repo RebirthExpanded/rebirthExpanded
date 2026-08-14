@@ -32,8 +32,10 @@ npm run generate:implemented-ids
 
 ## Generation rules
 
-- Attack, Ability, and Trainer effect text uses a matching Spirit factory prefab when available (`draw_attack`, `condition_attack`, `flip_damage`, `snipe_attack`, `heal_item`, `search_to_hand`, …).
-- If no prefab matches, the builder searches existing scripts under `spirit/game/scripts/cards/**` for a strong same-kind `game_text` match and reuses that `effect=` expression (plus helpers/imports when possible).
+- Attack, Ability, and Trainer effect text uses a matching Spirit factory prefab when available (`draw_attack`, `condition_attack`, `flip_damage`, `snipe_attack`, `heal_item`, `search_to_hand`, `professors_research`, …).
+- If no prefab matches, the builder searches existing scripts under `spirit/game/scripts/cards/**` for a strong same-kind `game_text` match and reuses that `effect=` expression (plus helpers/imports when possible). Copied helper functions are renamed to the new attack, ability, or card title (`Leaf Guard` / `leaf_guard` → `Protect Charge` / `protect_charge`), and helper docstrings are updated to this card's damage and text.
+- Trainer cards also split effect text into clauses, match each clause against factories and other trainers, and stitch those pieces into one named helper when needed. Shared trainer factories in `spirit/game/card_effects/trainers.py` (Ultra Ball, Professor's Research, Switch, …) are part of that corpus.
+- If a trainer (or other card) has the **exact same display name** as an already-implemented script in any set/format, the builder offers a `reprint()` stub. Trainers auto-select reprint; the source may live in another set folder (`sibling_card(__file__, "../SWSH9/UltraBall_150.py")` plus `set_code=` / `key=`).
 - If neither a prefab nor a sufficiently similar script is found, text is preserved with `effect=unimplemented`.
 - Empty attack text (damage-only) emits no `effect`.
 - Output is a Python `*CardDef` script aligned with `spirit/tools/import_set.py` conventions (GUID via `uuid5(DNS, "spirit.ptcgo." + catalogId)`).
@@ -59,9 +61,15 @@ Existing files require confirmation before overwrite.
 
 ## Reprints
 
-When another printing of the same card name already exists in the target set folder, enable **Save as a Spirit reprint() stub** to emit:
+When another printing of the same card name already exists — in this set or another format — enable **Save as a Spirit reprint() stub** to emit:
 
 ```python
 from spirit.game.data_utils import reprint, sibling_card
-card = reprint(sibling_card(__file__, "OtherCard_12.py"), collector_number=..., rarity=...)
+from spirit.game.attributes import Rarities
+
+card = reprint(sibling_card(__file__, "../SWSH9/UltraBall_150.py"),
+               collector_number=..., rarity=...,
+               set_code="SV09", key="SV09")
 ```
+
+Same-set secret rares still use a local sibling filename with no `set_code` override.

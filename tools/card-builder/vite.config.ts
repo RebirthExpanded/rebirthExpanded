@@ -235,6 +235,7 @@ interface ScriptEffect {
   setCode?: string;
   displayName?: string;
   collectorNumber?: string;
+  condition?: string;
 }
 
 function jsonResponse(res: ServerResponse, status: number, value: unknown): void {
@@ -312,10 +313,43 @@ function extractHelpersBeforeCard(source: string): string[] {
   return helpers.filter(h => /^(async\s+)?def\s+/.test(h.trim()));
 }
 
+function extractCtxFactoryEffects(
+  filePath: string,
+  module: string,
+  kind: ScriptEffect['kind']
+): ScriptEffect[] {
+  if (!existsSync(filePath)) return [];
+  const source = readFileSync(filePath, 'utf8');
+  const effects: ScriptEffect[] = [];
+  const re =
+    /^(async\s+)?def\s+([a-z][a-z0-9_]*)\s*\(\s*ctx\s*\)\s*:\s*\n\s*"""([\s\S]*?)"""/gm;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(source))) {
+    const name = match[2];
+    const effectText = match[3].replace(/\s+/g, ' ').trim();
+    if (!effectText) continue;
+    effects.push({
+      source: `${module}.${name}`,
+      effectText,
+      kind,
+      body: [name],
+      imports: [`from ${module} import ${name}`],
+      similarity: 0,
+      helpers: [],
+      fileName: name,
+      setCode: '',
+      displayName: name,
+      collectorNumber: '',
+    });
+  }
+  return effects;
+}
+
 function buildScriptEffects(): ScriptEffect[] {
   const effects: ScriptEffect[] = [];
   for (const file of collectPyFiles(scriptsRoot)) {
     const source = readFileSync(file, 'utf8');
+    if (/\ncard\s*=\s*reprint\(/.test(source) || /^\s*card\s*=\s*reprint\(/.test(source)) continue;
     const rel = relative(scriptsRoot, file).replaceAll(sep, '/');
     const fileName = rel.split('/').pop() || '';
     const setCode =
@@ -367,8 +401,9 @@ function buildScriptEffects(): ScriptEffect[] {
 
     // Trainer / stadium top-level effect=
     if (/SupporterCardDef|ItemCardDef|StadiumCardDef|PokemonToolCardDef|FossilItemCardDef/.test(source)) {
-      const effectMatch = source.match(/\n\s*effect\s*=\s*([A-Za-z_][\w.]*)/);
+      const effectMatch = source.match(/\n\s*effect\s*=\s*([^,\n]+)/);
       const effectExpr = effectMatch?.[1]?.trim();
+      const condition = source.match(/\n\s*condition\s*=\s*([^,\n]+)/)?.[1]?.trim();
       let effectText = '';
       if (effectExpr && /^[a-z_][a-z0-9_]*$/i.test(effectExpr)) {
         const doc = source.match(
@@ -383,6 +418,7 @@ function buildScriptEffects(): ScriptEffect[] {
         if (rulesText) effectText = rulesText.replace(/\s+/g, ' ').trim();
       }
       if (effectExpr && effectText) {
+        const simpleName = /^[a-z_][a-z0-9_]*$/i.test(effectExpr);
         effects.push({
           source: rel,
           effectText,
@@ -390,15 +426,18 @@ function buildScriptEffects(): ScriptEffect[] {
           body: [effectExpr],
           imports,
           similarity: 0,
-          helpers: helpers.filter(
-            h =>
-              h.includes(`def ${effectExpr}`) ||
-              new RegExp(`def\\s+_${effectExpr}`).test(h)
-          ),
+          helpers: simpleName
+            ? helpers.filter(
+                h =>
+                  h.includes(`def ${effectExpr}`) ||
+                  new RegExp(`def\\s+_${effectExpr}\\b`).test(h)
+              )
+            : [],
           fileName,
           setCode,
           displayName,
           collectorNumber,
+          condition,
         });
       }
     }
@@ -424,38 +463,66 @@ function buildScriptEffects(): ScriptEffect[] {
       }
     }
   }
+  effects.push(
+    ...extractCtxFactoryEffects(
+      join(repoRoot, 'spirit/game/card_effects/trainers.py'),
+      'spirit.game.card_effects.trainers',
+      'trainer'
+    )
+  );
   return effects;
 }
 
+function listSpiritSetDirs(): string[] {
+  if (!existsSync(scriptsRoot)) return [];
+  return readdirSync(scriptsRoot, { withFileTypes: true })
+    .filter(e => e.isDirectory() && e.name !== '__pycache__' && e.name !== 'CUSTOM')
+    .map(e => e.name);
+}
+
 function findReprintCandidates(spiritSet: string, name: string, excludeNumber = '') {
-  const dir = join(scriptsRoot, spiritSet);
-  if (!existsSync(dir)) return [];
   const normalizedName = name.trim().toLowerCase();
   const exclude = excludeNumber.trim();
-  return collectPyFiles(dir)
-    .map(filePath => {
+  const targetSet = spiritSet.trim().toUpperCase();
+  const out: Array<{
+    className: string;
+    name: string;
+    set: string;
+    setNumber: string;
+    fullName: string;
+    sourcePath: string;
+    fileName: string;
+  }> = [];
+
+  for (const setDir of listSpiritSetDirs()) {
+    const dir = join(scriptsRoot, setDir);
+    for (const filePath of collectPyFiles(dir)) {
       const source = readFileSync(filePath, 'utf8');
+      if (/^\s*card\s*=\s*reprint\(/.test(source) || /\ncard\s*=\s*reprint\(/.test(source)) continue;
       const displayName =
         source.match(/display_name\s*=\s*["']([^"']+)["']/)?.[1] || '';
+      if (displayName.trim().toLowerCase() !== normalizedName) continue;
       const collectorNumber = source.match(/collector_number\s*=\s*(\d+)/)?.[1] || '';
       const fileName = filePath.split(/[/\\]/).pop() || '';
-      return {
+      const sourcePath = relative(scriptsRoot, filePath).replaceAll(sep, '/');
+      if (setDir.toUpperCase() === targetSet && exclude && collectorNumber === exclude) continue;
+      out.push({
         className: fileName.replace(/\.py$/, ''),
         name: displayName,
-        set: spiritSet,
+        set: setDir,
         setNumber: collectorNumber,
-        fullName: `${displayName} ${spiritSet}`,
-        sourcePath: relative(scriptsRoot, filePath).replaceAll(sep, '/'),
+        fullName: `${displayName} ${setDir}`,
+        sourcePath,
         fileName,
-      };
-    })
-    .filter(c => {
-      if (c.name.trim().toLowerCase() !== normalizedName) return false;
-      if (exclude && c.setNumber === exclude) return false;
-      // Prefer full defs over reprint stubs as sources
-      const src = readFileSync(join(scriptsRoot, c.sourcePath), 'utf8');
-      return !/^\s*card\s*=\s*reprint\(/.test(src);
-    });
+      });
+    }
+  }
+
+  return out.sort((a, b) => {
+    const aSame = a.set.toUpperCase() === targetSet ? 0 : 1;
+    const bSame = b.set.toUpperCase() === targetSet ? 0 : 1;
+    return aSame - bSame || a.set.localeCompare(b.set) || Number(a.setNumber) - Number(b.setNumber);
+  });
 }
 
 function downloadFile(url: string, dest: string): Promise<void> {
@@ -603,9 +670,10 @@ function spiritCardBuilderPlugin(): Plugin {
               };
 
               if (payload.reprint) {
-                const sibling = payload.reprint.fileName;
-                if (!sibling || !existsSync(join(dir, sibling))) {
-                  jsonResponse(res, 400, { error: 'Reprint sibling script not found in set folder.' });
+                const sourceRel = (payload.reprint.sourcePath || payload.reprint.fileName || '').replaceAll('\\', '/');
+                const sourceAbs = join(scriptsRoot, sourceRel);
+                if (!sourceRel || sourceAbs.includes('..') || !sourceAbs.startsWith(scriptsRoot) || !existsSync(sourceAbs)) {
+                  jsonResponse(res, 400, { error: 'Reprint source script not found.' });
                   return;
                 }
                 const outName =

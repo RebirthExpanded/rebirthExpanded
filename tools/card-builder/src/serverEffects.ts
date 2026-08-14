@@ -2,7 +2,7 @@ import type { EffectKind, ServerEffect } from './types';
 
 let cached: ServerEffect[] | null = null;
 
-function normalize(text: string): string {
+export function normalizeEffectCorpus(text: string): string {
   return text
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -14,12 +14,24 @@ function normalize(text: string): string {
 }
 
 function similarity(left: string, right: string): number {
-  const a = new Set(normalize(left).split(/\s+/).filter(Boolean));
-  const b = new Set(normalize(right).split(/\s+/).filter(Boolean));
+  const a = new Set(normalizeEffectCorpus(left).split(/\s+/).filter(Boolean));
+  const b = new Set(normalizeEffectCorpus(right).split(/\s+/).filter(Boolean));
   if (a.size === 0 || b.size === 0) return 0;
   let overlap = 0;
   for (const token of a) if (b.has(token)) overlap++;
   return overlap / Math.max(a.size, b.size);
+}
+
+/** Jaccard similarity, boosted when one text contains the other (clause reuse). */
+export function scoreEffectTexts(query: string, candidate: string): number {
+  const sim = similarity(query, candidate);
+  const nq = normalizeEffectCorpus(query);
+  const nc = normalizeEffectCorpus(candidate);
+  const qTokens = nq.split(/\s+/).filter(Boolean);
+  if (qTokens.length >= 6 && (nc.includes(nq) || nq.includes(nc))) {
+    return Math.max(sim, 0.82);
+  }
+  return sim;
 }
 
 export async function loadServerEffects(): Promise<ServerEffect[]> {
@@ -32,15 +44,37 @@ export async function loadServerEffects(): Promise<ServerEffect[]> {
   return cached;
 }
 
-export async function findServerEffect(text: string, kind?: EffectKind): Promise<ServerEffect | undefined> {
-  if (!text.trim()) return undefined;
+export async function findServerEffects(
+  text: string,
+  kind?: EffectKind,
+  opts?: { minScore?: number; limit?: number }
+): Promise<ServerEffect[]> {
+  if (!text.trim()) return [];
+  const minScore = opts?.minScore ?? (kind === 'energy' ? 0.68 : 0.75);
+  const limit = opts?.limit ?? 8;
   const effects = await loadServerEffects();
   const ranked = effects
     .filter(effect => !kind || effect.kind === kind || (!effect.kind && kind === 'attack'))
-    .map(effect => ({ effect, score: similarity(text, effect.effectText || effect.attackText || '') }))
-    .filter(({ score }) => score >= (kind === 'energy' ? 0.68 : 0.75))
+    .map(effect => ({
+      effect,
+      score: scoreEffectTexts(text, effect.effectText || effect.attackText || ''),
+    }))
+    .filter(({ score }) => score >= minScore)
     .sort((a, b) => b.score - a.score);
-  const best = ranked[0];
-  if (!best) return undefined;
-  return { ...best.effect, similarity: best.score };
+
+  const seen = new Set<string>();
+  const out: ServerEffect[] = [];
+  for (const { effect, score } of ranked) {
+    const key = `${effect.kind}:${normalizeEffectCorpus(effect.effectText || '')}:${(effect.body || []).join('|')}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ...effect, similarity: score });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+export async function findServerEffect(text: string, kind?: EffectKind): Promise<ServerEffect | undefined> {
+  const [best] = await findServerEffects(text, kind);
+  return best;
 }

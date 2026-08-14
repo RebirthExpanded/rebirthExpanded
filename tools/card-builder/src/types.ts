@@ -136,6 +136,8 @@ export interface PrefabCallResult {
   effectExpr?: string;
   /** Optional Ability activation enum expression. */
   activation?: string;
+  /** Trainer play-condition expression. */
+  condition?: string;
   /** Named imports required by effectExpr / activation. */
   imports?: PrefabImport[];
   returns?: boolean;
@@ -199,6 +201,10 @@ export interface ServerEffect {
   similarity: number;
   bodyMode?: 'branch' | 'full';
   helpers?: string[];
+  /** Play-condition expression, e.g. hand_size_at_least(3). */
+  condition?: string;
+  /** Scripts / factories this effect was assembled from. */
+  sources?: string[];
 }
 
 export interface ReprintCandidate {

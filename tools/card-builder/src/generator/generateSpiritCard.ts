@@ -12,6 +12,8 @@ import type {
 } from '../types';
 import { spiritSetCodeFromPtcgoOrId } from './setMapping';
 import { cleanCardName, spiritGuidForCatalogId } from './uuid5';
+import { resolveTrainerEffect } from './composeTrainer';
+import { effectFnName } from './effectFnName';
 
 const TYPE_ENUM: Record<EnergyShort, string> = {
   G: 'PokemonTypes.GRASS',
@@ -107,15 +109,90 @@ function mergeImports(imports: PrefabImport[]): string[] {
     .map(([mod, names]) => `from ${mod} import ${[...names].sort().join(', ')}`);
 }
 
+function uniqueFnName(base: string, used: Set<string>): string {
+  let name = base;
+  let n = 2;
+  while (used.has(name)) {
+    name = `${base}_${n}`;
+    n += 1;
+  }
+  used.add(name);
+  return name;
+}
+
+function renamePythonIdent(source: string, from: string, to: string): string {
+  if (!from || from === to) return source;
+  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return source
+    .replace(new RegExp(`\\b${escaped}\\b`, 'g'), to)
+    .replace(new RegExp(`_${escaped}\\b`, 'g'), `_${to}`);
+}
+
+function wrapDocstring(text: string, indent = '    ', width = 72): string {
+  const words = text.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (current && next.length > width) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current) lines.push(current);
+  if (lines.length <= 1) return `"""${lines[0] || ''}"""`;
+  return `"""${lines[0]}\n${lines.slice(1).map(l => indent + l).join('\n')}"""`;
+}
+
+function setHelperDocstring(helper: string, text: string): string {
+  const formatted = wrapDocstring(text);
+  if (/"""[\s\S]*?"""/.test(helper)) {
+    return helper.replace(/"""[\s\S]*?"""/, formatted);
+  }
+  return helper.replace(/^((?:async\s+)?def\s+\w+\s*\([^)]*\)\s*:)[ \t]*\n/, `$1\n    ${formatted}\n`);
+}
+
+interface RetargetOpts {
+  name: string;
+  damage?: number;
+  text?: string;
+  usedFnNames: Set<string>;
+}
+
+/** When reusing a similar script's helper, rename `leaf_guard` to this card's attack/ability. */
+function retargetCopiedHelpers(
+  effectExpr: string | undefined,
+  helpers: string[],
+  opts: RetargetOpts
+): { effectExpr?: string; helpers: string[] } {
+  const simple = Boolean(effectExpr && /^[a-z_][a-z0-9_]*$/i.test(effectExpr));
+  if (!simple || !helpers.length || !opts.name.trim()) {
+    if (simple && effectExpr) opts.usedFnNames.add(effectExpr);
+    return { effectExpr, helpers };
+  }
+  const desired = uniqueFnName(effectFnName(opts.name), opts.usedFnNames);
+  const renamed = helpers.map(h => renamePythonIdent(h, effectExpr as string, desired));
+  const docBody = [opts.damage ? `${opts.damage}.` : '', (opts.text || '').trim()].filter(Boolean).join(' ');
+  if (!docBody) return { effectExpr: desired, helpers: renamed };
+  const defRe = new RegExp(`^(?:async\\s+)?def\\s+${desired}\\b`, 'm');
+  return {
+    effectExpr: desired,
+    helpers: renamed.map(h => (defRe.test(h) ? setHelperDocstring(h, docBody) : h)),
+  };
+}
+
 function resolveSelectedEffect(
   selected: SelectedPrefab[],
   kind: 'attack' | 'power' | 'trainer',
   index: number,
   name: string
-): { effectExpr?: string; activation?: string; imports: PrefabImport[]; needsUnimplemented: boolean } {
+): { effectExpr?: string; activation?: string; condition?: string; imports: PrefabImport[]; needsUnimplemented: boolean } {
   const imports: PrefabImport[] = [];
   let effectExpr: string | undefined;
   let activation: string | undefined;
+  let condition: string | undefined;
   let needsUnimplemented = false;
 
   for (const sel of selected) {
@@ -124,6 +201,7 @@ function resolveSelectedEffect(
     const result = prefab.generateCall(sel.params, { kind, index, attackName: name, powerName: name });
     if (result.imports) imports.push(...result.imports);
     if (result.activation) activation = result.activation;
+    if (result.condition) condition = result.condition;
     if (result.effectExpr) {
       if (effectExpr && effectExpr !== result.effectExpr) {
         // Multiple effect bodies — fall back to unimplemented
@@ -134,10 +212,13 @@ function resolveSelectedEffect(
       }
     }
   }
-  return { effectExpr, activation, imports, needsUnimplemented };
+  return { effectExpr, activation, condition, imports, needsUnimplemented };
 }
 
-function effectFromServer(server?: ServerEffect): { effectExpr?: string; imports: PrefabImport[]; helpers: string[] } {
+function effectFromServer(
+  server?: ServerEffect,
+  retarget?: RetargetOpts
+): { effectExpr?: string; imports: PrefabImport[]; helpers: string[]; condition?: string } {
   if (!server) return { imports: [], helpers: [] };
   const imports: PrefabImport[] = [];
   for (const line of server.imports) {
@@ -154,12 +235,23 @@ function effectFromServer(server?: ServerEffect): { effectExpr?: string; imports
   const joined = body.join('\n').trim();
   const exprMatch = joined.match(/^effect\s*=\s*(.+)$/m);
   const effectExpr = exprMatch ? exprMatch[1].trim() : body.length === 1 ? body[0].trim() : undefined;
-  return { effectExpr, imports, helpers: server.helpers || [] };
+  const helpers = server.helpers || [];
+  if (retarget) {
+    const retargeted = retargetCopiedHelpers(effectExpr, helpers, retarget);
+    return {
+      effectExpr: retargeted.effectExpr,
+      imports,
+      helpers: retargeted.helpers,
+      condition: server.condition,
+    };
+  }
+  return { effectExpr, imports, helpers, condition: server.condition };
 }
 
 function formatAttackBlock(
   attack: AttackDraft,
-  index: number
+  index: number,
+  usedFnNames: Set<string>
 ): { lines: string[]; imports: PrefabImport[]; usesUnimplemented: boolean; helpers: string[] } {
   const imports: PrefabImport[] = [];
   const helpers: string[] = [];
@@ -179,7 +271,12 @@ function formatAttackBlock(
   const text = attack.text.trim();
   if (text) {
     if (attack.serverEffect) {
-      const fromServer = effectFromServer(attack.serverEffect);
+      const fromServer = effectFromServer(attack.serverEffect, {
+        name: attack.name,
+        damage,
+        text,
+        usedFnNames,
+      });
       imports.push(...fromServer.imports);
       helpers.push(...fromServer.helpers);
       if (fromServer.effectExpr) {
@@ -205,7 +302,8 @@ function formatAttackBlock(
 
 function formatAbilityBlock(
   power: PowerDraft,
-  index: number
+  index: number,
+  usedFnNames: Set<string>
 ): { lines: string[]; imports: PrefabImport[]; usesUnimplemented: boolean; helpers: string[] } {
   const imports: PrefabImport[] = [];
   const helpers: string[] = [];
@@ -217,7 +315,11 @@ function formatAbilityBlock(
   }
 
   if (power.serverEffect) {
-    const fromServer = effectFromServer(power.serverEffect);
+    const fromServer = effectFromServer(power.serverEffect, {
+      name: power.name,
+      text: power.text.trim(),
+      usedFnNames,
+    });
     imports.push(...fromServer.imports);
     helpers.push(...fromServer.helpers);
     const resolved = resolveSelectedEffect(power.selectedPrefabs, 'power', index, power.name);
@@ -347,18 +449,9 @@ export async function resolvePrefabs(draft: CardDraft): Promise<CardDraft> {
   if (next.extends === 'TrainerCard') {
     const text = next.trainerText.trim();
     if (text && next.trainerPrefabs.length === 0) {
-      try {
-        const matched = matchEffectText(text, 'trainer');
-        next.trainerPrefabs = matchedToSelected(matched);
-        next.trainerServerEffect = undefined;
-      } catch (e) {
-        if (e instanceof MissingPrefabError) {
-          next.trainerPrefabs = [];
-          next.trainerServerEffect = await findServerEffect(text, 'trainer');
-        } else {
-          throw e;
-        }
-      }
+      const resolved = await resolveTrainerEffect(text, next.name || next.className || 'Trainer');
+      next.trainerPrefabs = resolved.prefabs;
+      next.trainerServerEffect = resolved.serverEffect;
     }
   }
 
@@ -393,13 +486,14 @@ export async function generateCardSource(draft: CardDraft): Promise<string> {
   const searchable = [resolved.name, ...subtypes, safeName];
   const allImports: PrefabImport[] = [];
   const helperBlocks: string[] = [];
+  const usedFnNames = new Set<string>();
   let usesUnimplemented = false;
 
   if (resolved.extends === 'PokemonCard') {
     const abilityLines: string[] = [];
     if (resolved.hasPowers) {
       resolved.powers.forEach((p, i) => {
-        const block = formatAbilityBlock(p, i);
+        const block = formatAbilityBlock(p, i, usedFnNames);
         abilityLines.push(...block.lines);
         allImports.push(...block.imports);
         helperBlocks.push(...block.helpers);
@@ -408,7 +502,7 @@ export async function generateCardSource(draft: CardDraft): Promise<string> {
     }
     if (resolved.hasAttacks) {
       resolved.attacks.forEach((a, i) => {
-        const block = formatAttackBlock(a, i);
+        const block = formatAttackBlock(a, i, usedFnNames);
         abilityLines.push(...block.lines);
         allImports.push(...block.imports);
         helperBlocks.push(...block.helpers);
@@ -497,16 +591,23 @@ export async function generateCardSource(draft: CardDraft): Promise<string> {
     const dataNames = new Set<string>([cls]);
     let effectExpr: string | undefined;
     let helpers: string[] = [];
+    let condition: string | undefined;
 
     if (resolved.trainerServerEffect) {
-      const fromServer = effectFromServer(resolved.trainerServerEffect);
+      const fromServer = effectFromServer(resolved.trainerServerEffect, {
+        name: resolved.name,
+        text: resolved.trainerText.trim(),
+        usedFnNames,
+      });
       allImports.push(...fromServer.imports);
       helpers = fromServer.helpers;
       effectExpr = fromServer.effectExpr;
+      condition = fromServer.condition;
     } else {
       const resolvedFx = resolveSelectedEffect(resolved.trainerPrefabs, 'trainer', 0, resolved.name);
       allImports.push(...resolvedFx.imports);
       effectExpr = resolvedFx.effectExpr;
+      condition = resolvedFx.condition;
       if (resolvedFx.needsUnimplemented) usesUnimplemented = true;
     }
     if (!effectExpr) {
@@ -546,10 +647,12 @@ export async function generateCardSource(draft: CardDraft): Promise<string> {
       lines.push(`    regulation_mark=${pyStr(resolved.regulationMark)},`);
     }
     lines.push(`    rarity=${rarity},`);
-    if (resolved.trainerText.trim()) {
-      // Prefer docstring on named effect when helpers present; else game text via comment
+    if (condition) {
+      lines.push(`    effect=${effectExpr},`);
+      lines.push(`    condition=${condition}`);
+    } else {
+      lines.push(`    effect=${effectExpr}`);
     }
-    lines.push(`    effect=${effectExpr}`);
     lines.push(')');
     return lines.join('\n') + '\n';
   }
@@ -563,7 +666,11 @@ export async function generateCardSource(draft: CardDraft): Promise<string> {
     let grantedBlock = '';
 
     if (resolved.energyServerEffect) {
-      const fromServer = effectFromServer(resolved.energyServerEffect);
+      const fromServer = effectFromServer(resolved.energyServerEffect, {
+        name: resolved.name,
+        text: resolved.energyText.trim(),
+        usedFnNames,
+      });
       effectImports = fromServer.imports;
       helpers = fromServer.helpers;
       if (fromServer.effectExpr) {
@@ -605,20 +712,34 @@ export async function generateCardSource(draft: CardDraft): Promise<string> {
   }
 }
 
-/** Build a thin reprint stub when a sibling exists in the same set folder. */
+/** Build a thin reprint stub. Same-set uses a local sibling; other sets use ../SET/file.py. */
 export function generateReprintSource(
   draft: CardDraft,
   siblingFileName: string,
-  rarityExpr?: string
+  opts?: { rarityExpr?: string; sourceSet?: string }
 ): string {
+  const setCode = resolveSpiritSetCode(draft);
   const collector = Number(String(draft.setNumber).replace(/\D/g, '')) || 0;
-  const rarity = rarityExpr || mapRarity(draft.rarity);
+  const rarity = opts?.rarityExpr || mapRarity(draft.rarity);
+  const sourceSet = (opts?.sourceSet || '').trim().toUpperCase();
+  const crossSet = Boolean(sourceSet && sourceSet !== setCode.toUpperCase());
+  const siblingRef = crossSet ? `../${sourceSet}/${siblingFileName}` : siblingFileName;
+  const args = [`               collector_number=${collector}, rarity=${rarity}`];
+  if (crossSet) {
+    args[args.length - 1] += ',';
+    args.push(`               set_code=${pyStr(setCode)}, key=${pyStr(setCode)}`);
+  }
+  if (draft.regulationMark) {
+    args[args.length - 1] += ',';
+    args.push(`               regulation_mark=${pyStr(draft.regulationMark)}`);
+  }
+  args[args.length - 1] += ')';
   return [
     'from spirit.game.data_utils import reprint, sibling_card',
     'from spirit.game.attributes import Rarities',
     '',
-    `card = reprint(sibling_card(__file__, ${pyStr(siblingFileName)}),`,
-    `               collector_number=${collector}, rarity=${rarity})`,
+    `card = reprint(sibling_card(__file__, ${pyStr(siblingRef)}),`,
+    ...args,
     '',
   ].join('\n');
 }

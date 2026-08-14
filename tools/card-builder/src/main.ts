@@ -22,6 +22,7 @@ import {
   matchedToSelected,
 } from './prefabs/matcher';
 import { generateCardSource, parseEnergyCost, generateReprintSource, scriptFileName, resolveSpiritSetCode } from './generator/generateSpiritCard';
+import { resolveTrainerEffect } from './generator/composeTrainer';
 import {
   createBrowseState,
   ensureImplementedLoaded,
@@ -196,7 +197,9 @@ async function refreshReprintCandidates(): Promise<void> {
       ),
     }));
     selectedReprintKey = reprintCandidates.length > 0 ? reprintKey(reprintCandidates[0]) : '';
-    saveAsReprint = reprintCandidates.length === 1;
+    saveAsReprint = draft.extends === 'TrainerCard'
+      ? reprintCandidates.length > 0
+      : reprintCandidates.length === 1;
   } catch (error) {
     if (lookupVersion !== reprintLookupVersion) return;
     reprintError = error instanceof Error ? error.message : String(error);
@@ -427,8 +430,10 @@ function renderTrainerFields(): string {
     </div>
     <label>Text<textarea data-root="trainerText" rows="4">${escapeHtml(draft.trainerText)}</textarea></label>
     ${renderPrefabPicker('trainer', 'trainer-effect', draft.trainerPrefabs)}
-    ${draft.trainerServerEffect ? `<p class="muted">Fallback matched ${escapeHtml(draft.trainerServerEffect.source)} (${Math.round(draft.trainerServerEffect.similarity * 100)}% text similarity).</p>` : ''}
-    <p class="muted">Trainer effects try Spirit factories first, then reuse a similar trainer script from the codebase.</p>
+    ${draft.trainerServerEffect ? `<p class="muted">${draft.trainerServerEffect.sources?.length
+      ? `Assembled from ${escapeHtml(draft.trainerServerEffect.sources.join(', '))} (${Math.round((draft.trainerServerEffect.similarity || 0) * 100)}% coverage).`
+      : `Fallback matched ${escapeHtml(draft.trainerServerEffect.source)} (${Math.round(draft.trainerServerEffect.similarity * 100)}% text similarity).`}</p>` : ''}
+    <p class="muted">Trainer effects match Spirit factories, then reuse or stitch together similar trainer scripts. Exact-name reprints from other formats are preferred when one already exists.</p>
   `;
 }
 
@@ -478,14 +483,17 @@ function renderReprintSection(): string {
   if (!name || !set) {
     content = '<p class="muted">Enter a card name and set to check for existing reprint sources.</p>';
   } else if (reprintLoading) {
-    content = '<p class="muted">Checking the set for an existing card with this name…</p>';
+    content = '<p class="muted">Checking existing scripts for this card name…</p>';
   } else if (reprintError) {
     content = `<p class="muted">${escapeHtml(reprintError)}</p>`;
   } else if (reprintCandidates.length === 0) {
-    content = '<p class="muted">No same-set reprint candidate found.</p>';
+    content = '<p class="muted">No existing card with this exact name was found in any set.</p>';
   } else {
+    const sameSet = reprintCandidates.some(c => c.set.toUpperCase() === (draft.spiritSetCode || draft.set).toUpperCase());
     content = `
-      <p class="muted">Found ${reprintCandidates.length} existing card${reprintCandidates.length === 1 ? '' : 's'} with this name. Confirm the source before saving.</p>
+      <p class="muted">${draft.extends === 'TrainerCard'
+        ? 'A trainer with this exact name already exists — save it as a reprint unless the wording is different.'
+        : `Found ${reprintCandidates.length} existing card${reprintCandidates.length === 1 ? '' : 's'} with this name${sameSet ? '' : ' in another set'}. Confirm the source before saving.`}</p>
       <div class="reprint-options">
         ${reprintCandidates
           .map(candidate => {
@@ -501,7 +509,11 @@ function renderReprintSection(): string {
           .join('')}
       </div>
       <label class="reprint-toggle"><input type="checkbox" data-reprint-enabled ${saveAsReprint ? 'checked' : ''} /> Save as a Spirit <code>reprint()</code> stub</label>
-      ${selected ? `<p class="muted">Will call <code>reprint(sibling_card(__file__, "${escapeHtml(selected.fileName || selected.className + '.py')}"))</code>.</p>` : ''}
+      ${selected ? `<p class="muted">Will call <code>reprint(sibling_card(__file__, "${escapeHtml(
+        selected.set && selected.set.toUpperCase() !== (draft.spiritSetCode || draft.set).toUpperCase()
+          ? `../${selected.set}/${selected.fileName || selected.className + '.py'}`
+          : selected.fileName || selected.className + '.py'
+      )}"))</code>.</p>` : ''}
     `;
   }
   return `<section class="reprint-section">
@@ -1031,29 +1043,40 @@ async function handleAction(action: string | null, btn: HTMLButtonElement) {
       break;
     }
     case 'match-prefabs': {
+      syncAllInputs();
       const kind = btn.getAttribute('data-kind') as 'attack' | 'power' | 'trainer';
       const itemId = btn.getAttribute('data-item')!;
       const item = kind === 'attack' ? findAttack(itemId) : kind === 'power' ? findPower(itemId) : undefined;
       const text = kind === 'trainer' ? draft.trainerText : item?.text;
       if (!text) return;
       try {
-        const matched = matchEffectText(text, kind);
         if (kind === 'trainer') {
-          draft.trainerPrefabs = matchedToSelected(matched);
-          draft.trainerServerEffect = undefined;
-        } else if (item) {
-          item.selectedPrefabs = matchedToSelected(matched);
-          item.matchError = undefined;
-          item.serverEffect = undefined;
+          const resolved = await resolveTrainerEffect(text, draft.name || draft.className || 'Trainer');
+          draft.trainerPrefabs = resolved.prefabs;
+          draft.trainerServerEffect = resolved.serverEffect;
+          statusMessage = resolved.serverEffect
+            ? `Trainer effect from ${resolved.serverEffect.sources?.join(', ') || resolved.serverEffect.source}.`
+            : resolved.prefabs.length
+              ? `Matched ${resolved.prefabs.length} prefab(s).`
+              : 'No trainer prefab or similar script matched.';
+          outputError = '';
+        } else {
+          const matched = matchEffectText(text, kind);
+          if (item) {
+            item.selectedPrefabs = matchedToSelected(matched);
+            item.matchError = undefined;
+            item.serverEffect = undefined;
+          }
+          statusMessage = matched.length
+            ? `Matched ${matched.length} prefab(s).`
+            : 'No effect text — nothing to match (plain damage attack is OK).';
+          outputError = '';
         }
-        statusMessage = matched.length
-          ? `Matched ${matched.length} prefab(s).`
-          : 'No effect text — nothing to match (plain damage attack is OK).';
-        outputError = '';
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (kind === 'trainer') {
           draft.trainerPrefabs = [];
+          draft.trainerServerEffect = undefined;
         } else if (item) {
           item.matchError = msg;
           item.selectedPrefabs = [];
@@ -1068,9 +1091,17 @@ async function handleAction(action: string | null, btn: HTMLButtonElement) {
       // Sync latest input values that may not have blurred
       syncAllInputs();
       try {
-        outputCode = await generateCardSource(draft);
+        const selected = selectedReprintCandidate();
+        if (saveAsReprint && selected) {
+          outputCode = generateReprintSource(draft, selected.fileName || `${selected.className}.py`, {
+            sourceSet: selected.set,
+          });
+          statusMessage = `Reprint stub from ${selected.sourcePath}.`;
+        } else {
+          outputCode = await generateCardSource(draft);
+          statusMessage = 'Generated successfully.';
+        }
         outputError = '';
-        statusMessage = 'Generated successfully.';
       } catch (err) {
         outputCode = '';
         outputError = err instanceof MissingPrefabError
@@ -1129,7 +1160,9 @@ async function handleAction(action: string | null, btn: HTMLButtonElement) {
           }
         : undefined;
       if (reprint && selected) {
-        sourceToSave = generateReprintSource(draft, reprint.fileName);
+        sourceToSave = generateReprintSource(draft, reprint.fileName, {
+          sourceSet: selected.set,
+        });
       }
       if (!sourceToSave && !reprint) return;
       const save = async (overwrite: boolean) => {

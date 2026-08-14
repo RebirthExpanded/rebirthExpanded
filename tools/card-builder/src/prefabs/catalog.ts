@@ -2,6 +2,7 @@ import type { PrefabDefinition, PrefabImport } from '../types';
 
 const ATTACKS = 'spirit.game.card_effects.attacks_common';
 const SUPPORT = 'spirit.game.card_effects.support_common';
+const TRAINERS = 'spirit.game.card_effects.trainers';
 const DATA = 'spirit.game.data_utils';
 const ATTR = 'spirit.game.attributes';
 
@@ -580,6 +581,90 @@ export const PREFAB_CATALOG: PrefabDefinition[] = [
         `shuffle_hand_into_deck_draw(${num(params, 'count', '4')})`,
         imp(SUPPORT, 'shuffle_hand_into_deck_draw'),
       ),
+  },
+  {
+    id: 'PROFESSORS_RESEARCH',
+    name: 'professors_research',
+    description: 'Discard your hand and draw 7.',
+    exampleTexts: ['Discard your hand and draw 7 cards.'],
+    scope: 'trainer',
+    importFrom: TRAINERS,
+    importNames: ['professors_research'],
+    params: [],
+    patterns: [
+      /^discard your hand and draw 7 cards?\.?$/i,
+    ],
+    generateCall: () =>
+      effect('professors_research', imp(TRAINERS, 'professors_research')),
+  },
+  {
+    id: 'TRAINER_SWITCH',
+    name: 'switch',
+    description: 'Switch your Active with a Benched Pokémon.',
+    exampleTexts: ['Switch your Active Pokémon with 1 of your Benched Pokémon.'],
+    scope: 'trainer',
+    importFrom: TRAINERS,
+    importNames: ['switch'],
+    params: [],
+    patterns: [
+      /^switch your active pok[eé]mon with 1 of your benched pok[eé]mon\.?$/i,
+    ],
+    generateCall: () => effect('switch', imp(TRAINERS, 'switch')),
+  },
+  {
+    id: 'BOSS_ORDERS',
+    name: 'bosss_orders',
+    description: "Switch in 1 of the opponent's Benched Pokémon.",
+    exampleTexts: [
+      "Switch 1 of your opponent's Benched Pokémon with your opponent's Active Pokémon.",
+    ],
+    scope: 'trainer',
+    importFrom: TRAINERS,
+    importNames: ['bosss_orders'],
+    params: [],
+    patterns: [
+      /^switch 1 of your opponent'?s benched pok[eé]mon with (?:your opponent'?s|their) active pok[eé]mon\.?$/i,
+      /^switch in 1 of your opponent'?s benched pok[eé]mon(?: to the active spot)?\.?$/i,
+    ],
+    generateCall: () => effect('bosss_orders', imp(TRAINERS, 'bosss_orders')),
+  },
+  {
+    id: 'ULTRA_BALL',
+    name: 'ultra_ball',
+    description: 'Discard 2, search any Pokémon.',
+    exampleTexts: [
+      'You may discard 2 cards from your hand. If you do, search your deck for a Pokémon, reveal it, and put it into your hand. Then, shuffle your deck.',
+    ],
+    scope: 'trainer',
+    importFrom: TRAINERS,
+    importNames: ['ultra_ball', 'hand_size_at_least'],
+    params: [],
+    patterns: [
+      /^you may discard 2 cards(?: from your hand)?\.?\s*if you do,?\s*search your deck for (?:a|1) pok[eé]mon,?\s*reveal it,?\s*and put it into your hand\.?\s*then,?\s*shuffle your deck\.?$/i,
+    ],
+    generateCall: () => ({
+      ...effect('ultra_ball', imp(TRAINERS, 'ultra_ball', 'hand_size_at_least')),
+      condition: 'hand_size_at_least(3)',
+    }),
+  },
+  {
+    id: 'QUICK_BALL',
+    name: 'quick_ball',
+    description: 'Discard 1, search a Basic Pokémon.',
+    exampleTexts: [
+      'You may discard 1 card from your hand. If you do, search your deck for a Basic Pokémon, reveal it, and put it into your hand. Then, shuffle your deck.',
+    ],
+    scope: 'trainer',
+    importFrom: TRAINERS,
+    importNames: ['quick_ball', 'hand_size_at_least'],
+    params: [],
+    patterns: [
+      /^you may discard (?:1|a) card(?: from your hand)?\.?\s*if you do,?\s*search your deck for (?:a|1) basic pok[eé]mon,?\s*reveal it,?\s*and put it into your hand\.?\s*then,?\s*shuffle your deck\.?$/i,
+    ],
+    generateCall: () => ({
+      ...effect('quick_ball', imp(TRAINERS, 'quick_ball', 'hand_size_at_least')),
+      condition: 'hand_size_at_least(2)',
+    }),
   },
 ];
 

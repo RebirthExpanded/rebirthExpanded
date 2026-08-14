@@ -140,6 +140,63 @@ export function matchEffectText(
   return results;
 }
 
+export function splitTrainerClauses(text: string): string[] {
+  const normalized = normalizeEffectText(text);
+  if (!normalized) return [];
+  const parts = normalized
+    .split(/(?<=\.)\s+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  const continuation =
+    /^(if you do\b|if heads\b|if tails\b|then\b|shuffle (the|your)\b|otherwise\b)/i;
+  const merged: string[] = [];
+  for (const part of parts) {
+    if (merged.length && continuation.test(part)) {
+      merged[merged.length - 1] = `${merged[merged.length - 1]} ${part}`;
+    } else {
+      merged.push(part);
+    }
+  }
+  return merged.length ? merged : [normalized];
+}
+
+export function matchSingleClause(clause: string, scope: EffectKind): MatchedPrefab | null {
+  const catalog = catalogForScope(scope);
+  for (const prefab of catalog) {
+    const hit = tryMatchPrefab(clause, prefab);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * Match as much trainer (or other) text as possible without throwing.
+ * Full-text prefab hits win; otherwise each clause is tried independently.
+ */
+export function matchEffectTextPartial(
+  text: string,
+  scope: EffectKind
+): { matched: MatchedPrefab[]; unmatched: string[] } {
+  const normalized = normalizeEffectText(text);
+  if (!normalized) return { matched: [], unmatched: [] };
+
+  const catalog = catalogForScope(scope);
+  for (const prefab of catalog) {
+    const hit = tryMatchPrefab(normalized, prefab);
+    if (hit) return { matched: [hit], unmatched: [] };
+  }
+
+  const clauses = scope === 'trainer' ? splitTrainerClauses(normalized) : splitClauses(normalized);
+  const matched: MatchedPrefab[] = [];
+  const unmatched: string[] = [];
+  for (const clause of clauses) {
+    const hit = matchSingleClause(clause, scope);
+    if (hit) matched.push(hit);
+    else unmatched.push(clause);
+  }
+  return { matched, unmatched };
+}
+
 export function matchedToSelected(matched: MatchedPrefab[]): SelectedPrefab[] {
   return matched.map((m, i) => ({
     id: `${m.prefab.id}-${i}-${Date.now()}`,
