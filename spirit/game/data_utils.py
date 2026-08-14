@@ -405,8 +405,9 @@ class Ability:
         usable_from: Optional[str] = None
     ):
         self.title = title
-        # 'hand' | 'discard': offered as an OutOfPlay action while the card
-        # sits in that zone instead of in play (Beedrill, Luxio).
+        # 'hand' | 'discard': offered while the card sits in that zone instead
+        # of in play (Pyukumuku, Beedrill, Gengar). Hand gets AbilitySelection
+        # + OutOfPlay; discard uses OutOfPlay.
         self.usable_from = usable_from
         self.game_text = game_text
         self.ability_type = ability_type

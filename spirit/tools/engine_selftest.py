@@ -822,12 +822,21 @@ async def test_usable_from_offers():
         _pie_entry(hand_card, h_id)
         _pie_entry(disc_card, d_id)
         actions = compute_legal_actions(board, ts, P1, game_id)
-        by_action = {a["selectableAction"]["actionID"]: a for a in actions}
-        assert h_id in by_action and d_id in by_action
-        for aid, card in ((h_id, hand_card), (d_id, disc_card)):
-            assert by_action[aid]["entityID"] == card.entity_id
-            assert by_action[aid]["selectableAction"]["selectionType"] == \
-                SelectionKind.OUT_OF_PLAY.value
+        hand_offers = [
+            a for a in actions if a["selectableAction"]["actionID"] == h_id
+        ]
+        disc_offers = [
+            a for a in actions if a["selectableAction"]["actionID"] == d_id
+        ]
+        assert len(hand_offers) == 2 and len(disc_offers) == 1
+        assert {a["selectableAction"]["selectionType"] for a in hand_offers} == {
+            SelectionKind.ABILITY_SELECTION.value,
+            SelectionKind.OUT_OF_PLAY.value,
+        }
+        assert all(a["entityID"] == hand_card.entity_id for a in hand_offers)
+        assert disc_offers[0]["entityID"] == disc_card.entity_id
+        assert disc_offers[0]["selectableAction"]["selectionType"] == \
+            SelectionKind.OUT_OF_PLAY.value
         # Once-per-turn bookkeeping applies to out-of-zone uses too.
         ts.used_abilities.add((hand_card.entity_id, h_id))
         actions = compute_legal_actions(board, ts, P1, game_id)

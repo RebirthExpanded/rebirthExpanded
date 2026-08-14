@@ -566,6 +566,10 @@ def _ability_entries(
             if ability is None or ability.activation not in (
                     Activations.ONCE_PER_TURN, Activations.UNLIMITED):
                 continue
+            # Hand/discard-only abilities (Pyukumuku, Beedrill, Gengar) are
+            # offered from those zones, never from in-play.
+            if ability.usable_from:
+                continue
             # Path to the Peak locks a Pokemon's own Abilities, but a Tool-
             # granted ability (Forest Seal Stone) lives on the tool, not the
             # Pokemon, so it stays usable.
@@ -596,7 +600,10 @@ def _out_of_zone_ability_entries(
     board: BoardState, state: TurnState, player_id: str, game_id: str
 ) -> List[Dict[str, Any]]:
     """Abilities flagged usable_from='hand'/'discard' on the player's cards in
-    those zones, offered with the OutOfPlay selection flow (b.h).
+    those zones.
+
+    Hand sources are offered as AbilitySelection (click → ability panel) plus
+    OutOfPlay (playmat drag). Discard sources keep OutOfPlay only (b.h).
 
     Ruling: ability locks (Path to the Peak) read "Pokemon in play", so they
     do NOT gate hand/discard sources.
@@ -627,6 +634,14 @@ def _out_of_zone_ability_entries(
                     continue
                 if ability.condition and not ability.condition(board, player_id, card):
                     continue
+                # Hand: AbilitySelection opens the ability panel so Pitch can
+                # coexist with a Basic's drag-to-bench play. OutOfPlay keeps
+                # the playmat-drop activation path. Discard is OutOfPlay only.
+                if zone == "hand":
+                    entries.append(_target_map_entry(
+                        game_id, card.entity_id, ability_id, ACTION_USE_ABILITY,
+                        selection_type=SELECTION_TYPE_PANEL,
+                    ))
                 entries.append(_target_map_entry(
                     game_id, card.entity_id, ability_id, ACTION_USE_ABILITY,
                     selection_type=SelectionKind.OUT_OF_PLAY.value,
