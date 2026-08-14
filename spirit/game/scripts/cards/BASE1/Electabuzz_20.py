@@ -1,6 +1,6 @@
-from spirit.game.data_utils import PokemonCardDef, Attack, Ability, unimplemented
-from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
-from spirit.game.card_effects.attacks_common import flip_damage
+from spirit.game.data_utils import PokemonCardDef, Attack
+from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities, SpecialConditions
+from spirit.game.card_effects.attacks_common import condition_attack, flip_damage
 
 card = PokemonCardDef(
     guid="51f085aa-d4f0-5f9e-9300-fef9284fed99",
@@ -23,7 +23,7 @@ card = PokemonCardDef(
             game_text="Flip a coin. If heads, the Defending Pokémon is now Paralyzed.",
             cost={PokemonTypes.LIGHTNING: 1},
             damage=10,
-            effect=unimplemented,
+            effect=condition_attack(SpecialConditions.PARALYZED, flip=True),
         ),
         Attack(
             title="Thunderpunch",
@@ -31,7 +31,7 @@ card = PokemonCardDef(
             cost={PokemonTypes.LIGHTNING: 1, PokemonTypes.COLORLESS: 1},
             damage=30,
             damage_operator="+",
-            effect=flip_damage(bonus=60,
+            effect=flip_damage(bonus=10, tails_self_damage=10),
         ),
     ],
 )
