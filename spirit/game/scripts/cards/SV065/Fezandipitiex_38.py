@@ -61,7 +61,7 @@ card = PokemonCardDef(
         Attack(
             title="Cruel Arrow",
             game_text="",
-            cost={PokemonTypes.DARKNESS: 3},
+            cost={PokemonTypes.COLORLESS: 3},
             damage=100,
             effect=cruel_arrow,
         ),
