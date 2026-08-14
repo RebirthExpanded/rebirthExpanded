@@ -8,9 +8,10 @@ import {
 import { findServerEffects } from '../serverEffects';
 import type { SelectedPrefab, ServerEffect } from '../types';
 import { effectFnName } from './effectFnName';
+import { isTrainerReminderText, stripTrainerReminders } from '../trainerReminders';
 
-const FULL_TEXT_REUSE = 0.85;
-const CLAUSE_REUSE = 0.7;
+const FULL_TEXT_REUSE = 0.92;
+const CLAUSE_REUSE = 0.85;
 
 function wrapDocstring(text: string, indent = '    ', width = 72): string {
   const words = text.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
@@ -58,6 +59,17 @@ interface TrainerPiece {
   clause: string;
   prefab?: SelectedPrefab;
   server?: ServerEffect;
+}
+
+function pieceHelpers(piece: TrainerPiece): string[] {
+  if (piece.server?.helpers?.length) {
+    return piece.server.helpers.filter(h => /^(async\s+)?def\s+/.test(h.trim()));
+  }
+  if (!piece.prefab) return [];
+  const prefab = getPrefabById(piece.prefab.prefabId);
+  if (!prefab) return [];
+  return (prefab.generateCall(piece.prefab.params, { kind: 'trainer', index: 0 }).helpers || [])
+    .filter(Boolean);
 }
 
 function pieceImports(piece: TrainerPiece): string[] {
@@ -119,8 +131,16 @@ function composeHelper(
 
     const expr = pieceEffectExpr(piece);
     if (!expr) {
-      bodyLines.push(`    # Unmatched clause: ${JSON.stringify(piece.clause)}`);
+      if (cond) continue;
+      if (!isTrainerReminderText(piece.clause)) {
+        bodyLines.push(`    # Unmatched clause: ${JSON.stringify(piece.clause)}`);
+      }
       continue;
+    }
+
+    const prefabHelpers = piece.prefab ? pieceHelpers(piece) : [];
+    for (const helper of prefabHelpers) {
+      helpers.push(helper.trimEnd());
     }
 
     const localHelpers = (piece.server?.helpers || []).filter(h => /^(async\s+)?def\s+/.test(h.trim()));
@@ -183,7 +203,7 @@ export async function resolveTrainerEffect(
   text: string,
   cardName: string
 ): Promise<{ prefabs: SelectedPrefab[]; serverEffect?: ServerEffect }> {
-  const trimmed = text.trim();
+  const trimmed = stripTrainerReminders(text);
   if (!trimmed) return { prefabs: [] };
 
   const partial = matchEffectTextPartial(trimmed, 'trainer');
@@ -195,10 +215,7 @@ export async function resolveTrainerEffect(
   }
 
   const fullHits = await findServerEffects(trimmed, 'trainer', { minScore: FULL_TEXT_REUSE, limit: 3 });
-  if (fullHits[0] && fullHits[0].similarity >= 0.92) {
-    return { prefabs: [], serverEffect: { ...fullHits[0], sources: [fullHits[0].source] } };
-  }
-  if (fullHits[0] && fullHits[0].similarity >= FULL_TEXT_REUSE && partial.unmatched.length > 0) {
+  if (fullHits[0] && fullHits[0].similarity >= FULL_TEXT_REUSE) {
     return { prefabs: [], serverEffect: { ...fullHits[0], sources: [fullHits[0].source] } };
   }
 

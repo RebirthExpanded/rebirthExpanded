@@ -13,7 +13,13 @@
         "SV08",
         "SV085",
         "SV10",
-        "SV09"
+        "SV09",
+        "ME1",
+        "ME2",
+        "ME2PT5",
+        "ME3",
+        "RSV10PT5",
+        "ZSV10PT5"
       ],
       "allSets": false,
       "bannedCards": [],
@@ -56,7 +62,11 @@
         "BASE2",
         "RSV10PT5",
         "SV09",
-        "ZSV10PT5"
+        "ZSV10PT5",
+        "ME1",
+        "ME2",
+        "ME2PT5",
+        "ME3"
       ],
       "allSets": false,
       "bannedCards": [],

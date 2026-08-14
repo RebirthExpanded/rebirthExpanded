@@ -54,6 +54,7 @@ from .passives import (
     healing_blocked,
     supporter_effect_replacement,
     trainer_effects_blocked,
+    damage_counters_blocked,
 )
 
 # CakeAttackEffect's damageType is a string array of client type names.
@@ -263,6 +264,15 @@ class EffectContext:
             return ability_effects_blocked(self.board, target)
         return False
 
+    def _counters_blocked(self, target: PokemonEntity) -> bool:
+        """Battle Cage-style: block damage counters from an opposing Pokémon's
+        attack or Ability. Own-side and trainer-sourced counters still land."""
+        if target.owning_player_id == self.player_id:
+            return False
+        if not (self.is_attack_effect() or self.is_ability_effect()):
+            return False
+        return damage_counters_blocked(self.board, target)
+
     def _trainer_blocked(self, player_or_entity) -> bool:
         """Dew Guard shield: in a trainer context, True when the primitive's
         direct object belongs to a shielded player OTHER than the acting one.
@@ -371,7 +381,11 @@ class EffectContext:
             # less damage" only apply to attack DAMAGE). But placing counters
             # IS an attack EFFECT, so an attack-effect shield (Snorlax's Unfazed
             # Fat) prevents them: the target stays a legal pick but takes 0.
-            dealt = 0 if self.effects_blocked(target) else base
+            # Battle Cage additionally blocks counters on the Bench without
+            # shielding other attack/Ability effects.
+            dealt = 0 if (
+                self.effects_blocked(target) or self._counters_blocked(target)
+            ) else base
         else:
             calc = compute_damage(
                 self.board, self.attacker, target, base,
@@ -2074,6 +2088,20 @@ def is_basic_pokemon(card: CardEntity) -> bool:
     return (
         is_pokemon_card(card)
         and card.get_attribute(AttrID.STAGE) == PokemonStage.BASIC.value
+    )
+
+
+def is_stage1_pokemon(card: CardEntity) -> bool:
+    return (
+        is_pokemon_card(card)
+        and card.get_attribute(AttrID.STAGE) == PokemonStage.STAGE1.value
+    )
+
+
+def is_stage2_pokemon(card: CardEntity) -> bool:
+    return (
+        is_pokemon_card(card)
+        and card.get_attribute(AttrID.STAGE) == PokemonStage.STAGE2.value
     )
 
 

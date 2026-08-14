@@ -1,3 +1,4 @@
+import { effectConstraintsMismatch } from './prefabs/effectAccuracy';
 import type { EffectKind, ServerEffect } from './types';
 
 let cached: ServerEffect[] | null = null;
@@ -22,16 +23,10 @@ function similarity(left: string, right: string): number {
   return overlap / Math.max(a.size, b.size);
 }
 
-/** Jaccard similarity, boosted when one text contains the other (clause reuse). */
+/** Jaccard similarity with hard rejects for mismatched numbers, types, and constraints. */
 export function scoreEffectTexts(query: string, candidate: string): number {
-  const sim = similarity(query, candidate);
-  const nq = normalizeEffectCorpus(query);
-  const nc = normalizeEffectCorpus(candidate);
-  const qTokens = nq.split(/\s+/).filter(Boolean);
-  if (qTokens.length >= 6 && (nc.includes(nq) || nq.includes(nc))) {
-    return Math.max(sim, 0.82);
-  }
-  return sim;
+  if (effectConstraintsMismatch(query, candidate)) return 0;
+  return similarity(query, candidate);
 }
 
 export async function loadServerEffects(): Promise<ServerEffect[]> {
@@ -50,7 +45,8 @@ export async function findServerEffects(
   opts?: { minScore?: number; limit?: number }
 ): Promise<ServerEffect[]> {
   if (!text.trim()) return [];
-  const minScore = opts?.minScore ?? (kind === 'energy' ? 0.68 : 0.75);
+  const minScore =
+    opts?.minScore ?? (kind === 'energy' ? 0.68 : kind === 'trainer' ? 0.9 : 0.88);
   const limit = opts?.limit ?? 8;
   const effects = await loadServerEffects();
   const ranked = effects

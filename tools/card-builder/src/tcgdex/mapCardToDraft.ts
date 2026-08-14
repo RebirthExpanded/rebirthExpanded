@@ -9,6 +9,7 @@ import type {
 } from '../types';
 import type { TcgDexAbility, TcgDexAttack, TcgDexCard } from './client';
 import { spiritSetCodeFromCatalogId } from '../generator/setMapping';
+import { stripEnergyText, stripTrainerReminders } from '../trainerReminders';
 
 function uid(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
@@ -108,20 +109,37 @@ function mapWeaknessValue(value: string | undefined): WeaknessValue {
   return 'x2';
 }
 
+/** SV Mega Evolution Pokémon ex ("Mega Lucario ex"), not XY-era "M Lucario-EX". */
+export function isSvMegaCard(card: {
+  name?: string;
+  stage?: string;
+  suffix?: string;
+}): boolean {
+  const name = card.name || '';
+  const stage = (card.stage || '').toLowerCase();
+  const suffix = card.suffix || '';
+  const hasMega = stage === 'mega' || /\bmega\b/i.test(name);
+  const hasSvEx = suffix === 'ex' || /(^|[\s])ex($|[\s])/.test(name);
+  return hasMega && hasSvEx;
+}
+
 function mapTags(card: TcgDexCard): string {
   const tags: string[] = [];
   const name = (card.name || '').toLowerCase();
   const suffix = (card.suffix || '').toLowerCase();
   const stage = (card.stage || '').toLowerCase();
+  const svMega = isSvMegaCard(card);
 
-  if (suffix === 'ex' || /\bex\b/i.test(card.name) || name.endsWith(' ex')) {
-    tags.push(name.includes('mega') || stage === 'mega' ? 'POKEMON_SV_MEGA' : 'POKEMON_ex');
+  if (svMega) {
+    tags.push('POKEMON_SV_MEGA');
+  } else if (suffix === 'ex' || /\bex\b/i.test(card.name) || name.endsWith(' ex')) {
+    tags.push('POKEMON_ex');
   }
   if (suffix === 'gx' || name.includes('-gx') || name.endsWith(' gx')) tags.push('POKEMON_GX');
   if (suffix === 'v' || /(^|\s)v$/i.test(card.name)) tags.push('POKEMON_V');
   if (stage === 'vmax' || name.includes('vmax')) tags.push('POKEMON_VMAX');
   if (stage === 'vstar' || name.includes('vstar')) tags.push('POKEMON_VSTAR');
-  if (stage === 'mega') tags.push('MEGA');
+  if (stage === 'mega' && !svMega) tags.push('MEGA');
   if (/\blv\.?x\b/i.test(card.name) || stage.includes('level')) tags.push('POKEMON_LV_X');
 
   return [...new Set(tags)].join(', ');
@@ -183,15 +201,34 @@ function mapTrainerType(
 
 function subtypesFromCard(card: TcgDexCard): string[] {
   const out: string[] = [];
-  if (card.stage) {
-    if (/stage\s*1/i.test(card.stage)) out.push('Stage 1');
-    else if (/stage\s*2/i.test(card.stage)) out.push('Stage 2');
-    else if (/vmax/i.test(card.stage)) out.push('VMAX');
-    else if (/vstar/i.test(card.stage)) out.push('VSTAR');
-    else if (/basic/i.test(card.stage)) out.push('Basic');
-    else out.push(card.stage);
+  const stage = card.stage || '';
+  const svMega = isSvMegaCard(card);
+  if (stage) {
+    if (/stage\s*2/i.test(stage)) out.push('Stage 2');
+    else if (/stage\s*1/i.test(stage)) out.push('Stage 1');
+    else if (/vmax/i.test(stage)) out.push('VMAX');
+    else if (/vstar/i.test(stage)) out.push('VSTAR');
+    else if (/basic/i.test(stage)) out.push('Basic');
+    else if (/^mega$/i.test(stage) || svMega) out.push(card.evolveFrom ? 'Stage 1' : 'Basic');
+    else out.push(stage);
   }
   if (card.suffix) out.push(card.suffix);
+  if (svMega) {
+    if (card.evolveFrom) {
+      const filtered = out.filter(s => s !== 'Basic');
+      out.length = 0;
+      out.push(...filtered);
+      if (!out.includes('Stage 1')) out.unshift('Stage 1');
+    } else {
+      const filtered = out.filter(s => s !== 'Stage 1');
+      out.length = 0;
+      out.push(...filtered);
+      if (!out.includes('Basic')) out.unshift('Basic');
+    }
+    out.push('SV_Mega');
+  } else if (/^mega$/i.test(stage)) {
+    out.push('MEGA');
+  }
   if (card.trainerType) out.push(card.trainerType);
   if (card.energyType) out.push(card.energyType);
   if (card.category === 'Pokemon' && out.length === 0) out.push('Basic');
@@ -244,6 +281,7 @@ export function mapTcgDexCardToDraft(card: TcgDexCard): CardDraft {
     blendedEnergies: '',
     blendedEnergyCount: '1',
     energyText: '',
+    energyPrefabs: [],
   };
 
   if (category === 'trainer') {
@@ -251,7 +289,7 @@ export function mapTcgDexCardToDraft(card: TcgDexCard): CardDraft {
     base.hasAttacks = false;
     base.hasPowers = false;
     base.trainerType = mapTrainerType(card.trainerType);
-    base.trainerText = card.effect || '';
+    base.trainerText = stripTrainerReminders(card.effect || '');
     return base;
   }
 
@@ -262,15 +300,21 @@ export function mapTcgDexCardToDraft(card: TcgDexCard): CardDraft {
     base.energyType = (card.energyType || '').toLowerCase().includes('special')
       ? 'SPECIAL'
       : 'BASIC';
-    base.energyText = card.effect || '';
-    const fromName = mapEnergyType(name.replace(/\s*energy$/i, '').trim());
-    base.provides = fromName || 'C';
+    const words = name.replace(/\s*energy$/i, '').trim().split(/\s+/);
+    const fromName = mapEnergyType(words[words.length - 1]);
+    const fromText = (card.effect || '').match(/provides\s+(\w+)\s+energy/i);
+    base.provides = fromName || mapEnergyType(fromText?.[1]) || 'C';
+    base.energyText = stripEnergyText(card.effect || '');
+    base.energyPrefabs = [];
     return base;
   }
 
   base.extends = 'PokemonCard';
   base.stage = mapStage(card.stage);
   base.evolvesFrom = card.evolveFrom || '';
+  if (isSvMegaCard(card) || base.stage === 'MEGA') {
+    base.stage = base.evolvesFrom ? 'STAGE_1' : 'BASIC';
+  }
   base.tags = mapTags(card);
   base.hp = String(card.hp ?? 0);
   base.cardType = mapEnergyType(card.types?.[0]) || 'C';

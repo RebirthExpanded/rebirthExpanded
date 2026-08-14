@@ -116,6 +116,7 @@ function defaultDraft(): CardDraft {
     blendedEnergies: '',
     blendedEnergyCount: '1',
     energyText: '',
+    energyPrefabs: [],
   };
 }
 
@@ -364,7 +365,7 @@ function renderPokemonFields(): string {
     </div>
     <div class="grid-2">
       <label>Evolves from<input data-root="evolvesFrom" value="${escapeAttr(draft.evolvesFrom)}" placeholder="optional" /></label>
-      <label>Tags (comma CardTag names)<input data-root="tags" value="${escapeAttr(draft.tags)}" placeholder="POKEMON_ex, MEGA" /></label>
+      <label>Tags (comma CardTag names)<input data-root="tags" value="${escapeAttr(draft.tags)}" placeholder="POKEMON_ex, POKEMON_SV_MEGA" /></label>
     </div>
     <div class="grid-3">
       <label>Weakness type<select data-root="weaknessType">${energyOptions(draft.weaknessType, true)}</select></label>

@@ -260,8 +260,10 @@ def subtypes_for(archetype_id: Optional[str]) -> List[str]:
 
 # Rule-box subtypes and the prizes an attacker takes for knocking one out.
 # "EX" is the XY-era uppercase rule box; "ex" is the SV-era lowercase rule box.
+# "MEGA" is XY Mega Evolution; "SV_Mega" is Mega Evolution Pokémon ex (3 prizes).
 _MULTI_PRIZE_SUBTYPES = {
     "V": 2, "VSTAR": 2, "V-UNION": 3, "VMAX": 3, "GX": 2, "EX": 2, "ex": 2,
+    "SV_Mega": 3,
 }
 _RULE_BOX_SUBTYPES = set(_MULTI_PRIZE_SUBTYPES) | {"Radiant"}
 

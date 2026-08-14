@@ -610,3 +610,21 @@ def requires_damaged_pokemon(side="mine"):
                    for pid in _side_player_ids(board, player_id, side)
                    for p in board.pokemon_in_play(pid))
     return check
+
+
+def requires_damaged_active_with_energy(n=3):
+    """Active is damaged and has at least `n` Energy attached (Jumbo Ice Cream)."""
+    def check(board, player_id, pokemon=None):
+        active = board.active_pokemon(player_id)
+        if active is None or not _is_damaged(board, active):
+            return False
+        return len(board.attached_energies(active)) >= n
+    return check
+
+
+def more_prizes_remaining_than_opponent(board, player_id, pokemon=None):
+    """True when this player has more Prize cards remaining than the opponent."""
+    opponent = _opponent_of(board, player_id)
+    mine = board.find_player_area(player_id, "prizePile")
+    theirs = board.find_player_area(opponent, "prizePile") if opponent else None
+    return len(mine.children if mine else []) > len(theirs.children if theirs else [])

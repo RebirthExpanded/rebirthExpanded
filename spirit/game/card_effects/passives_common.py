@@ -491,17 +491,25 @@ def healing_block_passive(target_pred) -> Passive:
 class AttackEffectShieldPassive(Passive):
     """Protected Pokemon are shielded from opposing attack EFFECTS."""
 
-    def __init__(self, protects="carrier"):
+    def __init__(self, protects="carrier", pokemon_type=None):
         self.protects = _protects_pred(protects)
+        self.pokemon_type = pokemon_type
 
     def blocks_attack_effects(self, target, carrier):
-        return bool(self.protects(target, carrier))
+        if not self.protects(target, carrier):
+            return False
+        if self.pokemon_type is None:
+            return True
+        types = target.get_attribute(AttrID.POKEMON_TYPES) or []
+        value = getattr(self.pokemon_type, "value", self.pokemon_type)
+        return value in types
 
 
-def attack_effect_shield_passive(protects="carrier") -> Passive:
+def attack_effect_shield_passive(protects="carrier", pokemon_type=None) -> Passive:
     """Unfazed Fat generalized: shields from attack effects, not damage
-    (the engine already scopes the check to opposing attacks)."""
-    return AttackEffectShieldPassive(protects)
+    (the engine already scopes the check to opposing attacks). `pokemon_type`
+    limits the shield to that type (Rocky Fighting Energy)."""
+    return AttackEffectShieldPassive(protects, pokemon_type=pokemon_type)
 
 
 class FlipPreventDamagePassive(Passive):

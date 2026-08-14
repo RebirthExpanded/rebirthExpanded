@@ -301,6 +301,11 @@ class Passive:
         """True to shield `target` from opponents' Ability effects (Corviknight VMAX)."""
         return False
 
+    def blocks_damage_counters(self, target: PokemonEntity, carrier: BoardEntity) -> bool:
+        """True to prevent damage counters (not attack damage) on `target`
+        (Battle Cage's benched-Pokémon shield)."""
+        return False
+
     def blocks_discard(self, card: BoardEntity, carrier: BoardEntity) -> bool:
         """True to keep `card` from being discarded by an opponent's effect."""
         return False
@@ -661,6 +666,14 @@ def ability_effects_blocked(board: BoardState, target: PokemonEntity) -> bool:
     """Whether a passive shields `target` from opposing Ability effects."""
     return any(
         passive.blocks_ability_effects(target, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def damage_counters_blocked(board: BoardState, target: PokemonEntity) -> bool:
+    """Whether a passive prevents placing damage counters on `target`."""
+    return any(
+        passive.blocks_damage_counters(target, carrier)
         for passive, carrier in active_passives(board)
     )
 

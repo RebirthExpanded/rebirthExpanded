@@ -30,7 +30,7 @@ from spirit.game.data_utils import (
     ABILITIES_BY_ID, Ability, Activations, Attack, CARD_DEFS_BY_GUID,
     TRAINER_EFFECTS_BY_GUID, Triggers, evolves_from, evolves_from_chain,
 )
-from spirit.game.models.board import EnergyEntity, PokemonEntity
+from spirit.game.models.board import EnergyEntity, PokemonEntity, create_card_entity
 from spirit.game.scripts.cards import loader as card_loader
 from spirit.game.session import legal_actions, passives
 from spirit.game.session.constants import GamePhase, SelectionKind
@@ -707,6 +707,46 @@ async def test_perform_evolution_and_chain():
     chain = evolves_from_chain(sample)
     assert evolves_from(sample, chain[0]) and evolves_from(sample, chain[1])
     assert not evolves_from(sample, "NoSuchPokemonName")
+
+
+async def test_ability_usable_the_turn_you_evolve():
+    """N's Zoroark ex Trade must be offered the turn Zorua evolves into it."""
+    rig, e = new_rig()
+    session, board = rig.session, rig.board
+    zorua_guid = "b13f5cd3-78a2-52f9-bb5b-2766e32942db"
+    zoroark_guid = "c5c014eb-f24a-56c0-8123-d6f03e1650ec"
+    zorua = create_card_entity(card_loader.cards_by_guid[zorua_guid], owning_player_id=P1)
+    zoroark = create_card_entity(
+        card_loader.cards_by_guid[zoroark_guid], owning_player_id=P1)
+    active_area = board.find_player_area(P1, "activePokemonArea")
+    hand = board.find_player_area(P1, "hand")
+    discard = board.find_player_area(P1, "discard")
+    board.move_card(e["p1_active"].entity_id, discard.entity_id)
+    board.add_card_to_area(zorua, active_area)
+    board.add_card_to_area(zoroark, hand)
+    # Leave exactly one other card so Trade's discard cost is payable.
+    for card in [c for c in list(hand.children) if c is not zoroark][1:]:
+        board.move_card(card.entity_id, discard.entity_id)
+    refreshed = []
+    orig = session.refresh_granted_abilities
+
+    async def _spy(pokemon):
+        refreshed.append(pokemon)
+        await orig(pokemon)
+
+    session.refresh_granted_abilities = _spy
+    assert await session.perform_evolution(P1, zoroark, zorua)
+    assert refreshed == [zoroark], "evolve must rebroadcast the evolution's abilities"
+    trade_id = next(
+        a.ability_id for a in CARD_DEFS_BY_GUID[zoroark_guid].abilities
+        if a.title == "Trade")
+    actions = compute_legal_actions(board, session.turn_state, P1, session.game_id)
+    assert any(
+        a["entityID"] == zoroark.entity_id
+        and a["selectableAction"]["actionID"] == trade_id
+        and a["selectableAction"]["description"] == ACTION_USE_ABILITY
+        for a in actions
+    ), "Trade must be usable the turn N's Zoroark ex evolves"
 
 
 async def test_on_energy_attached():
@@ -2124,6 +2164,7 @@ TESTS = [
     test_move_energy,
     test_on_damaged_by_attack,
     test_perform_evolution_and_chain,
+    test_ability_usable_the_turn_you_evolve,
     test_on_energy_attached,
     test_play_locks,
     test_usable_from_offers,

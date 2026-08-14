@@ -49,6 +49,28 @@ async def capture_on_attach(ctx):
     await ctx.shuffle_deck()
 
 
+def _is_basic_of_type(card, pokemon_type: PokemonTypes) -> bool:
+    return is_basic_pokemon(card) and _pokemon_has_type(card, pokemon_type)
+
+
+async def telepathic_psychic_on_attach(ctx):
+    """On attach from hand to a Psychic Pokemon: bench up to 2 Basic Psychic."""
+    if not _pokemon_has_type(ctx.attached_to, PokemonTypes.PSYCHIC):
+        return
+    space = BENCH_CAPACITY - len(ctx.my_bench())
+    take = min(2, space)
+    if take <= 0:
+        return
+    picks = await ctx.search_deck(
+        lambda c: _is_basic_of_type(c, PokemonTypes.PSYCHIC),
+        count=take, minimum=0,
+        prompt="Choose up to 2 Basic Psychic Pokémon to put onto your Bench.",
+    )
+    for card in picks:
+        await ctx.bench_pokemon(card)
+    await ctx.shuffle_deck()
+
+
 async def speed_lightning_on_attach(ctx):
     """On attach from hand: draw 2 cards only if the target is a Lightning Pokemon."""
     if _pokemon_has_type(ctx.attached_to, PokemonTypes.LIGHTNING):

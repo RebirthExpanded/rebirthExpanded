@@ -1,4 +1,5 @@
 import { PREFAB_CATALOG, getPrefabById, prefabsForScope } from './catalog';
+import { isTrainerReminderText } from '../trainerReminders';
 import type { EffectKind, MatchedPrefab, PrefabDefinition, PrefabScope, SelectedPrefab } from '../types';
 
 export class MissingPrefabError extends Error {
@@ -72,6 +73,80 @@ function catalogForScope(scope: EffectKind): PrefabDefinition[] {
   return prefabsForScope(scope);
 }
 
+function pushPrefab(
+  results: MatchedPrefab[],
+  catalog: PrefabDefinition[],
+  id: string,
+  params: Record<string, string>,
+  matchedText: string
+): void {
+  const prefab = catalog.find(p => p.id === id);
+  if (!prefab) return;
+  results.push({ prefab, params, matchedText });
+}
+
+/**
+ * Strip once-per-turn / evolve / Active Spot framing before matching the remainder.
+ * Evolve/on-play must be detected before "Once during your turn" is peeled off,
+ * or leftover evolve text is treated as a once-per-turn Ability.
+ */
+function stripPowerFraming(
+  normalized: string,
+  catalog: PrefabDefinition[]
+): { results: MatchedPrefab[]; remainder: string } {
+  const results: MatchedPrefab[] = [];
+  let text = normalized;
+
+  const sharedNamed = text.match(
+    /^(.*?)\s*you can'?t use more than 1 ability that has ["'](.+?)["'] in its name each turn\.?$/i
+  );
+  const shared = !sharedNamed
+    ? text.match(/^(.*?)\s*you can'?t use more than 1 (.+?) ability each turn\.?$/i)
+    : null;
+  if (sharedNamed) {
+    text = (sharedNamed[1] || '').replace(/[.,;]+\s*$/, '').trim();
+    pushPrefab(results, catalog, 'SHARED_ONCE_PER_TURN', { name: (sharedNamed[2] || '').trim() }, sharedNamed[0]);
+  } else if (shared) {
+    text = (shared[1] || '').replace(/[.,;]+\s*$/, '').trim();
+    pushPrefab(results, catalog, 'SHARED_ONCE_PER_TURN', { name: (shared[2] || '').trim() }, shared[0]);
+  }
+
+  const evolve = text.match(
+    /^(?:once during your turn,?\s*)?when you play this pok[eé]mon from your hand to evolve 1 of your pok[eé]mon(?: during your turn)?,?\s*(?:you may(?: use this ability\.?)?\s*)?(.*)$/i
+  );
+  const onPlay = !evolve
+    ? text.match(
+        /^(?:once during your turn,?\s*)?when you play this pok[eé]mon from your hand onto your bench(?: during your turn)?,?\s*(?:you may(?: use this ability\.?)?\s*)?(.*)$/i
+      )
+    : null;
+
+  if (evolve) {
+    pushPrefab(results, catalog, 'ON_EVOLVE', {}, 'when you play this Pokemon from your hand to evolve');
+    text = (evolve[1] || '').replace(/^[.,:;]+\s*/, '').trim();
+  } else if (onPlay) {
+    pushPrefab(results, catalog, 'ON_PLAY', {}, 'when you play this Pokemon from your hand onto your Bench');
+    text = (onPlay[1] || '').replace(/^[.,:;]+\s*/, '').trim();
+  } else {
+    const active = text.match(
+      /^(once during your turn,?\s*)?if this pok[eé]mon is in the active spot,?\s*(?:you may(?: use this ability\.?)?\s*)?(.*)$/i
+    );
+    if (active) {
+      pushPrefab(results, catalog, 'IN_ACTIVE_SPOT', {}, 'if this Pokemon is in the Active Spot');
+      const oncePrefix = active[1] || '';
+      text = `${oncePrefix}${(active[2] || '').trim()}`.replace(/^[.,:;]+\s*/, '').trim();
+    }
+
+    const once = text.match(/^once during your turn\.?(?:\s*[,:])?\s*(.*)$/i);
+    if (once) {
+      pushPrefab(results, catalog, 'USE_ABILITY_ONCE_PER_TURN', { marker: 'ABILITY_USED_MARKER' }, 'Once during your turn.');
+      text = (once[1] || '').replace(/^[.,:;]+\s*/, '').trim();
+    }
+  }
+
+  text = text.replace(/^you may use this ability\.?\s*/i, '').trim();
+  return { results, remainder: text };
+}
+
 /**
  * Match effect text against the prefab catalog.
  * Empty / whitespace-only text is treated as "no effect" (OK).
@@ -89,22 +164,12 @@ export function matchEffectText(
   const catalog = catalogForScope(scope);
   const results: MatchedPrefab[] = [];
 
-  // Powers often start with "Once during your turn, ..."
   if (scope === 'power') {
-    const once = normalized.match(/^once during your turn\.?(?:\s*[,:])?\s*(.*)$/i);
-    if (once) {
-      const oncePrefab = catalog.find(p => p.id === 'USE_ABILITY_ONCE_PER_TURN');
-      if (oncePrefab) {
-        results.push({
-          prefab: oncePrefab,
-          params: { marker: 'ABILITY_USED_MARKER' },
-          matchedText: 'Once during your turn.',
-        });
-      }
-      normalized = (once[1] || '').replace(/^[.,:;]+\s*/, '').trim();
-      if (!normalized) {
-        return results;
-      }
+    const stripped = stripPowerFraming(normalized, catalog);
+    results.push(...stripped.results);
+    normalized = stripped.remainder;
+    if (!normalized) {
+      return results;
     }
   }
 
@@ -157,7 +222,8 @@ export function splitTrainerClauses(text: string): string[] {
       merged.push(part);
     }
   }
-  return merged.length ? merged : [normalized];
+  const clauses = (merged.length ? merged : [normalized]).filter(c => !isTrainerReminderText(c));
+  return clauses;
 }
 
 export function matchSingleClause(clause: string, scope: EffectKind): MatchedPrefab | null {

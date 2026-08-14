@@ -136,8 +136,18 @@ export interface PrefabCallResult {
   effectExpr?: string;
   /** Optional Ability activation enum expression. */
   activation?: string;
+  /** Ability.trigger expression, e.g. Triggers.ON_EVOLVE. */
+  trigger?: string;
+  /** Ability.passive expression. */
+  passive?: string;
+  /** Ability.shared_once_per_turn label. */
+  sharedOncePerTurn?: string;
+  /** Attack.locks_next_turn=True */
+  locksNextTurn?: boolean;
   /** Trainer play-condition expression. */
   condition?: string;
+  /** Module-level helper defs to emit above `card =`. */
+  helpers?: string[];
   /** Named imports required by effectExpr / activation. */
   imports?: PrefabImport[];
   returns?: boolean;
@@ -203,6 +213,16 @@ export interface ServerEffect {
   helpers?: string[];
   /** Play-condition expression, e.g. hand_size_at_least(3). */
   condition?: string;
+  /** Ability.trigger expression copied from a similar script. */
+  trigger?: string;
+  /** Ability.activation expression copied from a similar script. */
+  activation?: string;
+  /** Ability.passive expression copied from a similar script. */
+  passive?: string;
+  /** Ability.shared_once_per_turn label. */
+  sharedOncePerTurn?: string;
+  /** Attack.locks_next_turn. */
+  locksNextTurn?: boolean;
   /** Scripts / factories this effect was assembled from. */
   sources?: string[];
 }
@@ -260,5 +280,6 @@ export interface CardDraft {
   blendedEnergies: string;
   blendedEnergyCount: string;
   energyText: string;
+  energyPrefabs: SelectedPrefab[];
   energyServerEffect?: ServerEffect;
 }

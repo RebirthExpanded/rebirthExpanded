@@ -9,6 +9,7 @@ import type {
   TcgDexWeakRes,
 } from './types';
 import { DataError } from './types';
+import { isTrainerReminderText } from '../trainerReminders';
 
 /**
  * Local browse source backed by https://github.com/PokemonTCG/pokemon-tcg-data
@@ -117,11 +118,11 @@ function mapStage(subtypes: string[] | undefined): string | undefined {
   if (joined.includes('v-union') || joined.includes('vunion')) return 'VUNION';
   if (joined.includes('level-up') || joined.includes('level up')) return 'LEVEL-UP';
   if (joined.includes('break')) return 'BREAK';
-  if (joined.includes('mega')) return 'MEGA';
   if (joined.includes('restored')) return 'RESTORED';
   if (joined.includes('stage 2') || joined.includes('stage2')) return 'Stage2';
   if (joined.includes('stage 1') || joined.includes('stage1')) return 'Stage1';
   if (joined.includes('basic')) return 'Basic';
+  if (joined.includes('mega')) return 'MEGA';
   return subtypes[0];
 }
 
@@ -193,7 +194,7 @@ export function localCardToDraftShape(card: LocalCard, set?: LocalSet): TcgDexCa
     weaknesses: mapWeakRes(card.weaknesses),
     resistances: mapWeakRes(card.resistances),
     retreat: card.convertedRetreatCost ?? card.retreatCost?.length ?? 0,
-    effect: card.rules?.join(' ') || undefined,
+    effect: (card.rules || []).filter(r => !isTrainerReminderText(r)).join(' ') || undefined,
     trainerType: mapTrainerType(card.subtypes),
     energyType: card.subtypes?.find(x => /basic|special/i.test(x)),
     regulationMark: card.regulationMark,

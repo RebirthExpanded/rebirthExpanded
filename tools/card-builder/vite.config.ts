@@ -236,6 +236,11 @@ interface ScriptEffect {
   displayName?: string;
   collectorNumber?: string;
   condition?: string;
+  trigger?: string;
+  activation?: string;
+  passive?: string;
+  sharedOncePerTurn?: string;
+  locksNextTurn?: boolean;
 }
 
 function jsonResponse(res: ServerResponse, status: number, value: unknown): void {
@@ -271,6 +276,105 @@ function decodePyString(raw: string): string {
   } catch {
     return raw.replace(/^['"]|['"]$/g, '').replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\'/g, "'");
   }
+}
+
+const PY_STRING = String.raw`(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`;
+
+function matchPyAttr(source: string, attr: string): string {
+  const m = source.match(new RegExp(`${attr}\\s*=\\s*(${PY_STRING})`));
+  return m ? decodePyString(m[1]) : '';
+}
+
+/** Read a Python assignment value, keeping nested parens instead of stopping at the first comma. */
+function parsePyArgValue(body: string, attr: string): string {
+  const re = new RegExp(`${attr}\\s*=\\s*`);
+  const m = body.match(re);
+  if (!m || m.index === undefined) return '';
+  const start = m.index + m[0].length;
+  let i = start;
+  const open: string[] = [];
+  let inStr: string | null = null;
+  let escape = false;
+  while (i < body.length) {
+    const c = body[i];
+    if (inStr) {
+      if (escape) {
+        escape = false;
+        i += 1;
+        continue;
+      }
+      if (c === '\\') {
+        escape = true;
+        i += 1;
+        continue;
+      }
+      if (c === inStr) inStr = null;
+      i += 1;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      inStr = c;
+      i += 1;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') {
+      open.push(c);
+      i += 1;
+      continue;
+    }
+    if (c === ')' || c === ']' || c === '}') {
+      if (!open.length) break;
+      open.pop();
+      i += 1;
+      continue;
+    }
+    if (!open.length && (c === ',' || c === '\n')) break;
+    i += 1;
+  }
+  if (open.length || inStr) return '';
+  return body.slice(start, i).trim();
+}
+
+function isCompletePyExpr(expr: string): boolean {
+  const trimmed = expr.trim();
+  if (!trimmed || trimmed === 'unimplemented') return false;
+  let depth = 0;
+  let inStr: string | null = null;
+  let escape = false;
+  for (const c of trimmed) {
+    if (inStr) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (c === '\\') {
+        escape = true;
+        continue;
+      }
+      if (c === inStr) inStr = null;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      inStr = c;
+      continue;
+    }
+    if (c === '(') depth += 1;
+    else if (c === ')') {
+      depth -= 1;
+      if (depth < 0) return false;
+    }
+  }
+  return depth === 0 && !inStr;
+}
+
+function normalizeCardName(name: string): string {
+  return name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[’‘]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 }
 
 function extractImports(source: string): string[] {
@@ -357,8 +461,8 @@ function buildScriptEffects(): ScriptEffect[] {
       rel.split('/')[0] ||
       '';
     const displayName =
-      source.match(/display_name\s*=\s*["']([^"']+)["']/)?.[1] ||
-      source.match(/name\s*=\s*["']([^"']+)["']/)?.[1] ||
+      matchPyAttr(source, 'display_name') ||
+      matchPyAttr(source, 'name') ||
       '';
     const collectorNumber =
       source.match(/collector_number\s*=\s*(\d+)/)?.[1] ||
@@ -379,11 +483,17 @@ function buildScriptEffects(): ScriptEffect[] {
       if (!textRaw) continue;
       const effectText = decodePyString(textRaw[1]);
       if (!effectText.trim()) continue;
-      const effectMatch = body.match(/effect\s*=\s*([^,\n]+)/);
-      const effectExpr = effectMatch?.[1]?.trim();
-      const isAttack = /Attack\s*\(\s*$/.test(source.slice(Math.max(0, (block.index || 0) - 20), block.index || 0) + 'Attack(') || body.includes('cost=') || body.includes('damage=');
+      const effectExpr = parsePyArgValue(body, 'effect');
+      if (effectExpr && !isCompletePyExpr(effectExpr)) continue;
       const kind: ScriptEffect['kind'] = body.includes('cost=') || /damage\s*=/.test(body) ? 'attack' : 'power';
-      void isAttack;
+      const trigger = parsePyArgValue(body, 'trigger');
+      const activation = parsePyArgValue(body, 'activation');
+      const passive = parsePyArgValue(body, 'passive');
+      const condition = parsePyArgValue(body, 'condition');
+      const sharedRaw = parsePyArgValue(body, 'shared_once_per_turn');
+      const sharedOncePerTurn = sharedRaw ? decodePyString(sharedRaw) || sharedRaw.replace(/^['"]|['"]$/g, '') : undefined;
+      const locksNextTurn = /locks_next_turn\s*=\s*True/.test(body);
+      if (!effectExpr && !passive && !locksNextTurn) continue;
       effects.push({
         source: rel,
         effectText,
@@ -396,14 +506,20 @@ function buildScriptEffects(): ScriptEffect[] {
         setCode,
         displayName,
         collectorNumber,
+        condition: condition || undefined,
+        trigger: trigger || undefined,
+        activation: activation || undefined,
+        passive: passive || undefined,
+        sharedOncePerTurn: sharedOncePerTurn || undefined,
+        locksNextTurn: locksNextTurn || undefined,
       });
     }
 
     // Trainer / stadium top-level effect=
     if (/SupporterCardDef|ItemCardDef|StadiumCardDef|PokemonToolCardDef|FossilItemCardDef/.test(source)) {
-      const effectMatch = source.match(/\n\s*effect\s*=\s*([^,\n]+)/);
-      const effectExpr = effectMatch?.[1]?.trim();
-      const condition = source.match(/\n\s*condition\s*=\s*([^,\n]+)/)?.[1]?.trim();
+      const effectExpr = parsePyArgValue(source, 'effect');
+      const condition = parsePyArgValue(source, 'condition') || undefined;
+      const trigger = parsePyArgValue(source, 'trigger') || undefined;
       let effectText = '';
       if (effectExpr && /^[a-z_][a-z0-9_]*$/i.test(effectExpr)) {
         const doc = source.match(
@@ -414,10 +530,14 @@ function buildScriptEffects(): ScriptEffect[] {
         if (doc) effectText = doc[1].replace(/\s+/g, ' ').trim();
       }
       if (!effectText) {
+        const gameText = source.match(/game_text\s*=\s*(("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])*'))/);
+        if (gameText) effectText = decodePyString(gameText[1]);
+      }
+      if (!effectText) {
         const rulesText = source.match(/"""([\s\S]*?)"""/)?.[1]?.trim();
         if (rulesText) effectText = rulesText.replace(/\s+/g, ' ').trim();
       }
-      if (effectExpr && effectText) {
+      if (effectExpr && effectText && isCompletePyExpr(effectExpr)) {
         const simpleName = /^[a-z_][a-z0-9_]*$/i.test(effectExpr);
         effects.push({
           source: rel,
@@ -432,12 +552,13 @@ function buildScriptEffects(): ScriptEffect[] {
                   h.includes(`def ${effectExpr}`) ||
                   new RegExp(`def\\s+_${effectExpr}\\b`).test(h)
               )
-            : [],
+            : helpers.filter(h => /^(async\s+)?def\s+/.test(h.trim())),
           fileName,
           setCode,
           displayName,
           collectorNumber,
           condition,
+          trigger,
         });
       }
     }
@@ -481,7 +602,7 @@ function listSpiritSetDirs(): string[] {
 }
 
 function findReprintCandidates(spiritSet: string, name: string, excludeNumber = '') {
-  const normalizedName = name.trim().toLowerCase();
+  const normalizedName = normalizeCardName(name);
   const exclude = excludeNumber.trim();
   const targetSet = spiritSet.trim().toUpperCase();
   const out: Array<{
@@ -499,9 +620,8 @@ function findReprintCandidates(spiritSet: string, name: string, excludeNumber = 
     for (const filePath of collectPyFiles(dir)) {
       const source = readFileSync(filePath, 'utf8');
       if (/^\s*card\s*=\s*reprint\(/.test(source) || /\ncard\s*=\s*reprint\(/.test(source)) continue;
-      const displayName =
-        source.match(/display_name\s*=\s*["']([^"']+)["']/)?.[1] || '';
-      if (displayName.trim().toLowerCase() !== normalizedName) continue;
+      const displayName = matchPyAttr(source, 'display_name');
+      if (!displayName || normalizeCardName(displayName) !== normalizedName) continue;
       const collectorNumber = source.match(/collector_number\s*=\s*(\d+)/)?.[1] || '';
       const fileName = filePath.split(/[/\\]/).pop() || '';
       const sourcePath = relative(scriptsRoot, filePath).replaceAll(sep, '/');

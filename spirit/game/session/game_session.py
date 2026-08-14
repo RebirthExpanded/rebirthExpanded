@@ -4510,6 +4510,9 @@ class GameSession:
         # Resonant Evolution); deck-sourced ones aren't "played from hand".
         if not from_zone_intro:
             await self._fire_ally_evolved_triggers(player_id, card, target)
+        # Rebroadcast printed + tool-granted abilities so the client panel
+        # isn't left on the pre-evolution's attacks (Trade the turn you evolve).
+        await self.refresh_granted_abilities(card)
         # Tucking the pre-evolution can switch off a capacity-raising ability.
         await self.enforce_bench_capacity()
         return True

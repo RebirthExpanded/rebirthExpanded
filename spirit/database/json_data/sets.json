@@ -1747,5 +1747,65 @@
     "featuredArchetypes": [],
     "visibleUnfilterable": false,
     "promo": false
+  },
+  {
+    "name": "ME1",
+    "externalId": "MEG",
+    "number": 1260,
+    "count": 20,
+    "filter": true,
+    "block": "NONE",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
+  },
+  {
+    "name": "ME2",
+    "externalId": "PFL",
+    "number": 1270,
+    "count": 10,
+    "filter": true,
+    "block": "NONE",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
+  },
+  {
+    "name": "ME2PT5",
+    "externalId": "ASC",
+    "number": 1280,
+    "count": 5,
+    "filter": true,
+    "block": "NONE",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
+  },
+  {
+    "name": "ME3",
+    "externalId": "POR",
+    "number": 1290,
+    "count": 12,
+    "filter": true,
+    "block": "NONE",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
   }
 ]
