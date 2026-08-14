@@ -55,6 +55,7 @@ from .passives import (
     supporter_effect_replacement,
     trainer_effects_blocked,
     damage_counters_blocked,
+    moving_damage_counters_blocked,
 )
 
 # CakeAttackEffect's damageType is a string array of client type names.
@@ -961,6 +962,8 @@ class EffectContext:
         counters are prevented (wasted), per the Unfazed Fat ruling.
         """
         if source is None:
+            return 0
+        if moving_damage_counters_blocked(self.board):
             return 0
         damage = max(0, self.max_hp(source) - source.get_attribute(AttrID.HP, 0))
         available = damage // 10

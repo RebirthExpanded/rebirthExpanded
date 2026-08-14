@@ -22,6 +22,7 @@ import {
   matchedToSelected,
 } from './prefabs/matcher';
 import { generateCardSource, parseEnergyCost, generateReprintSource, scriptFileName, resolveSpiritSetCode } from './generator/generateSpiritCard';
+import { pokemonReprintIdentityFromDraft } from './generator/pokemonReprintIdentity';
 import { resolveTrainerEffect } from './generator/composeTrainer';
 import {
   createBrowseState,
@@ -153,7 +154,21 @@ function reprintKey(candidate: ReprintCandidate): string {
 }
 
 function selectedReprintCandidate(): (ReprintCandidate & { imageUrl?: string }) | undefined {
-  return reprintCandidates.find(candidate => reprintKey(candidate) === selectedReprintKey);
+  return matchingReprintCandidates().find(candidate => reprintKey(candidate) === selectedReprintKey);
+}
+
+function matchingReprintCandidates(): Array<ReprintCandidate & { imageUrl?: string }> {
+  if (draft.extends !== 'PokemonCard') return reprintCandidates;
+  const want = pokemonReprintIdentityFromDraft(draft);
+  return reprintCandidates.filter(candidate => candidate.reprintIdentity === want);
+}
+
+function syncReprintSelection(): void {
+  const visible = matchingReprintCandidates();
+  if (!visible.some(candidate => reprintKey(candidate) === selectedReprintKey)) {
+    selectedReprintKey = visible.length > 0 ? reprintKey(visible[0]) : '';
+  }
+  if (visible.length === 0) saveAsReprint = false;
 }
 
 function clearReprintState(): void {
@@ -197,10 +212,11 @@ async function refreshReprintCandidates(): Promise<void> {
         'high'
       ),
     }));
-    selectedReprintKey = reprintCandidates.length > 0 ? reprintKey(reprintCandidates[0]) : '';
+    const visible = matchingReprintCandidates();
+    selectedReprintKey = visible.length > 0 ? reprintKey(visible[0]) : '';
     saveAsReprint = draft.extends === 'TrainerCard'
-      ? reprintCandidates.length > 0
-      : reprintCandidates.length === 1;
+      ? visible.length > 0
+      : visible.length === 1;
   } catch (error) {
     if (lookupVersion !== reprintLookupVersion) return;
     reprintError = error instanceof Error ? error.message : String(error);
@@ -434,7 +450,7 @@ function renderTrainerFields(): string {
     ${draft.trainerServerEffect ? `<p class="muted">${draft.trainerServerEffect.sources?.length
       ? `Assembled from ${escapeHtml(draft.trainerServerEffect.sources.join(', '))} (${Math.round((draft.trainerServerEffect.similarity || 0) * 100)}% coverage).`
       : `Fallback matched ${escapeHtml(draft.trainerServerEffect.source)} (${Math.round(draft.trainerServerEffect.similarity * 100)}% text similarity).`}</p>` : ''}
-    <p class="muted">Trainer effects match Spirit factories, then reuse or stitch together similar trainer scripts. Exact-name reprints from other formats are preferred when one already exists.</p>
+    <p class="muted">Trainer effects match Spirit factories, then reuse or stitch together similar trainer scripts. Exact-name reprints from other formats are preferred when one already exists. Pokémon reprints require an identical printing, not just the same name.</p>
   `;
 }
 
@@ -477,6 +493,8 @@ function computedClassName(): string {
 }
 
 function renderReprintSection(): string {
+  syncReprintSelection();
+  const visible = matchingReprintCandidates();
   const selected = selectedReprintCandidate();
   const name = draft.name.trim();
   const set = draft.set.trim();
@@ -487,16 +505,22 @@ function renderReprintSection(): string {
     content = '<p class="muted">Checking existing scripts for this card name…</p>';
   } else if (reprintError) {
     content = `<p class="muted">${escapeHtml(reprintError)}</p>`;
-  } else if (reprintCandidates.length === 0) {
-    content = '<p class="muted">No existing card with this exact name was found in any set.</p>';
+  } else if (visible.length === 0) {
+    content = `<p class="muted">${
+      draft.extends === 'PokemonCard' && reprintCandidates.length > 0
+        ? `Found ${reprintCandidates.length} existing card${reprintCandidates.length === 1 ? '' : 's'} named ${escapeHtml(name)}, but none match this printing. Pokémon are only reprints when HP, type, stage, retreat, weakness, resistance, attacks, and abilities are identical (set and number may differ).`
+        : 'No existing card with this exact name was found in any set.'
+    }</p>`;
   } else {
-    const sameSet = reprintCandidates.some(c => c.set.toUpperCase() === (draft.spiritSetCode || draft.set).toUpperCase());
+    const sameSet = visible.some(c => c.set.toUpperCase() === (draft.spiritSetCode || draft.set).toUpperCase());
     content = `
       <p class="muted">${draft.extends === 'TrainerCard'
         ? 'A trainer with this exact name already exists — save it as a reprint unless the wording is different.'
-        : `Found ${reprintCandidates.length} existing card${reprintCandidates.length === 1 ? '' : 's'} with this name${sameSet ? '' : ' in another set'}. Confirm the source before saving.`}</p>
+        : draft.extends === 'PokemonCard'
+          ? 'This printing is identical to an existing Pokémon script (aside from set/number). Save it as a reprint unless you need a separate implementation.'
+          : `Found ${visible.length} existing card${visible.length === 1 ? '' : 's'} with this name${sameSet ? '' : ' in another set'}. Confirm the source before saving.`}</p>
       <div class="reprint-options">
-        ${reprintCandidates
+        ${visible
           .map(candidate => {
             const key = reprintKey(candidate);
             return `<div class="reprint-option${key === selectedReprintKey ? ' is-selected' : ''}">

@@ -236,6 +236,9 @@ export interface ReprintCandidate {
   sourcePath: string;
   /** Basename of the sibling script, e.g. Torchic_22.py */
   fileName?: string;
+  category?: 'pokemon' | 'trainer' | 'energy';
+  /** Gameplay fingerprint for Pokémon; omitted for trainers/energy. */
+  reprintIdentity?: string | null;
 }
 
 export interface CardDraft {

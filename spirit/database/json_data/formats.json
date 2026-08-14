@@ -19,7 +19,9 @@
         "ME2PT5",
         "ME3",
         "RSV10PT5",
-        "ZSV10PT5"
+        "ZSV10PT5",
+        "ME4",
+        "ME5"
       ],
       "allSets": false,
       "bannedCards": [],
@@ -66,7 +68,9 @@
         "ME1",
         "ME2",
         "ME2PT5",
-        "ME3"
+        "ME3",
+        "ME4",
+        "ME5"
       ],
       "allSets": false,
       "bannedCards": [],

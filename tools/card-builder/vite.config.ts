@@ -15,6 +15,7 @@ import { get as httpGet } from 'node:http';
 import {
   SPIRIT_TO_TCG_SET_IDS,
 } from './scripts/set-mapping.mjs';
+import { pokemonReprintIdentityFromScript } from './src/generator/pokemonReprintIdentity';
 
 // local helpers (avoid TS friction with .mjs named re-exports)
 function spiritSetCodeFromCatalogId(catalogId: string): string {
@@ -613,6 +614,8 @@ function findReprintCandidates(spiritSet: string, name: string, excludeNumber = 
     fullName: string;
     sourcePath: string;
     fileName: string;
+    category: 'pokemon' | 'trainer' | 'energy';
+    reprintIdentity?: string | null;
   }> = [];
 
   for (const setDir of listSpiritSetDirs()) {
@@ -626,6 +629,12 @@ function findReprintCandidates(spiritSet: string, name: string, excludeNumber = 
       const fileName = filePath.split(/[/\\]/).pop() || '';
       const sourcePath = relative(scriptsRoot, filePath).replaceAll(sep, '/');
       if (setDir.toUpperCase() === targetSet && exclude && collectorNumber === exclude) continue;
+      const isPokemon = /PokemonCardDef\s*\(/.test(source);
+      const category: 'pokemon' | 'trainer' | 'energy' = isPokemon
+        ? 'pokemon'
+        : /EnergyCardDef\s*\(/.test(source)
+          ? 'energy'
+          : 'trainer';
       out.push({
         className: fileName.replace(/\.py$/, ''),
         name: displayName,
@@ -634,6 +643,8 @@ function findReprintCandidates(spiritSet: string, name: string, excludeNumber = 
         fullName: `${displayName} ${setDir}`,
         sourcePath,
         fileName,
+        category,
+        reprintIdentity: isPokemon ? pokemonReprintIdentityFromScript(source) : undefined,
       });
     }
   }

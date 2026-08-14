@@ -35,7 +35,8 @@ npm run generate:implemented-ids
 - Attack, Ability, and Trainer effect text uses a matching Spirit factory prefab when available (`draw_attack`, `condition_attack`, `flip_damage`, `snipe_attack`, `heal_item`, `search_to_hand`, `professors_research`, `ignore_effects_attack`, `luminous_sign`, …). Evolve Abilities (`When you play this Pokémon from your hand to evolve…`) emit `trigger=Triggers.ON_EVOLVE` rather than `ONCE_PER_TURN`. Play-from-hand Bench Abilities emit `Triggers.ON_PLAY`. SV Mega Evolution Pokémon without `evolvesFrom` are Basic (never both Basic and Stage 1). Special Energy provision sentences (`As long as this card is attached…`) are stripped so remaining on-attach and shield text can match. Stadiums with a continuous cost/counter shield emit `passive=` instead of `effect=unimplemented`.
 - If no prefab matches, the builder searches existing scripts under `spirit/game/scripts/cards/**` for a strong same-kind `game_text` match and reuses that `effect=` expression (plus helpers/imports when possible). Copied helper functions are renamed to the new attack, ability, or card title (`Leaf Guard` / `leaf_guard` → `Protect Charge` / `protect_charge`), and helper docstrings are updated to this card's damage and text. Reuse is rejected when numbers, Energy types, named Pokémon, or constraints (`Fusion Strike`, `until you have`, Weakness/Resistance, …) do not match, and truncated `effect=` expressions are skipped.
 - Trainer cards also split effect text into clauses, match each clause against factories and other trainers, and stitch those pieces into one named helper when needed. Shared trainer factories in `spirit/game/card_effects/trainers.py` (Ultra Ball, Professor's Research, Switch, …) are part of that corpus. Stadiums that place counters on benched Pokémon emit `abilities=` with `Triggers.ON_POKEMON_BENCHED`.
-- If a trainer (or other card) has the **exact same display name** as an already-implemented script in any set/format, the builder offers a `reprint()` stub. Trainers auto-select reprint; the source may live in another set folder (`sibling_card(__file__, "../SWSH9/UltraBall_150.py")` plus `set_code=` / `key=`).
+- If a trainer has the **exact same display name** as an already-implemented script in any set/format, the builder offers a `reprint()` stub. Trainers auto-select reprint; the source may live in another set folder (`sibling_card(__file__, "../SWSH9/UltraBall_150.py")` plus `set_code=` / `key=`).
+- Pokémon are **never** offered as reprints based on name alone. A Pokémon reprint is only suggested when an existing script is identical in HP, type, stage, evolves-from, retreat, weakness, resistance, attacks, and abilities. Set, collector number, rarity, and art may differ (same-set alt arts and true reprints).
 - If neither a prefab nor a sufficiently similar script is found, text is preserved with `effect=unimplemented`.
 - Empty attack text (damage-only) emits no `effect`.
 - Output is a Python `*CardDef` script aligned with `spirit/tools/import_set.py` conventions (GUID via `uuid5(DNS, "spirit.ptcgo." + catalogId)`).
@@ -61,7 +62,11 @@ Existing files require confirmation before overwrite.
 
 ## Reprints
 
-When another printing of the same card name already exists — in this set or another format — enable **Save as a Spirit reprint() stub** to emit:
+**Trainers** with the same display name as an already-implemented script — in this set or another format — can be saved as a Spirit `reprint()` stub.
+
+**Pokémon** are only treated as reprints when the printing is identical besides set, number, rarity, and art (same HP, type, stage, retreat, weakness/resistance, attacks, and abilities). A different Pikachu that shares a name is generated as a full card.
+
+When reprinting, enable **Save as a Spirit reprint() stub** to emit:
 
 ```python
 from spirit.game.data_utils import reprint, sibling_card
