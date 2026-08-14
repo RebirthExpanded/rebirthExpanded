@@ -92,14 +92,23 @@ def reprint(
     collector_number: int,
     rarity: Optional[int] = None,
     guid: Optional[str] = None,
+    set_code: Optional[str] = None,
+    key: Optional[str] = None,
+    regulation_mark: Optional[str] = None,
 ) -> "CardDefinition":
     """Another printing of `base`: new GUID / collector number / rarity, same mechanics.
+
+    Same-set secret rares omit `set_code`. Cross-set reprints (e.g. Ultra Ball
+    in a later format) pass the new set as `set_code`/`key`.
 
     Pair each reprint with matching art:
       spirit/assets/cards/<SET>/<SameStem>_<collector_number>.png
     and a thin stub script of the same basename that calls this helper.
     """
-    new_guid = guid or reprint_guid(base.set_code, collector_number, base.guid)
+    new_set = set_code if set_code is not None else base.set_code
+    new_key = key if key is not None else (set_code if set_code is not None else base.key)
+    new_reg = regulation_mark if regulation_mark is not None else base.regulation_mark
+    new_guid = guid or reprint_guid(new_set, collector_number, base.guid)
     new_rarity = base.rarity if rarity is None else rarity
     abilities = [_clone_ability(a) for a in getattr(base, "abilities", []) or []]
 
@@ -115,10 +124,10 @@ def reprint(
                 evolves_from = None
         return PokemonCardDef(
             guid=new_guid,
-            key=base.key,
+            key=new_key,
             name=base.name,
             collector_number=collector_number,
-            set_code=base.set_code,
+            set_code=new_set,
             rarity=new_rarity,
             hp=int(_attr_value(base, AttrID.HP, 0) or 0),
             elements=[PokemonTypes(t) for t in types_raw],
@@ -134,7 +143,7 @@ def reprint(
             display_name=base.display_name,
             searchable_by=list(base.searchable_by or []),
             subtypes=list(base.subtypes or []),
-            regulation_mark=base.regulation_mark,
+            regulation_mark=new_reg,
             passive=getattr(base, "passive", None),
             unplayable_from_hand=bool(getattr(base, "unplayable_from_hand", False)),
             setup_as_active=bool(getattr(base, "setup_as_active", False)),
@@ -144,10 +153,10 @@ def reprint(
         trainer_type = TrainerType(int(_attr_value(base, AttrID.TRAINER_TYPE, TrainerType.ITEM.value)))
         kwargs = dict(
             guid=new_guid,
-            key=base.key,
+            key=new_key,
             name=base.name,
             collector_number=collector_number,
-            set_code=base.set_code,
+            set_code=new_set,
             rarity=new_rarity,
             trainer_type=trainer_type,
             effect=getattr(base, "effect", None),
@@ -156,7 +165,7 @@ def reprint(
             display_name=base.display_name,
             searchable_by=list(base.searchable_by or []),
             subtypes=list(base.subtypes or []),
-            regulation_mark=base.regulation_mark,
+            regulation_mark=new_reg,
         )
         if isinstance(base, FossilItemCardDef):
             return FossilItemCardDef(
@@ -193,10 +202,10 @@ def reprint(
         energy_type = PokemonTypes(types_raw[0]) if types_raw else PokemonTypes.COLORLESS
         return EnergyCardDef(
             guid=new_guid,
-            key=base.key,
+            key=new_key,
             name=base.name,
             collector_number=collector_number,
-            set_code=base.set_code,
+            set_code=new_set,
             rarity=new_rarity,
             energy_type=energy_type,
             is_special=bool(_attr_value(base, AttrID.IS_SPECIAL_ENERGY, False)),
@@ -213,7 +222,7 @@ def reprint(
             display_name=base.display_name,
             searchable_by=list(base.searchable_by or []),
             subtypes=list(base.subtypes or []),
-            regulation_mark=base.regulation_mark,
+            regulation_mark=new_reg,
         )
 
     raise TypeError(f"reprint() unsupported for {type(base).__name__}")

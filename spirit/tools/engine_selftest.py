@@ -42,6 +42,7 @@ from spirit.game.session.effects import (
     resolve_trainer_effect,
 )
 from spirit.game.session.game_session import GameOver
+from spirit.game.session.ai_policy import choose_action
 from spirit.game.session.legal_actions import (
     ACTION_ATTACH_TOOL,
     ACTION_EVOLVE,
@@ -1993,6 +1994,114 @@ async def test_setup_as_active():
     assert board.player_has_any_basic(P1)
 
 
+# ----------------------------------------------------------------------
+# AI main-turn policy
+# ----------------------------------------------------------------------
+
+def _policy_desc(picked) -> str:
+    assert picked is not None, "policy returned None (end turn)"
+    entry, _ = picked
+    return entry["selectableAction"]["description"]
+
+
+async def test_ai_plays_basic_to_bench():
+    rig, e = new_rig()
+    actions = compute_legal_actions(
+        rig.board, rig.session.turn_state, P1, rig.session.game_id)
+    assert any(a["selectableAction"]["description"] == ACTION_PLAY_POKEMON
+               for a in actions)
+    assert _policy_desc(choose_action(rig.session, P1, actions)) == ACTION_PLAY_POKEMON
+
+
+async def test_ai_attaches_energy_to_active():
+    rig, e = new_rig()
+    board = rig.board
+    hand = board.find_player_area(P1, "hand")
+    deck = board.find_player_area(P1, "deck")
+    for card in list(hand.children):
+        if not isinstance(card, EnergyEntity):
+            board.move_card(card.entity_id, deck.entity_id)
+    actions = compute_legal_actions(
+        board, rig.session.turn_state, P1, rig.session.game_id)
+    picked = choose_action(rig.session, P1, actions)
+    assert _policy_desc(picked) == ACTION_PLAY_ENERGY
+    _, target_ids = picked
+    assert e["p1_active"].entity_id in target_ids
+
+
+async def test_ai_picks_higher_damage_attack():
+    rig, e = new_rig()
+    high = Attack("Test Big Hit", cost={}, damage=120)
+    low = Attack("Test Nudge", cost={}, damage=30)
+    high_id, low_id = register_ability(high), register_ability(low)
+    try:
+        high_entry = {
+            "entityID": e["p1_active"].entity_id,
+            "selectableAction": {"actionID": high_id,
+                                 "description": ACTION_USE_ATTACK},
+            "targetInfoLst": [],
+        }
+        low_entry = {
+            "entityID": e["p1_active"].entity_id,
+            "selectableAction": {"actionID": low_id,
+                                 "description": ACTION_USE_ATTACK},
+            "targetInfoLst": [],
+        }
+        picked = choose_action(rig.session, P1, [low_entry, high_entry])
+        assert picked is not None
+        entry, _ = picked
+        assert entry["selectableAction"]["actionID"] == high_id
+    finally:
+        ABILITIES_BY_ID.pop(high_id, None)
+        ABILITIES_BY_ID.pop(low_id, None)
+
+
+async def test_ai_retreats_immobilized_active():
+    rig, e = new_rig()
+    active = e["p1_active"]
+    active.set_attribute(AttrID.SPECIAL_CONDITIONS, ["Asleep"])
+    bench = next(
+        c for c in rig.board.find_player_area(P1, "bench").children
+        if isinstance(c, PokemonEntity)
+    )
+    energies = list(rig.board.attached_energies(active))
+    attack = Attack("Test Chip", cost={}, damage=10)
+    attack_id = register_ability(attack)
+    try:
+        retreat_entry = {
+            "entityID": active.entity_id,
+            "selectableAction": {"actionID": "retreat-test",
+                                 "description": ACTION_RETREAT},
+            "targetInfoLst": [
+                {
+                    "name": SelectionKind.RETREAT_NEW_ACTIVE.value,
+                    "validTargets": [bench.entity_id],
+                },
+                {
+                    "name": SelectionKind.RETREAT_COST_ENTITY_LIST.value,
+                    "validTargets": [en.entity_id for en in energies],
+                },
+            ],
+        }
+        attack_entry = {
+            "entityID": active.entity_id,
+            "selectableAction": {"actionID": attack_id,
+                                 "description": ACTION_USE_ATTACK},
+            "targetInfoLst": [],
+        }
+        picked = choose_action(rig.session, P1, [attack_entry, retreat_entry])
+        assert _policy_desc(picked) == ACTION_RETREAT
+        _, target_ids = picked
+        assert bench.entity_id in target_ids
+    finally:
+        ABILITIES_BY_ID.pop(attack_id, None)
+
+
+async def test_ai_passes_when_no_actions():
+    rig, _ = new_rig()
+    assert choose_action(rig.session, P1, []) is None
+
+
 TESTS = [
     test_temp_passive_prevents_then_expires,
     test_temp_passive_cleared_on_leave,
@@ -2057,6 +2166,11 @@ TESTS = [
     test_on_play_trigger_ends_turn,
     test_extra_prize_watchers,
     test_setup_as_active,
+    test_ai_plays_basic_to_bench,
+    test_ai_attaches_energy_to_active,
+    test_ai_picks_higher_damage_attack,
+    test_ai_retreats_immobilized_active,
+    test_ai_passes_when_no_actions,
 ]
 
 

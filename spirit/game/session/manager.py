@@ -1,6 +1,7 @@
 import logging
 import uuid
 import asyncio
+import random
 
 from typing import Dict, List, Any, Optional
 from spirit.network.message_names import OutboundMsg
@@ -10,6 +11,10 @@ from .game_session import GameSession
 # A client-supplied queueName longer than this is rejected (abuse: the queues dict
 # is keyed by this string). Real format/tournament names are short.
 _MAX_QUEUE_NAME_LEN = 64
+
+# Seconds an unmatched ranked queue waits before filling with an AI opponent.
+BOT_FILL_SECONDS = 2
+BOT_DISPLAY_NAME = "Bot"
 
 
 class GameSessionManager:
@@ -118,14 +123,22 @@ class GameSessionManager:
         # MatchQueueEntered transitions the client state machine to Statuses.Waiting
         entered_packet = {
             "messageName": OutboundMsg.MATCH_QUEUE_ENTERED.value,
-            "estimatedWaitTime": 10
+            "estimatedWaitTime": BOT_FILL_SECONDS
         }
+
+        # Deck-builder Test (and other SinglePlayer* queues) is a solo practice
+        # match, not a human ladder queue.
+        if queue_name.startswith("SinglePlayer") and not tournament_context:
+            await client.send_packet(entered_packet, request_id)
+            await self._start_bot_match(client, deck_data, client_options, queue_name)
+            return
 
         # Check if there is another player waiting in this queue
         queue = self.queues.setdefault(queue_name, [])
         if queue:
             # We have a match! Pop the first player
             opponent_entry = queue.pop(0)
+            self._cancel_fill_task(opponent_entry)
             opp_client = opponent_entry["client"]
             opp_deck = opponent_entry["deck"]
 
@@ -167,49 +180,108 @@ class GameSessionManager:
 
         else:
             # No player in queue. Queue client and send MatchQueueEntered
-            queue.append({
+            entry = {
                 "client": client,
                 "deck": deck_data,
                 "options": client_options,
-                "tournament_context": tournament_context
-            })
+                "tournament_context": tournament_context,
+                "fill_task": None,
+            }
+            queue.append(entry)
             await client.send_packet(entered_packet, request_id)
+            # Ranked/casual queues fill with an AI if nobody else joins;
+            # tournament pairings must stay human-vs-human.
+            if not tournament_context:
+                entry["fill_task"] = self._spawn(
+                    self._bot_fill_after(client, queue_name)
+                )
 
     async def start_solo_match(self, client, deck_data: dict, solitaire_id: str, match_options: dict, request_id: int = 0):
         """Starts a local/offline single player practice match against an AI opponent."""
         await self.remove_from_queue(client, send_left_packet=False)
+        await self._start_bot_match(
+            client, deck_data, match_options or {}, "SinglePlayer",
+            solitaire_id=solitaire_id, request_id=request_id,
+        )
+
+    def _bot_deck(self) -> dict:
+        """A full 60-card starter list so the AI has a legal pile to play."""
+        from spirit.game.starter_content import STARTER_DECKS, build_deck_data
+        name, decklist = random.choice(STARTER_DECKS)
+        return build_deck_data(name, decklist)
+
+    def _cancel_fill_task(self, entry: dict):
+        task = entry.pop("fill_task", None) if entry else None
+        if task is not None and not task.done():
+            task.cancel()
+
+    async def _bot_fill_after(self, client, queue_name: str):
+        """If `client` is still waiting after BOT_FILL_SECONDS, start a bot match."""
+        try:
+            await asyncio.sleep(BOT_FILL_SECONDS)
+        except asyncio.CancelledError:
+            return
+        queue = self.queues.get(queue_name) or []
+        entry = next((e for e in queue if e["client"] is client), None)
+        if not entry:
+            return
+        queue.remove(entry)
+        if not queue:
+            self.queues.pop(queue_name, None)
+        logging.info(
+            f"[Matchmaking] Queue '{queue_name}' timed out for "
+            f"{client.player.username}; filling with AI"
+        )
+        await self._start_bot_match(
+            client, entry["deck"], entry.get("options") or {}, queue_name,
+        )
+
+    async def _start_bot_match(self, client, human_deck: dict, options: dict,
+                               queue_name: str, solitaire_id: str = "basic_bot_id",
+                               request_id: int = 0):
+        """Pairs the human with a unique AIPlayer and runs the ready-check."""
         self.remove_session_by_player_id(client.player.account_id)
 
         game_id = str(uuid.uuid4())
-        logging.info(f"[Matchmaking] Starting Single Player match {game_id} for {client.player.username} vs AI ({solitaire_id})")
+        # MatchFound.players is AccountID[] — the client Guid-parses each
+        # entry, so this must be a dashed UUID (not "ai_<uuid>").
+        bot_id = str(uuid.uuid4())
+        logging.info(
+            f"[Matchmaking] Starting bot match {game_id} for "
+            f"{client.player.username} vs {BOT_DISPLAY_NAME} ({solitaire_id})"
+        )
 
         self.pending_pairings[game_id] = {
             "players": {
                 client.player.account_id: {
                     "client": client,
-                    "deck": deck_data,
-                    "ready": False
+                    "deck": human_deck,
+                    "ready": False,
                 },
-                "mock_ai_bot": {
-                    "client": None, # No TCP client connection
-                    "deck": {},    # Standard bot deck
-                    "ready": True  # AI is instantly ready
-                }
+                bot_id: {
+                    "client": None,
+                    "deck": self._bot_deck(),
+                    "ready": True,
+                },
             },
             "is_solo": True,
             "solitaire_id": solitaire_id,
-            "options": match_options,
-            "queue_name": "SinglePlayer"
+            "options": options or {},
+            "queue_name": queue_name,
         }
 
-        # Send ConfirmReadyForMatch to the client
-        confirm_packet = {
-            "messageName": OutboundMsg.CONFIRM_READY_FOR_MATCH.value,
-            "queueName": "SinglePlayer",
-            "gameID": game_id,
-            "path": f"game_route_{game_id[:8]}"
-        }
-        await client.send_packet(confirm_packet, request_id)
+        if request_id:
+            # Practice RPC: ConfirmReadyForMatch completes RequestSinglePlayerMatch.
+            await client.send_packet({
+                "messageName": OutboundMsg.CONFIRM_READY_FOR_MATCH.value,
+                "queueName": queue_name,
+                "gameID": game_id,
+                "path": f"game_route_{game_id[:8]}",
+            }, request_id)
+            if getattr(self, "auto_confirm_ready", True):
+                await self.confirm_ready(client, game_id)
+        else:
+            self._dispatch_ready_check(game_id, queue_name, [client])
 
     def _dispatch_ready_check(self, game_id: str, queue_name: str, clients: list, delay: float = 1.5):
         """Sends ConfirmReadyForMatch to all clients after a short delay, then auto-confirms readiness."""
@@ -377,11 +449,15 @@ class GameSessionManager:
         removed = False
         for queue_name in list(self.queues.keys()):
             entries = self.queues[queue_name]
-            filtered = [e for e in entries if e["client"] != client]
-            if len(filtered) < len(entries):
-                removed = True
-            if filtered:
-                self.queues[queue_name] = filtered
+            kept = []
+            for entry in entries:
+                if entry["client"] == client:
+                    self._cancel_fill_task(entry)
+                    removed = True
+                else:
+                    kept.append(entry)
+            if kept:
+                self.queues[queue_name] = kept
             else:
                 # Prune empty queues so the dict can't grow unboundedly under churn.
                 del self.queues[queue_name]

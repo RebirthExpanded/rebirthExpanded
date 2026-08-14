@@ -9,6 +9,7 @@ from .player_abstract import GamePlayer
 from .network_player import NetworkPlayer
 from spirit.game.account_attributes import build_account_attributes
 from .ai_player import AIPlayer
+from .ai_policy import AI_ACTION_DELAY_SECONDS, choose_action
 from .constants import (
     GamePhase,
     SelectionKind,
@@ -91,10 +92,13 @@ from spirit.database.versus_data import award_match_points, get_progress
 from spirit.database.async_utils import run_db
 
 
-def _persist_match_result(account_id: str, coins: int, is_winner: bool):
+def _persist_match_result(account_id: str, coins: int, is_winner: bool,
+                          award_ladder: bool = True):
     """One thread hop for a player's match-end persistence (coins + ladder points)."""
-    grant_coins(account_id, coins)
-    award_match_points(account_id, is_winner)
+    if coins:
+        grant_coins(account_id, coins)
+    if award_ladder:
+        award_match_points(account_id, is_winner)
 from spirit.game.models.board import BoardEntity, BoardState, EnergyEntity, PokemonEntity
 from .effects import (
     EffectContext,
@@ -400,9 +404,9 @@ class GameSession:
                 logging.info(f"[Session {self.game_id}] Initializing AI Bot as opponent.")
                 self.players[account_id] = AIPlayer(
                     bot_id=account_id,
-                    bot_name="Spirit AI Bot",
+                    bot_name="Bot",
                     deck_data=deck,
-                    session=self
+                    session=self,
                 )
             else:
                 # Real TCP player
@@ -493,7 +497,10 @@ class GameSession:
         if not any(k.startswith("eloRating_") for k in game_options_dict):
             game_options_dict = self._build_game_options()
             self.board_state.game_options = game_options_dict
-        if reconnecting:
+        # Solo/bot matches have no social-roster entry for the AI, so F.w.configureOpponent
+        # KeyNotFound-crashes unless we take the reconnect path that rebuilds the
+        # match model from gameOptions (same flag used after a disconnect).
+        if reconnecting or self.is_solo:
             # Flag on a copy so it never leaks into the persistent SGS gameOptions.
             game_options_dict = {
                 **game_options_dict,
@@ -2940,11 +2947,16 @@ class GameSession:
             f"{self.players[winner_id].screen_name} wins ({reason})."
         )
         for pid, player in self._unique_recipients():
-            coins = COINS_PER_WIN if pid == winner_id else COINS_PER_LOSS
+            coins = 0 if self.is_solo else (
+                COINS_PER_WIN if pid == winner_id else COINS_PER_LOSS
+            )
             if isinstance(player, NetworkPlayer):
                 # Off the event loop: match-end money/ladder writes can otherwise
                 # stall the loop up to the busy timeout under write contention.
-                await run_db(_persist_match_result, player.account_id, coins, pid == winner_id)
+                await run_db(
+                    _persist_match_result, player.account_id, coins,
+                    pid == winner_id, not self.is_solo,
+                )
             reward_list = []
             if coins > 0:
                 reward_list.append({
@@ -3596,10 +3608,7 @@ class GameSession:
     async def _run_player_turn(self, active_id: str):
         """Offers recomputed legal actions until the player ends their turn."""
         player = self.players[active_id]
-        if isinstance(player, AIPlayer):
-            # The AI takes no main-phase actions yet; it simply passes.
-            logging.info(f"[Session {self.game_id}] {player.screen_name} (AI) ends turn.")
-            return
+        is_ai = isinstance(player, AIPlayer)
 
         for _ in range(MAX_ACTIONS_PER_TURN):
             await self._wait_for_connection_resume()
@@ -3612,6 +3621,24 @@ class GameSession:
                 f"{len(target_map)} legal action(s) on turn "
                 f"{self.turn_state.turn_number}."
             )
+            if is_ai:
+                self.turn_state.auto_select_attack_entity_id = None
+                picked = choose_action(self, active_id, target_map)
+                if picked is None:
+                    logging.info(
+                        f"[Session {self.game_id}] {player.screen_name} "
+                        "(AI) ends turn."
+                    )
+                    return
+                entry, target_ids = picked
+                await self.choreo_pause(AI_ACTION_DELAY_SECONDS)
+                turn_over = await self._run_state_unit(
+                    self._apply_player_action(active_id, entry, target_ids)
+                )
+                if turn_over:
+                    return
+                continue
+
             auto_select = self.turn_state.auto_select_attack_entity_id
             self.turn_state.auto_select_attack_entity_id = None
             offer = self._main_offer_value(
