@@ -4837,10 +4837,25 @@ class GameSession:
         )
 
     async def _execute_play_stadium(self, player_id, card):
-        """Plays a Stadium: the previous one goes to its owner's discard."""
+        """Plays a Stadium: the previous one goes to its owner's discard.
+
+        Dual Stadiums (Legendary Ocean Trench) also pull their companion
+        printing from hand and land both halves in collector-number order.
+        """
         stadium_area = self.board_state.find_global_area("activeStadium")
         if not stadium_area:
             return
+        definition = def_for(card.archetype_id)
+        companion_fn = getattr(definition, "companion", None)
+        partner = companion_fn(self.board_state, player_id, card) if companion_fn else None
+        if companion_fn is not None and partner is None:
+            return
+        incoming = [card]
+        if partner is not None:
+            incoming.append(partner)
+        incoming.sort(
+            key=lambda c: getattr(def_for(c.archetype_id), "collector_number", 0) or 0
+        )
         moves = []
         for existing in list(stadium_area.children):
             owner_id = existing.owning_player_id or player_id
@@ -4851,19 +4866,24 @@ class GameSession:
                 moves.append(self._entity_moved_msg(
                     existing.entity_id, owner_discard.entity_id, position
                 ))
-        position = len(stadium_area.children)
-        if not self.board_state.move_card(card.entity_id, stadium_area.entity_id):
-            return
-        # Keep the owner so the next stadium can route this one to the right discard.
-        card.owning_player_id = player_id
+        for stadium_card in incoming:
+            position = len(stadium_area.children)
+            if not self.board_state.move_card(stadium_card.entity_id, stadium_area.entity_id):
+                return
+            # Keep the owner so the next stadium can route this one to the right discard.
+            stadium_card.owning_player_id = player_id
+            moves.append(self._entity_moved_msg(
+                stadium_card.entity_id, stadium_area.entity_id, position
+            ))
         self._record_trainer_played(card)
         self.stat_add(player_id, "trainersplayed")
-        moves.append(self._entity_moved_msg(card.entity_id, stadium_area.entity_id, position))
         logging.info(
             f"[Session {self.game_id}] {self.players[player_id].screen_name} "
             f"played stadium {card.entity_id} (effect pending effects API)."
         )
-        await self._send_play_sequence(player_id, GameSequence.STADIUM_PRESENT, moves, [card])
+        await self._send_play_sequence(
+            player_id, GameSequence.STADIUM_PRESENT, moves, incoming
+        )
         # A capacity-reducing Stadium (Collapsed Stadium) shrinks benches now.
         await self.enforce_bench_capacity()
 

@@ -48,6 +48,7 @@ from spirit.game.session.legal_actions import (
     ACTION_EVOLVE,
     ACTION_PLAY_ENERGY,
     ACTION_PLAY_POKEMON,
+    ACTION_PLAY_STADIUM,
     ACTION_RETREAT,
     ACTION_USE_ABILITY,
     ACTION_USE_ATTACK,
@@ -1575,6 +1576,65 @@ async def test_cards_by_stem():
     assert "Potion_100" in card_loader.cards_by_stem
 
 
+async def test_legendary_ocean_trench_dual_stadium():
+    """Two printings must be played together, sit as one Stadium, and double heals."""
+    left_guid = card_loader.cards_by_stem["LegendaryOceanTrench_71"]
+    right_guid = card_loader.cards_by_stem["LegendaryOceanTrench_72"]
+    left_def = CARD_DEFS_BY_GUID[left_guid.lower()]
+    right_def = CARD_DEFS_BY_GUID[right_guid.lower()]
+    assert left_def.companion is not None and right_def.companion is not None
+    assert left_def.passive is not None and right_def.passive is not None
+
+    rig, e = new_rig()
+    session, board, ts = rig.session, rig.board, rig.session.turn_state
+    game_id = session.game_id
+    hand = board.find_player_area(P1, "hand")
+    discard = board.find_player_area(P1, "discard")
+    stadium_area = board.find_global_area("activeStadium")
+    left = create_card_entity(card_loader.cards_by_guid[left_guid], owning_player_id=P1)
+    right = create_card_entity(card_loader.cards_by_guid[right_guid], owning_player_id=P1)
+    prior = create_card_entity(
+        card_loader.cards_by_guid[card_loader.cards_by_stem["LivelyStadium_180"]],
+        owning_player_id=P1,
+    )
+    board.add_card_to_area(left, hand)
+    board.add_card_to_area(prior, stadium_area)
+    prior.owning_player_id = P1
+
+    def stadium_offered(entity):
+        return any(
+            a["entityID"] == entity.entity_id
+            and a["selectableAction"]["description"] == ACTION_PLAY_STADIUM
+            for a in compute_legal_actions(board, ts, P1, game_id)
+        )
+
+    assert not stadium_offered(left), "one printing alone must not be playable"
+    board.add_card_to_area(right, hand)
+    assert stadium_offered(left) and stadium_offered(right), \
+        "both printings in hand must offer either half"
+
+    await session._execute_play_stadium(P1, right)
+    children = list(stadium_area.children)
+    assert [c.archetype_id for c in children] == [left_guid, right_guid], \
+        "halves must land in collector-number order"
+    assert prior.parent is discard, "the prior Stadium must be discarded"
+    assert left.parent is stadium_area and right.parent is stadium_area
+    assert not stadium_offered(left) and not stadium_offered(right)
+
+    active = e["p1_active"]
+    max_hp = passives.effective_max_hp(board, active)
+    active.set_attribute(AttrID.HP, max_hp - 80)
+    ctx = attack_ctx(rig, e)
+    assert await ctx.heal(30, active) == 60, "heal amounts must double while LOT is in play"
+    active.set_attribute(AttrID.HP, max_hp - 40)
+    assert await ctx.heal(30, active) == 40, "doubled heal still caps at missing HP"
+
+    discarded = await ctx.discard_stadium()
+    assert discarded is not None
+    assert stadium_area.children == []
+    assert left.parent is discard and right.parent is discard
+
+
 # ----------------------------------------------------------------------
 # Sprint 4 tests
 # ----------------------------------------------------------------------
@@ -2191,6 +2251,7 @@ TESTS = [
     test_reorder_deck_top,
     test_unplayable_from_hand,
     test_cards_by_stem,
+    test_legendary_ocean_trench_dual_stadium,
     test_flip_prevent_damage,
     test_guts_survive,
     test_attack_flip_check,

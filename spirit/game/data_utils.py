@@ -177,6 +177,7 @@ def reprint(
             return StadiumCardDef(
                 passive=getattr(base, "passive", None),
                 ability=getattr(base, "ability", None),
+                companion=getattr(base, "companion", None),
                 **{k: v for k, v in kwargs.items() if k != "trainer_type"},
             )
         if isinstance(base, PokemonToolCardDef):
@@ -780,13 +781,17 @@ class SupporterCardDef(TrainerCardDef):
 class StadiumCardDef(TrainerCardDef):
     """`passive` is the stadium's continuous effect while in play (a
     passives.Passive). `ability` is an Ability offered once during EACH
-    player's turn while the stadium is in play (Training Court)."""
+    player's turn while the stadium is in play (Training Court).
+    `companion(board, player_id, card)` returns a second hand card that
+    must be played into the stadium slot together (Legendary Ocean Trench)."""
     def __init__(self, passive: Optional[Any] = None,
-                 ability: Optional["Ability"] = None, **kwargs):
+                 ability: Optional["Ability"] = None,
+                 companion: Optional[Callable] = None, **kwargs):
         kwargs['trainer_type'] = TrainerType.STADIUM
         super().__init__(**kwargs)
         self.passive = passive
         self.ability = ability
+        self.companion = companion
         if ability is not None:
             if not ability.ability_id:
                 ability.ability_id = ability_id_for(self.guid, 0)

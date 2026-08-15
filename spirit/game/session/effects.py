@@ -48,6 +48,7 @@ from .passives import (
     conditions_blocked,
     discard_blocked,
     effective_bench_capacity,
+    effective_heal_amount,
     effective_max_hp,
     effective_pokemon_types,
     energy_removal_blocked,
@@ -477,8 +478,13 @@ class EffectContext:
             self.knockouts.append(target)
         return True
 
-    async def heal(self, amount: int, target: Optional[PokemonEntity] = None) -> int:
-        """Heals damage from a Pokemon (default: own Active); returns the healed amount."""
+    async def heal(self, amount: int, target: Optional[PokemonEntity] = None,
+                   *, modify: bool = True) -> int:
+        """Heals damage from a Pokemon (default: own Active); returns the healed amount.
+
+        `modify=False` skips heal multipliers (moving damage counters is not
+        the heal keyword, so Legendary Ocean Trench must not inflate it).
+        """
         target = target if target is not None else self.my_active()
         if target is None or amount <= 0:
             return 0
@@ -488,6 +494,8 @@ class EffectContext:
                 f"prevented by a passive effect."
             )
             return 0
+        if modify:
+            amount = effective_heal_amount(self.board, target, amount)
         current = target.get_attribute(AttrID.HP, 0)
         healed = min(self.max_hp(target), current + amount) - current
         if healed <= 0:
@@ -985,7 +993,7 @@ class EffectContext:
         total = sum(v for v in placement.values() if v > 0)
         if total <= 0:
             return 0
-        healed = await self.heal(total * 10, source)
+        healed = await self.heal(total * 10, source, modify=False)
         if healed <= 0:
             return 0
         remaining = healed // 10
@@ -1991,21 +1999,25 @@ class EffectContext:
         await self.session.end_game(self.player_id, reason or "Victory")
 
     async def discard_stadium(self) -> Optional[BoardEntity]:
-        """Discards the in-play Stadium to its owner's discard; returns it or None."""
-        stadium = self.stadium_in_play()
-        if stadium is None:
-            return None
-        owner_id = stadium.owning_player_id or self.player_id
-        discard = self.board.find_player_area(owner_id, "discard")
-        if not discard:
-            return None
-        position = len(discard.children)
-        if not self.board.move_card(stadium.entity_id, discard.entity_id):
-            return None
-        self._queue(self.session._entity_moved_msg(
-            stadium.entity_id, discard.entity_id, position
-        ))
-        return stadium
+        """Discards every in-play Stadium card to its owner's discard;
+        returns the first discarded card, or None."""
+        area = self.board.find_global_area("activeStadium")
+        stadiums = list(area.children) if area else []
+        first = None
+        for stadium in stadiums:
+            owner_id = stadium.owning_player_id or self.player_id
+            discard = self.board.find_player_area(owner_id, "discard")
+            if not discard:
+                continue
+            position = len(discard.children)
+            if not self.board.move_card(stadium.entity_id, discard.entity_id):
+                continue
+            self._queue(self.session._entity_moved_msg(
+                stadium.entity_id, discard.entity_id, position
+            ))
+            if first is None:
+                first = stadium
+        return first
 
     # ------------------------------------------------------------------
     # Internals

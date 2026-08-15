@@ -199,6 +199,10 @@ class Passive:
         """True to prevent healing damage from `target` (Mimikyu SWSH3)."""
         return False
 
+    def heal_multiplier(self, target: PokemonEntity, carrier: BoardEntity) -> int:
+        """Factor applied to heal amounts (Legendary Ocean Trench's 2)."""
+        return 1
+
     def knockout_destination(self, pokemon: PokemonEntity, carrier: BoardEntity) -> Optional[str]:
         """Area name replacing "discard" for a knocked-out Pokemon (e.g. "lostZone")."""
         return None
@@ -664,6 +668,25 @@ def healing_blocked(board: BoardState, target: PokemonEntity) -> bool:
         passive.prevents_healing(target, carrier)
         for passive, carrier in active_passives(board)
     )
+
+
+def effective_heal_amount(board: BoardState, target: PokemonEntity, amount: int) -> int:
+    """Heal amount after stadium/passive multipliers (Legendary Ocean Trench);
+    passives sharing a stacking_key count once."""
+    if amount <= 0:
+        return 0
+    seen_keys: Set[str] = set()
+    multiplier = 1
+    for passive, carrier in active_passives(board):
+        key = passive.stacking_key
+        if key is not None and key in seen_keys:
+            continue
+        gained = passive.heal_multiplier(target, carrier)
+        if gained != 1:
+            if key is not None:
+                seen_keys.add(key)
+            multiplier *= gained
+    return amount * multiplier
 
 
 def ability_effects_blocked(board: BoardState, target: PokemonEntity) -> bool:

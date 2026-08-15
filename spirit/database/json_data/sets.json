@@ -1874,5 +1874,20 @@
     "featuredArchetypes": [],
     "visibleUnfilterable": false,
     "promo": true
+  },
+  {
+    "name": "ME6",
+    "externalId": "ME6",
+    "number": 1340,
+    "count": 26,
+    "filter": true,
+    "block": "NONE",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
   }
 ]
