@@ -1,4 +1,5 @@
 import asyncio
+import time
 import unittest
 from types import SimpleNamespace
 
@@ -6,6 +7,8 @@ from spirit.game.session.constants import (
     ACTION_COUNTDOWN_DURATION_MS,
     ACTION_INACTIVITY_DURATION_MS,
     ACTION_TIMEOUT_MS,
+    CLIENT_CATCHUP_BUFFER_SECONDS,
+    SEQUENCE_DURATION_SECONDS,
     GamePhase,
 )
 from spirit.game.session.game_session import GameSession
@@ -46,6 +49,7 @@ class ActionTimerTests(unittest.IsolatedAsyncioTestCase):
         session._state_unit_tasks = {}
         session._prompt_checkpoint_tasks = set()
         session.choreography_pauses = False
+        session._client_caught_up_at = 0.0
         return session
 
     async def wait_for_packets(self, player, count):
@@ -179,6 +183,59 @@ class ActionTimerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(timer_packets[1]["endTurnDuration"], 0)
         self.assertGreater(timer_packets[2]["endTurnDuration"], 0)
         self.assertEqual(timer_packets[3]["endTurnDuration"], 0)
+
+    def test_animation_backlog_accumulates_faster_than_realtime(self):
+        session = self.make_session()
+        session.choreography_pauses = True
+        session._note_client_animation("Attack")
+        session._note_client_animation("PlayCard")
+        remaining = session._client_catchup_remaining()
+        self.assertGreater(
+            remaining,
+            SEQUENCE_DURATION_SECONDS["Attack"]
+            + SEQUENCE_DURATION_SECONDS["PlayCard"]
+            - 0.05,
+        )
+
+    async def test_timed_offer_waits_for_client_catchup(self):
+        session = self.make_session()
+        session.choreography_pauses = True
+        player = RecordingNetworkPlayer("player-1")
+        session.players = {player.account_id: player}
+        catchup = 0.25
+        session._client_caught_up_at = time.monotonic() + catchup
+        offer = {"counter": 13, "startingTimestamp": 1}
+
+        started = time.monotonic()
+        prompt = asyncio.create_task(
+            session.prompt_selection_message(
+                player,
+                OutboundMsg.SELECTION_WITH_TARGETS_AND_ACTIONS_REQUIRED.value,
+                offer,
+                expected_counter=13,
+                idle_timeout_ms=ACTION_TIMEOUT_MS,
+            )
+        )
+        await self.wait_for_packets(player, 2)
+        elapsed = time.monotonic() - started
+
+        self.assertGreaterEqual(elapsed, catchup)
+        self.assertGreater(offer["startingTimestamp"], 1)
+        self.assertEqual(
+            [name for name, _, _ in player.packets],
+            [
+                OutboundMsg.SEQUENCE_MESSAGE.value,
+                OutboundMsg.SET_IDLE_TIMER.value,
+            ],
+        )
+
+        await session.receive_player_action(
+            player.account_id, {"selection": None, "counter": 13}
+        )
+        await asyncio.wait_for(prompt, timeout=1)
+        self.assertGreaterEqual(
+            elapsed, catchup + CLIENT_CATCHUP_BUFFER_SECONDS - 0.05
+        )
 
 
 if __name__ == "__main__":

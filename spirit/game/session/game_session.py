@@ -23,6 +23,10 @@ from .constants import (
     MAX_ACTIONS_PER_TURN,
     ACTION_COUNTDOWN_DURATION_MS,
     ACTION_TIMEOUT_MS,
+    DEFAULT_SEQUENCE_DURATION_SECONDS,
+    MAX_CLIENT_CATCHUP_SECONDS,
+    CLIENT_CATCHUP_BUFFER_SECONDS,
+    SEQUENCE_DURATION_SECONDS,
     TURN_OFFER_LENGTH_MS,
     TARGET_TYPE_MAIN_TURN,
     EMPTY_SEQUENCE_ID,
@@ -251,6 +255,9 @@ class GameSession:
         # Keeps Start/inner/Stop runs contiguous with reconnect control packets.
         self._wire_lock = asyncio.Lock()
         self._last_sequence_sent_at: float = 0.0
+        # Monotonic timestamp when the human client's sequence pump should
+        # have finished playing brackets already sent.
+        self._client_caught_up_at: float = 0.0
         # Cleared while an authoritative state transition is being applied.
         self._state_checkpoint = asyncio.Event()
         self._state_checkpoint.set()
@@ -334,6 +341,36 @@ class GameSession:
         """Sleep that paces client animations; no-op when pauses are disabled."""
         if self.choreography_pauses:
             await asyncio.sleep(seconds)
+
+    def _note_client_animation(self, sequence_name: str):
+        """Extends the estimated time until the human client's sequence pump is idle."""
+        name = getattr(sequence_name, "value", sequence_name) or ""
+        duration = SEQUENCE_DURATION_SECONDS.get(
+            name, DEFAULT_SEQUENCE_DURATION_SECONDS
+        )
+        now = time.monotonic()
+        self._client_caught_up_at = max(self._client_caught_up_at, now) + duration
+
+    def _client_catchup_remaining(self) -> float:
+        """Seconds until queued playmat animations are estimated to finish."""
+        if not self.choreography_pauses:
+            return 0.0
+        remaining = self._client_caught_up_at - time.monotonic()
+        return min(MAX_CLIENT_CATCHUP_SECONDS, max(0.0, remaining))
+
+    async def _wait_for_client_catchup(self, extra_seconds: float = 0.0):
+        """Blocks until estimated client playback has caught up with the wire."""
+        remaining = self._client_catchup_remaining()
+        if remaining > 0:
+            remaining += max(0.0, extra_seconds)
+        if remaining <= 0:
+            return
+        if remaining >= 0.3:
+            logging.info(
+                f"[Session {self.game_id}] Waiting {remaining:.1f}s for "
+                "client animations to catch up."
+            )
+        await self.choreo_pause(remaining)
 
     async def _run_state_unit(self, awaitable):
         """Runs one authoritative state transition as a reconnect checkpoint."""
@@ -604,11 +641,16 @@ class GameSession:
                 {"gameID": self.game_id, "sequenceID": sequence_id, "name": name},
             ))
         )
+        sent_to_human = False
         async with self._wire_lock:
             for _, player in self._unique_recipients(players):
                 for packet in packets:
                     await player.send_packet(OutboundMsg.SEQUENCE_MESSAGE.value, packet)
+                if isinstance(player, NetworkPlayer):
+                    sent_to_human = True
             self._last_sequence_sent_at = time.monotonic()
+            if sent_to_human:
+                self._note_client_animation(name)
 
     def _nested_sequence_envelopes(self, nested: NestedSequence) -> List[Dict[str, Any]]:
         """Builds the Start/inner/Stop envelope run for a child sequence.
@@ -655,13 +697,23 @@ class GameSession:
         if self.game_phase == GamePhase.GAME_OVER:
             raise GameOver()
         await self._wait_for_connection_resume()
+        timed = idle_timeout_ms is not None and isinstance(player, NetworkPlayer)
+        if timed:
+            # SetIdleTimer is processed immediately, while the offer waits on
+            # the sequence pump. Hold both until animations should have landed
+            # so the 15s inactivity window is not consumed by playback.
+            await self._wait_for_client_catchup(CLIENT_CATCHUP_BUFFER_SECONDS)
+            await self._wait_for_connection_resume()
+            if self.game_phase == GamePhase.GAME_OVER:
+                raise GameOver()
+            if isinstance(value, dict) and "startingTimestamp" in value:
+                value["startingTimestamp"] = int(time.time() * 1000)
         envelope = self._sequence_envelope(
             EMPTY_SEQUENCE_ID, self._build_msg(msg_name, value)
         )
         loop = asyncio.get_running_loop()
         player.pending_choice_future = loop.create_future()
         player._pending_offer = (OutboundMsg.SEQUENCE_MESSAGE.value, envelope, 0)
-        timed = idle_timeout_ms is not None and isinstance(player, NetworkPlayer)
         remaining = max(0.0, (idle_timeout_ms or 0) / 1000)
         timer_running = False
         async with self._wire_lock:
@@ -3631,7 +3683,9 @@ class GameSession:
                     )
                     return
                 entry, target_ids = picked
-                await self.choreo_pause(AI_ACTION_DELAY_SECONDS)
+                await self.choreo_pause(
+                    max(AI_ACTION_DELAY_SECONDS, self._client_catchup_remaining())
+                )
                 turn_over = await self._run_state_unit(
                     self._apply_player_action(active_id, entry, target_ids)
                 )

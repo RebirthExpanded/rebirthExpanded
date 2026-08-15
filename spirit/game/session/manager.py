@@ -13,7 +13,7 @@ from .game_session import GameSession
 _MAX_QUEUE_NAME_LEN = 64
 
 # Seconds an unmatched ranked queue waits before filling with an AI opponent.
-BOT_FILL_SECONDS = 2
+BOT_FILL_SECONDS = 30
 BOT_DISPLAY_NAME = "Bot"
 
 

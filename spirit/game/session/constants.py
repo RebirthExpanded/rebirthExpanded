@@ -49,6 +49,50 @@ ACTION_INACTIVITY_DURATION_MS = 15_000
 ACTION_COUNTDOWN_DURATION_MS = 15_000
 ACTION_TIMEOUT_MS = ACTION_INACTIVITY_DURATION_MS + ACTION_COUNTDOWN_DURATION_MS
 
+# Estimated client playback time per top-level GameSequence. The action timer
+# starts as soon as SetIdleTimer is sent, but the offer itself rides the
+# queued sequence pump -- so a fast AI turn can burn the hidden 15s
+# inactivity window while animations are still playing. Slightly high
+# estimates are preferred; leftover wait is a brief idle beat, not a skip.
+DEFAULT_SEQUENCE_DURATION_SECONDS = 1.0
+MAX_CLIENT_CATCHUP_SECONDS = 20.0
+CLIENT_CATCHUP_BUFFER_SECONDS = 0.4
+SEQUENCE_DURATION_SECONDS = {
+    "Attack": 3.4,
+    "PokeAbility": 2.2,
+    "Knockout": 2.4,
+    "PlayCard": 1.2,
+    "TrainerCard": 1.6,
+    "TrainerPresent": 1.6,
+    "StadiumPresent": 1.3,
+    "Evolve": 1.6,
+    "Retreat": 1.6,
+    "PlayEnergy": 1.1,
+    "PlayTool": 1.1,
+    "PlayActive": 1.3,
+    "ActivePlayerSet": 1.1,
+    "Draw": 0.7,
+    "GroupedMove": 0.5,
+    "SerialSequence": 0.35,
+    "DismissAbilitySelect": 0.1,
+    "AddSpecialCondition": 1.1,
+    "RemoveSpecialCondition": 0.8,
+    "PoisonDamage": 1.5,
+    "BurnDamage": 1.5,
+    "FlipForBurn": 2.5,
+    "FlipToWakeUp": 2.5,
+    "FlipForConfusion": 2.5,
+    "HurtFromConfusion": 1.6,
+    "DrawPrizeCard": 1.6,
+    "WithOpenPrizeCards": 1.3,
+    "HandShuffledAndMovedToDeck": 1.6,
+    "DealInitialHands": 1.8,
+    "DealInitialPrizeCards": 1.8,
+    "Mulligan": 1.4,
+    "ReplaceActive": 1.5,
+    "UseStadiumAbility": 1.6,
+}
+
 
 # SequenceID for standalone (unbracketed) SequenceMessages. The client's
 # SequenceParser only accepts a SequenceMessage outside a Start/StopSequence

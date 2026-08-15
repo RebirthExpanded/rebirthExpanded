@@ -374,15 +374,15 @@ class DataSyncHandler(BaseHandler):
         }
         await self.client.send_packet(res, request_id, flags=WargFlags.CLEAR)
 
-    @handle(InboundMsg.GET_MOTD)
-    async def handle_get_motd(self, message, request_id, flags):
-        res = {
-            "messageName": OutboundMsg.MOTD.value,
-            "id": 1,
-            "title": {"token": "SpiritPTCGO", "bundle": {}},
-            "text": {"token": "Welcome to the Spirit PTCGO Private Server!", "bundle": {}}
-        }
-        await self.client.send_packet(res, request_id, flags=WargFlags.CLEAR)
+    # @handle(InboundMsg.GET_MOTD)
+    # async def handle_get_motd(self, message, request_id, flags):
+    #     res = {
+    #         "messageName": OutboundMsg.MOTD.value,
+    #         "id": 1,
+    #         "title": {"token": "SpiritPTCGO", "bundle": {}},
+    #         "text": {"token": "Welcome to the Spirit PTCGO Private Server!", "bundle": {}}
+    #     }
+    #     await self.client.send_packet(res, request_id, flags=WargFlags.CLEAR)
 
     @staticmethod
     def _build_family_map():
