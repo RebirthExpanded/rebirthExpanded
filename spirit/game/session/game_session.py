@@ -3246,7 +3246,10 @@ class GameSession:
 
     async def _checkup_poison(self, active):
         """Poison tick: 10 * poison_counters (default 1) raw damage."""
-        amount = 10 * self.poison_counters.get(active.entity_id, 1)
+        counters = self.poison_counters.get(active.entity_id, 1)
+        for passive, carrier in active_passives(self.board_state):
+            counters = passive.modify_poison_counters(counters, active, carrier)
+        amount = 10 * max(0, counters)
         knocked_out = await self._apply_raw_damage(
             active, amount, GameSequence.POISON_DAMAGE.value
         )

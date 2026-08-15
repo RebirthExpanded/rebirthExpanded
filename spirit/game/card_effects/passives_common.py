@@ -512,6 +512,22 @@ def attack_effect_shield_passive(protects="carrier", pokemon_type=None) -> Passi
     return AttackEffectShieldPassive(protects, pokemon_type=pokemon_type)
 
 
+class FullEffectShieldPassive(Passive):
+    """Prevent all effects of opposing attacks AND Abilities done to the
+    carrier (damage is not an effect). Hide 'n' Sneak shape."""
+
+    def blocks_attack_effects(self, target, carrier):
+        return carrier_pokemon(carrier) is target
+
+    def blocks_ability_effects(self, target, carrier):
+        return carrier_pokemon(carrier) is target
+
+
+def full_effect_shield_passive() -> Passive:
+    """Hide 'n' Sneak: shields the carrier from attack and Ability effects."""
+    return FullEffectShieldPassive()
+
+
 class FlipPreventDamagePassive(Passive):
     """"If any damage is done to this Pokemon by attacks, flip a coin. If
     heads, prevent that damage" (Infiltrator / Primate Dexterity)."""

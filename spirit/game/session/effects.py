@@ -873,7 +873,7 @@ class EffectContext:
         ts = self.session.turn_state
         if ts.attack_coin_reroll_used or self.player_id != ts.active_player_id:
             return None
-        if not attack_coin_reroll_offered(self.board, self.player_id):
+        if not attack_coin_reroll_offered(self.board, self.player_id, self.attacker):
             return None
         await self._queue_coin_results(results, title, source, immediate=True)
         if not await self.ask_yes_no(

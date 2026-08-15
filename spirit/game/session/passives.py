@@ -277,6 +277,20 @@ class Passive:
         gates (Caterpie's Adaptive Evolution)."""
         return False
 
+    def may_evolve_same_turn(
+        self, pokemon: PokemonEntity, carrier: BoardEntity, evolution_card: BoardEntity
+    ) -> bool:
+        """True to skip the just-played evolution gate (not the first-turn
+        gate) when playing `evolution_card` onto `pokemon` (Forest of Vitality)."""
+        return False
+
+    def may_be_evolved_into(
+        self, pokemon: PokemonEntity, carrier: BoardEntity, evolution_card: BoardEntity
+    ) -> bool:
+        """True to let `evolution_card` evolve onto `pokemon` even when
+        EVOLUTION_LOGIC_NAME does not match (Eevee ex Rainbow DNA)."""
+        return False
+
     def blocks_evolution(
         self, player_id: str, target: PokemonEntity, carrier: BoardEntity
     ) -> bool:
@@ -287,6 +301,13 @@ class Passive:
         self, counters: int, pokemon: PokemonEntity, carrier: BoardEntity
     ) -> int:
         """Damage counters the Burn checkup tick places (default 2)."""
+        return counters
+
+    def modify_poison_counters(
+        self, counters: int, pokemon: PokemonEntity, carrier: BoardEntity
+    ) -> int:
+        """Damage counters the Poison checkup tick places (default 1, or the
+        Pokémon's recorded poison_counters). Pecharunt's Toxic Subjugation."""
         return counters
 
     def blocks_burn_recovery(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
@@ -375,9 +396,12 @@ class Passive:
         (Wyndon Stadium)."""
         return 0
 
-    def offers_attack_coin_reroll(self, player_id: str, carrier: BoardEntity) -> bool:
+    def offers_attack_coin_reroll(
+        self, player_id: str, carrier: BoardEntity, attacker: Optional[BoardEntity] = None
+    ) -> bool:
         """True to let `player_id` re-flip an attack's coins once during
-        their turn (Glimwood Tangle)."""
+        their turn (Glimwood Tangle / Backtrack Badge). `attacker` is the
+        Pokemon whose attack flipped the coins, when known."""
         return False
 
 
@@ -780,10 +804,12 @@ def evolve_heal_amount(board: BoardState, evolved: PokemonEntity,
     )
 
 
-def attack_coin_reroll_offered(board: BoardState, player_id: str) -> bool:
+def attack_coin_reroll_offered(
+    board: BoardState, player_id: str, attacker: Optional[BoardEntity] = None
+) -> bool:
     """Whether a passive lets `player_id` re-flip attack coins (Glimwood Tangle)."""
     return any(
-        passive.offers_attack_coin_reroll(player_id, carrier)
+        passive.offers_attack_coin_reroll(player_id, carrier, attacker)
         for passive, carrier in active_passives(board)
     )
 
@@ -820,6 +846,28 @@ def can_evolve_early(board: BoardState, pokemon: PokemonEntity) -> bool:
     """Whether a passive exempts `pokemon` from the evolution turn gates."""
     return any(
         passive.may_evolve_early(pokemon, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def can_evolve_same_turn(
+    board: BoardState, pokemon: PokemonEntity, evolution_card: BoardEntity
+) -> bool:
+    """Whether a passive lets `pokemon` evolve the turn it was played
+    (still forbidden on either player's first turn)."""
+    return any(
+        passive.may_evolve_same_turn(pokemon, carrier, evolution_card)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def can_evolve_onto(
+    board: BoardState, pokemon: PokemonEntity, evolution_card: BoardEntity
+) -> bool:
+    """Whether a passive lets `evolution_card` evolve onto `pokemon` despite
+    a name mismatch (Rainbow DNA)."""
+    return any(
+        passive.may_be_evolved_into(pokemon, carrier, evolution_card)
         for passive, carrier in active_passives(board)
     )
 

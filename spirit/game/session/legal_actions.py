@@ -34,6 +34,8 @@ from .passives import (
     ability_locked,
     can_attack_despite_conditions,
     can_evolve_early,
+    can_evolve_onto,
+    can_evolve_same_turn,
     effective_attack_cost,
     effective_bench_capacity,
     effective_retreat_cost,
@@ -448,10 +450,13 @@ def compute_legal_actions(
                 continue
             evolve_targets = [
                 p.entity_id for p in in_play
-                if p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == evolves_from
+                if (p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == evolves_from
+                    or can_evolve_onto(board, p, card))
                 and not evolution_blocked(board, player_id, p)
                 and (state.may_evolve_target(p.entity_id)
-                     or can_evolve_early(board, p))
+                     or can_evolve_early(board, p)
+                     or (state.turn_number > 2
+                         and can_evolve_same_turn(board, p, card)))
             ]
             if evolve_targets:
                 entries.append(_target_map_entry(

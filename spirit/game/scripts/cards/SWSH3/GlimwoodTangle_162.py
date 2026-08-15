@@ -7,7 +7,7 @@ class _GlimwoodTanglePassive(Passive):
     """Once during each player's turn, after that player flips any coins for
     an attack, they may ignore all results and begin flipping again."""
 
-    def offers_attack_coin_reroll(self, player_id, carrier):
+    def offers_attack_coin_reroll(self, player_id, carrier, attacker=None):
         return True
 
 
