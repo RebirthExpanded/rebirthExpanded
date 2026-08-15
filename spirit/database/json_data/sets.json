@@ -1583,12 +1583,13 @@
     "name": "SV06",
     "externalId": "TWM",
     "number": 1170,
-    "count": 7,
+    "count": 32,
     "filter": true,
     "block": "SV",
     "legalFormats": [
       "6402e830-7fed-4cd1-b172-2a320047c2bb",
-      "98c83df9-ec82-4193-84a8-104115ce4e25"
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
     ],
     "featuredArchetypes": [],
     "visibleUnfilterable": false,
@@ -1722,7 +1723,7 @@
     "name": "SV09",
     "externalId": "JTG",
     "number": 1240,
-    "count": 16,
+    "count": 18,
     "filter": true,
     "block": "SV",
     "legalFormats": [
@@ -1798,7 +1799,7 @@
     "name": "ME3",
     "externalId": "POR",
     "number": 1290,
-    "count": 12,
+    "count": 13,
     "filter": true,
     "block": "NONE",
     "legalFormats": [
