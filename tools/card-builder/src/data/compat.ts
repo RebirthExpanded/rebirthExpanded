@@ -1,8 +1,9 @@
 /** Tiny compatibility helpers so browse UI can show a stable "local data" source label. */
 
 import { clearLocalCache } from './localData';
+import { clearJpCache } from './limitlessJp';
 
-export type DataSource = 'local';
+export type DataSource = 'local' | 'jp';
 
 let note = 'Using local PokemonTCG/pokemon-tcg-data JSON (no live API).';
 
@@ -16,5 +17,6 @@ export function setActiveSource(_source: DataSource, nextNote = ''): void {
 
 export async function resetDataSource(): Promise<void> {
   clearLocalCache();
+  clearJpCache();
   note = 'Using local PokemonTCG/pokemon-tcg-data JSON (no live API).';
 }

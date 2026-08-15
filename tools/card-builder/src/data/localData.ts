@@ -345,6 +345,14 @@ export function cardImageUrl(
   if (quality === 'low' && imageBase.includes('_hires')) {
     return imageBase.replace('_hires', '');
   }
+  if (/limitlesstcg|digitaloceanspaces\.com/.test(imageBase)) {
+    if (quality === 'low' && !/_LG\.png/i.test(imageBase)) {
+      return imageBase.replace(/\.png($|\?)/i, '_LG.png$1');
+    }
+    if (quality === 'high') {
+      return imageBase.replace(/_LG\.png/i, '.png');
+    }
+  }
   return imageBase;
 }
 

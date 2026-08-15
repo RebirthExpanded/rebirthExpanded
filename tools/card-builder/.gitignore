@@ -6,4 +6,5 @@ dist/
 .env.*
 !.env.example
 data/pokemon-tcg-data/
+data/limitless-jp/
 implementedCardIds.json

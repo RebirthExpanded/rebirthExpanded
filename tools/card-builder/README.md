@@ -7,14 +7,19 @@ Local-only UI for scaffolding Spirit PTCGO Python card scripts using existing fa
 ```bash
 cd tools/card-builder
 npm install
-npm run sync-data              # once (or when you want catalog updates)
+npm run sync-data              # once (or when you want International catalog updates)
+npm run sync-data:jp           # optional: prefetch Limitless Japan set index
 npm run generate:implemented-ids
 npm run dev
 ```
 
 Opens at [http://localhost:5174](http://localhost:5174).
 
-## Browse cards (no live API)
+## Browse cards
+
+The browse view has **International** and **Japan** tabs.
+
+### International (no live API)
 
 Catalog data comes from a local clone of [PokemonTCG/pokemon-tcg-data](https://github.com/PokemonTCG/pokemon-tcg-data):
 
@@ -29,6 +34,18 @@ Unimplemented cards are greyed out in the card grid (implemented IDs come from `
 ```bash
 npm run generate:implemented-ids
 ```
+
+### Japan (Limitless unofficial EN translations)
+
+There is no cloneable English-translated Japanese dump. The Japan tab fetches public Limitless pages (`/cards/jp/…?translate=en&display=full`) via the local Vite server, parses them, and caches JSON under `data/limitless-jp/` (gitignored).
+
+- `npm run sync-data:jp` caches the set index. Opening a set (or `npm run sync-data:jp -- --series Mega`) fetches that set’s cards.
+- Catalog ids are `jp-{SET}-{number}` (e.g. `jp-M3-21`). Japanese collector numbers often differ from English.
+- Known JP→Spirit set twins (`M3`→`ME3`, `M5`→`ME5`, …) fill **Spirit set**; the Japanese number is kept. International prints from Limitless are shown as a hint only.
+- Implemented greying matches trainers by name in the mapped Spirit folder. Pokémon match reprint identity first, then the same display name in that folder (Limitless attack names often differ from official English).
+- Card text is an unofficial Limitless translation and may differ from later official English, so prefab matching can miss.
+
+Do not commit the Limitless cache.
 
 ## Generation rules
 

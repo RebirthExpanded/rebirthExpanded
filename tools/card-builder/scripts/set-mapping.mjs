@@ -2,6 +2,9 @@
  * Maps between Spirit set folder codes (SV09, SWSH12, CZ, …) and
  * pokemon-tcg-data set ids / ptcgoCodes.
  */
+import { jpCatalogParts, spiritSetCodeFromJpSet } from './jp-set-mapping.mjs';
+
+export { JP_TO_SPIRIT, jpCatalogParts, spiritSetCodeFromJpSet } from './jp-set-mapping.mjs';
 
 /** Spirit folder/code → primary pokemon-tcg-data set id (and extras for galleries). */
 export const SPIRIT_TO_TCG_SET_IDS = {
@@ -75,8 +78,10 @@ export function heuristicCatalogIds(spiritCode) {
   return [code.toLowerCase()];
 }
 
-/** Resolve Spirit set code for a catalog card id like "sv9-22". */
+/** Resolve Spirit set code for a catalog card id like "sv9-22" or "jp-M3-21". */
 export function spiritSetCodeFromCatalogId(catalogId) {
+  const jp = jpCatalogParts(catalogId);
+  if (jp) return spiritSetCodeFromJpSet(jp.set);
   const dash = String(catalogId || '').indexOf('-');
   if (dash <= 0) return '';
   const setId = catalogId.slice(0, dash);

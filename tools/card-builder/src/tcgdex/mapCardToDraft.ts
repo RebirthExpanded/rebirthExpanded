@@ -351,4 +351,7 @@ export interface BrowseSourceMeta {
   imageUrl?: string;
   setName?: string;
   rarity?: string;
+  region?: 'en' | 'jp';
+  unofficialTranslation?: boolean;
+  intPrintHint?: string;
 }

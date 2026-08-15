@@ -126,7 +126,10 @@ let outputCode = '';
 let outputError = '';
 let statusMessage = '';
 let view: 'browse' | 'editor' = 'browse';
-let browse = createBrowseState();
+let browseRegion: 'en' | 'jp' = 'en';
+let browseEn = createBrowseState('en');
+let browseJp = createBrowseState('jp');
+let browse = browseEn;
 let browseScrollY = 0;
 let sourceMeta: BrowseSourceMeta | null = null;
 let imageModalOpen = false;
@@ -586,9 +589,10 @@ function render(scrollMode: RenderScrollMode = 'preserve') {
       ? `<div class="source-banner">
           ${sourceMeta.imageUrl ? `<button type="button" class="source-image-button" data-action="open-image-modal" aria-label="Enlarge card image"><img src="${escapeAttr(sourceMeta.imageUrl)}" alt="Reference card" /></button>` : ''}
           <div>
-            <strong>Loaded from local catalog</strong>
+            <strong>${sourceMeta.unofficialTranslation ? 'Loaded from Limitless (unofficial EN translation)' : 'Loaded from local catalog'}</strong>
             <p class="muted">${escapeHtml(sourceMeta.tcgDexId)}${sourceMeta.setName ? ` · ${escapeHtml(sourceMeta.setName)}` : ''}${sourceMeta.rarity ? ` · ${escapeHtml(sourceMeta.rarity)}` : ''}</p>
-            <p class="muted">Art downloads into <code>spirit/assets/cards/&lt;SET&gt;/</code> on save. Match prefabs from attack/ability text before generating.</p>
+            ${sourceMeta.intPrintHint ? `<p class="muted">${escapeHtml(sourceMeta.intPrintHint)}</p>` : ''}
+            <p class="muted">${sourceMeta.unofficialTranslation ? 'Prefab matching may miss if Limitless wording differs from official English. ' : ''}Art downloads into <code>spirit/assets/cards/&lt;SET&gt;/</code> on save. Match prefabs from attack/ability text before generating.</p>
           </div>
         </div>`
       : '';
@@ -672,11 +676,13 @@ function render(scrollMode: RenderScrollMode = 'preserve') {
   app.innerHTML = `
     <header class="hero">
       <div>
-        <p class="eyebrow">Local only · Spirit PTCGO · pokemon-tcg-data</p>
+        <p class="eyebrow">Local only · Spirit PTCGO · ${browseRegion === 'jp' ? 'Limitless JP' : 'pokemon-tcg-data'}</p>
         <h1>${view === 'browse' ? 'Browse cards' : 'Spirit Card Builder'}</h1>
         <p class="lede">${
           view === 'browse'
-            ? 'Pick a series → set → card to pre-fill the generator. Unimplemented cards are greyed out.'
+            ? browseRegion === 'jp'
+              ? 'Japan tab: pick a series → set → card. English text is an unofficial Limitless translation. Unimplemented cards are greyed out.'
+              : 'Pick a series → set → card to pre-fill the generator. Unimplemented cards are greyed out.'
             : 'Scaffold Python *CardDef scripts from form fields. Effects use Spirit factories when a prefab matches, otherwise similar existing scripts.'
         }</p>
       </div>
@@ -784,6 +790,24 @@ function bindBrowseEvents() {
 
 async function handleBrowse(action: string | null, btn: HTMLButtonElement) {
   switch (action) {
+    case 'region-en':
+    case 'region-jp': {
+      const nextRegion = action === 'region-jp' ? 'jp' : 'en';
+      if (browseRegion === nextRegion) break;
+      browseRegion = nextRegion;
+      browse = nextRegion === 'jp' ? browseJp : browseEn;
+      statusMessage = '';
+      outputError = '';
+      render();
+      if (browse.series.length === 0 && !browse.loading) {
+        browse.loading = true;
+        render();
+        await ensureImplementedLoaded(browse);
+        await loadSeries(browse);
+        render();
+      }
+      break;
+    }
     case 'go-series':
       browse.level = 'series';
       browse.filter = '';
@@ -830,7 +854,7 @@ async function handleBrowse(action: string | null, btn: HTMLButtonElement) {
       outputError = '';
       render();
       try {
-        const { draft: next, meta } = await pickCardToDraft(id);
+        const { draft: next, meta } = await pickCardToDraft(id, browse.region);
         draft = next;
         sourceMeta = meta;
         outputCode = '';
@@ -1006,7 +1030,9 @@ async function handleAction(action: string | null, btn: HTMLButtonElement) {
       imageModalOpen = false;
       imageModalUrl = '';
       clearReprintState();
-      browse = createBrowseState();
+      browseEn = createBrowseState('en');
+      browseJp = createBrowseState('jp');
+      browse = browseRegion === 'jp' ? browseJp : browseEn;
       view = 'browse';
       statusMessage = '';
       outputError = '';

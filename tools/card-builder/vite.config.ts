@@ -14,11 +14,20 @@ import { get as httpsGet } from 'node:https';
 import { get as httpGet } from 'node:http';
 import {
   SPIRIT_TO_TCG_SET_IDS,
+  jpCatalogParts,
+  spiritSetCodeFromJpSet,
 } from './scripts/set-mapping.mjs';
-import { pokemonReprintIdentityFromScript } from './src/generator/pokemonReprintIdentity';
+import { pokemonReprintIdentityFromScript, identityName } from './src/generator/pokemonReprintIdentity';
+import {
+  loadOrFetchSetCards,
+  loadOrFetchSets,
+  searchLimitlessCards,
+} from './scripts/limitless-jp.mjs';
 
 // local helpers (avoid TS friction with .mjs named re-exports)
 function spiritSetCodeFromCatalogId(catalogId: string): string {
+  const jp = jpCatalogParts(catalogId);
+  if (jp) return spiritSetCodeFromJpSet(jp.set);
   const dash = String(catalogId || '').indexOf('-');
   if (dash <= 0) return '';
   const setId = catalogId.slice(0, dash);
@@ -45,6 +54,7 @@ const TCG_SET_ID_TO_SPIRIT: Record<string, string> = (() => {
 const rootDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(rootDir, '../..');
 const dataRoot = join(rootDir, 'data', 'pokemon-tcg-data');
+const jpDataRoot = join(rootDir, 'data', 'limitless-jp');
 const implementedCardIdsPath = join(rootDir, 'implementedCardIds.json');
 const scriptsRoot = join(repoRoot, 'spirit/game/scripts/cards');
 const assetsRoot = join(repoRoot, 'spirit/assets/cards');
@@ -656,6 +666,44 @@ function findReprintCandidates(spiritSet: string, name: string, excludeNumber = 
   });
 }
 
+function buildImplementedJpIndex(): {
+  namesBySet: Record<string, string[]>;
+  pokemonIdentitiesBySet: Record<string, string[]>;
+} {
+  const namesBySet: Record<string, Set<string>> = {};
+  const pokemonIdentitiesBySet: Record<string, Set<string>> = {};
+  const addName = (set: string, name: string) => {
+    const key = identityName(name);
+    if (!key) return;
+    if (!namesBySet[set]) namesBySet[set] = new Set();
+    namesBySet[set].add(key);
+  };
+  for (const setDir of listSpiritSetDirs()) {
+    const set = setDir.toUpperCase();
+    const dir = join(scriptsRoot, setDir);
+    for (const filePath of collectPyFiles(dir)) {
+      const source = readFileSync(filePath, 'utf8');
+      const fileName = filePath.split(/[/\\]/).pop() || '';
+      const displayName = matchPyAttr(source, 'display_name');
+      if (displayName) addName(set, displayName);
+      const fromFile = fileName.replace(/_\d+\.py$/i, '').replace(/\.py$/i, '');
+      if (fromFile) addName(set, fromFile);
+      if (/PokemonCardDef\s*\(/.test(source)) {
+        const identity = pokemonReprintIdentityFromScript(source);
+        if (identity) {
+          if (!pokemonIdentitiesBySet[set]) pokemonIdentitiesBySet[set] = new Set();
+          pokemonIdentitiesBySet[set].add(identity);
+        }
+      }
+    }
+  }
+  const namesOut: Record<string, string[]> = {};
+  const idOut: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(namesBySet)) namesOut[k] = [...v];
+  for (const [k, v] of Object.entries(pokemonIdentitiesBySet)) idOut[k] = [...v];
+  return { namesBySet: namesOut, pokemonIdentitiesBySet: idOut };
+}
+
 function downloadFile(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const getter = url.startsWith('https') ? httpsGet : httpGet;
@@ -713,6 +761,50 @@ function spiritCardBuilderPlugin(): Plugin {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
           }
           res.end(readFileSync(filePath));
+          return;
+        }
+
+        if (url === '/limitless-jp/sets.json') {
+          void (async () => {
+            try {
+              jsonResponse(res, 200, await loadOrFetchSets(jpDataRoot));
+            } catch (e) {
+              jsonResponse(res, 502, { error: `Limitless JP index failed: ${e instanceof Error ? e.message : e}` });
+            }
+          })();
+          return;
+        }
+
+        if (url.startsWith('/limitless-jp/cards/')) {
+          const setId = decodeURIComponent(url.slice('/limitless-jp/cards/'.length)).replace(/\.json$/i, '');
+          if (!/^[A-Za-z0-9]+$/.test(setId)) {
+            jsonResponse(res, 400, { error: 'Invalid set id.' });
+            return;
+          }
+          void (async () => {
+            try {
+              jsonResponse(res, 200, await loadOrFetchSetCards(jpDataRoot, setId));
+            } catch (e) {
+              jsonResponse(res, 502, { error: `Limitless JP set ${setId} failed: ${e instanceof Error ? e.message : e}` });
+            }
+          })();
+          return;
+        }
+
+        if (url === '/limitless-jp/search' && req.method === 'GET') {
+          const q = new URL(req.url || '', 'http://localhost').searchParams.get('q') || '';
+          void (async () => {
+            try {
+              jsonResponse(res, 200, await searchLimitlessCards(jpDataRoot, q));
+            } catch (e) {
+              jsonResponse(res, 502, { error: `Limitless JP search failed: ${e instanceof Error ? e.message : e}` });
+            }
+          })();
+          return;
+        }
+
+        if (url === '/implemented-jp.json') {
+          jsonResponse(res, 200, buildImplementedJpIndex());
           return;
         }
 

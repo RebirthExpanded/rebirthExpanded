@@ -631,6 +631,29 @@ code {
   backdrop-filter: blur(5px);
 }
 
+.browse-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.9rem;
+}
+
+.browse-tabs button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.35rem 0.85rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.browse-tabs button.is-active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgba(62, 199, 201, 0.12);
+}
+
 .browse-toolbar {
   display: flex;
   flex-wrap: wrap;

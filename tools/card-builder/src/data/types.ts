@@ -23,6 +23,9 @@ export interface TcgDexCardResume {
   localId: string;
   name: string;
   image?: string;
+  category?: string;
+  spiritSet?: string;
+  reprintIdentity?: string;
 }
 
 export interface TcgDexSet extends TcgDexSetResume {
@@ -72,6 +75,7 @@ export interface TcgDexCard extends TcgDexCardResume {
   trainerType?: string;
   energyType?: string;
   regulationMark?: string;
+  intPrints?: Array<{ set: string; number: string; setName?: string }>;
 }
 
 export class DataError extends Error {
