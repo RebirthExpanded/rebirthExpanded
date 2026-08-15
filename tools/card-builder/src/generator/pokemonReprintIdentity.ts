@@ -39,16 +39,32 @@ const STAGE_FROM_ENUM: Record<string, string> = {
 
 const PY_STRING = String.raw`(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`;
 
+const ENERGY_NAMES: Array<[RegExp, string]> = [
+  [/\bcolorless\b/gi, '[c]'],
+  [/\blightning\b/gi, '[l]'],
+  [/\bdarkness\b/gi, '[d]'],
+  [/\bfighting\b/gi, '[f]'],
+  [/\bpsychic\b/gi, '[p]'],
+  [/\bdragon\b/gi, '[n]'],
+  [/\bgrass\b/gi, '[g]'],
+  [/\bwater\b/gi, '[w]'],
+  [/\bmetal\b/gi, '[m]'],
+  [/\bfairy\b/gi, '[y]'],
+  [/\bfire\b/gi, '[r]'],
+];
+
 function normalizeReprintText(text: string): string {
-  return text
+  let normalized = text
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[’‘]/g, "'")
     .replace(/[“”]/g, '"')
     .replace(/Pokémon/gi, 'Pokemon')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+    .replace(/[\[{]([GRWLPFDMYNC])[\]}]/gi, (_, letter: string) => `[${letter.toLowerCase()}]`);
+  for (const [pattern, token] of ENERGY_NAMES) {
+    normalized = normalized.replace(pattern, token);
+  }
+  return normalized.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 /** Compare printed names / evolves-from, including Spirit logic-name strings. */
@@ -130,9 +146,20 @@ function parsePyArgValue(body: string, attr: string): string {
   return body.slice(start, i).trim();
 }
 
+/** Join Python string literals, including parenthesized implicit concatenation. */
+function joinPyStringLiterals(expr: string): string {
+  if (!expr) return '';
+  const parts: string[] = [];
+  const re = new RegExp(PY_STRING, 'g');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(expr))) {
+    parts.push(decodePyString(m[0]));
+  }
+  return parts.join('');
+}
+
 function pyStringAttr(body: string, attr: string): string {
-  const m = body.match(new RegExp(`${attr}\\s*=\\s*(${PY_STRING})`));
-  return m ? decodePyString(m[1]) : '';
+  return joinPyStringLiterals(parsePyArgValue(body, attr));
 }
 
 function typeFromEnumExpr(expr: string): string {
@@ -180,12 +207,22 @@ function attackIdentity(attack: {
   damageCalculation?: string;
   text: string;
 }): Record<string, string> {
+  let damage = Number(attack.damage) || 0;
+  let text = normalizeReprintText(attack.text);
+  const snipe = text.match(
+    /^this attack does (\d+) damage to 1 of your opponent's (benched )?pokemon\.?(?: \(don't apply weakness and resistance for benched pokemon\.\))?$/
+  );
+  if (snipe) {
+    const amount = Number(snipe[1]);
+    if (!damage) damage = amount;
+    text = snipe[2] ? 'snipe bench' : '';
+  }
   return {
     name: normalizeReprintText(attack.name),
     cost: costKey(attack.cost),
-    damage: String(Number(attack.damage) || 0),
+    damage: String(damage),
     op: attack.damageCalculation === '+' || attack.damageCalculation === 'x' ? attack.damageCalculation : '',
-    text: normalizeReprintText(attack.text),
+    text,
   };
 }
 

@@ -7,7 +7,7 @@ export async function loadImplementedCardIds(): Promise<Set<string>> {
   try {
     const res = await fetch('/implemented-card-ids.json');
     if (!res.ok) {
-      console.warn('implementedCardIds.json not found — browse will not grey out implemented cards.');
+      console.warn('implementedCardIds.json not found — browse will not grey out unimplemented cards.');
       cached = new Set();
       return cached;
     }

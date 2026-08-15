@@ -24,7 +24,7 @@ Catalog data comes from a local clone of [PokemonTCG/pokemon-tcg-data](https://g
 
 Reference art uses the `images.pokemontcg.io` URLs already in that JSON. On **Save**, the large image is downloaded to `spirit/assets/cards/<SET>/<Stem>_<number>.png`.
 
-Implemented cards (from `implementedCardIds.json`) are greyed out in the card grid. Regenerate after adding scripts:
+Unimplemented cards are greyed out in the card grid (implemented IDs come from `implementedCardIds.json`). Regenerate after adding scripts:
 
 ```bash
 npm run generate:implemented-ids

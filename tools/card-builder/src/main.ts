@@ -676,7 +676,7 @@ function render(scrollMode: RenderScrollMode = 'preserve') {
         <h1>${view === 'browse' ? 'Browse cards' : 'Spirit Card Builder'}</h1>
         <p class="lede">${
           view === 'browse'
-            ? 'Pick a series → set → card to pre-fill the generator. Implemented scripts are greyed out.'
+            ? 'Pick a series → set → card to pre-fill the generator. Unimplemented cards are greyed out.'
             : 'Scaffold Python *CardDef scripts from form fields. Effects use Spirit factories when a prefab matches, otherwise similar existing scripts.'
         }</p>
       </div>

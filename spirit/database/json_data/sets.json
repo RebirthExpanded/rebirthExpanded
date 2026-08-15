@@ -1568,12 +1568,13 @@
     "name": "SV05",
     "externalId": "TEF",
     "number": 1160,
-    "count": 16,
+    "count": 21,
     "filter": true,
     "block": "SV",
     "legalFormats": [
       "6402e830-7fed-4cd1-b172-2a320047c2bb",
-      "98c83df9-ec82-4193-84a8-104115ce4e25"
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
     ],
     "featuredArchetypes": [],
     "visibleUnfilterable": false,
@@ -1583,7 +1584,7 @@
     "name": "SV06",
     "externalId": "TWM",
     "number": 1170,
-    "count": 32,
+    "count": 55,
     "filter": true,
     "block": "SV",
     "legalFormats": [
@@ -1599,12 +1600,13 @@
     "name": "SV07",
     "externalId": "SCR",
     "number": 1180,
-    "count": 10,
+    "count": 16,
     "filter": true,
     "block": "SV",
     "legalFormats": [
       "6402e830-7fed-4cd1-b172-2a320047c2bb",
-      "98c83df9-ec82-4193-84a8-104115ce4e25"
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
     ],
     "featuredArchetypes": [],
     "visibleUnfilterable": false,
@@ -1614,12 +1616,13 @@
     "name": "SV08",
     "externalId": "SSP",
     "number": 1190,
-    "count": 9,
+    "count": 14,
     "filter": true,
     "block": "SV",
     "legalFormats": [
       "6402e830-7fed-4cd1-b172-2a320047c2bb",
-      "98c83df9-ec82-4193-84a8-104115ce4e25"
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
     ],
     "featuredArchetypes": [],
     "visibleUnfilterable": false,
@@ -1629,7 +1632,7 @@
     "name": "SV085",
     "externalId": "PRE",
     "number": 1195,
-    "count": 40,
+    "count": 49,
     "filter": true,
     "block": "SV",
     "legalFormats": [
@@ -1645,12 +1648,13 @@
     "name": "SV10",
     "externalId": "DRI",
     "number": 1200,
-    "count": 29,
+    "count": 44,
     "filter": true,
     "block": "SV",
     "legalFormats": [
       "6402e830-7fed-4cd1-b172-2a320047c2bb",
-      "98c83df9-ec82-4193-84a8-104115ce4e25"
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
     ],
     "featuredArchetypes": [],
     "visibleUnfilterable": false,
@@ -1708,7 +1712,7 @@
     "name": "RSV10PT5",
     "externalId": "WHT",
     "number": 1230,
-    "count": 2,
+    "count": 7,
     "filter": true,
     "block": "SV",
     "legalFormats": [
@@ -1723,7 +1727,7 @@
     "name": "SV09",
     "externalId": "JTG",
     "number": 1240,
-    "count": 18,
+    "count": 28,
     "filter": true,
     "block": "SV",
     "legalFormats": [
@@ -1739,7 +1743,7 @@
     "name": "ZSV10PT5",
     "externalId": "BLK",
     "number": 1250,
-    "count": 4,
+    "count": 10,
     "filter": true,
     "block": "SV",
     "legalFormats": [
@@ -1754,7 +1758,7 @@
     "name": "ME1",
     "externalId": "MEG",
     "number": 1260,
-    "count": 20,
+    "count": 33,
     "filter": true,
     "block": "NONE",
     "legalFormats": [
@@ -1769,7 +1773,7 @@
     "name": "ME2",
     "externalId": "PFL",
     "number": 1270,
-    "count": 10,
+    "count": 17,
     "filter": true,
     "block": "NONE",
     "legalFormats": [
@@ -1784,7 +1788,7 @@
     "name": "ME2PT5",
     "externalId": "ASC",
     "number": 1280,
-    "count": 47,
+    "count": 69,
     "filter": true,
     "block": "NONE",
     "legalFormats": [
@@ -1799,7 +1803,7 @@
     "name": "ME3",
     "externalId": "POR",
     "number": 1290,
-    "count": 13,
+    "count": 25,
     "filter": true,
     "block": "NONE",
     "legalFormats": [
@@ -1814,7 +1818,7 @@
     "name": "ME4",
     "externalId": "CRI",
     "number": 1300,
-    "count": 13,
+    "count": 23,
     "filter": true,
     "block": "NONE",
     "legalFormats": [
@@ -1829,7 +1833,7 @@
     "name": "ME5",
     "externalId": "PBL",
     "number": 1310,
-    "count": 9,
+    "count": 18,
     "filter": true,
     "block": "NONE",
     "legalFormats": [
@@ -1839,5 +1843,36 @@
     "featuredArchetypes": [],
     "visibleUnfilterable": false,
     "promo": false
+  },
+  {
+    "name": "SV065",
+    "externalId": "SFA",
+    "number": 1320,
+    "count": 12,
+    "filter": true,
+    "block": "SV",
+    "legalFormats": [
+      "6402e830-7fed-4cd1-b172-2a320047c2bb",
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
+  },
+  {
+    "name": "SVP",
+    "externalId": "PR-SV",
+    "number": 1330,
+    "count": 1,
+    "filter": true,
+    "block": "SV",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": true
   }
 ]

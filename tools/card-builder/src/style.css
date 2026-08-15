@@ -752,12 +752,12 @@ button.linkish,
   box-shadow: 0 0 22px rgba(62, 199, 201, 0.14);
 }
 
-.card-tile.is-implemented {
+.card-tile.is-unimplemented {
   opacity: 0.45;
   filter: grayscale(0.85);
 }
 
-.card-tile.is-implemented:hover {
+.card-tile.is-unimplemented:hover {
   opacity: 0.7;
   filter: grayscale(0.4);
 }

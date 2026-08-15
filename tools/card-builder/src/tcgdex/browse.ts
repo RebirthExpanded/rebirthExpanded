@@ -180,7 +180,8 @@ function renderBrowseBody(state: BrowseState): string {
       .map(c => {
         const img = cardImageUrl(c.image, 'low');
         const done = isImplemented(state.implementedIds, c.id);
-        return `<button type="button" class="card-tile${done ? ' is-implemented' : ''}" data-browse="pick-card" data-id="${escapeHtml(c.id)}" ${done ? 'title="Already implemented"' : ''}>
+        const dimUnimplemented = state.implementedIds.size > 0 && !done;
+        return `<button type="button" class="card-tile${dimUnimplemented ? ' is-unimplemented' : ''}" data-browse="pick-card" data-id="${escapeHtml(c.id)}" ${done ? 'title="Already implemented"' : dimUnimplemented ? 'title="Not implemented"' : ''}>
           ${done ? '<span class="impl-badge">Implemented</span>' : ''}
           ${img ? `<img src="${escapeHtml(img)}" alt="${escapeHtml(c.name)}" loading="lazy" onerror="this.src=''; this.classList.add('missing')" />` : '<div class="card-missing">No art</div>'}
           <div class="card-meta">
