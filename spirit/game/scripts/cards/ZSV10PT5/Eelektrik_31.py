@@ -31,6 +31,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Tynamo.Name",
+    family_id=602,
     abilities=[
         Ability(
             title="Dynamotor",

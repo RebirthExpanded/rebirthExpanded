@@ -53,6 +53,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.FIRE,
     resistance_type=PokemonTypes.GRASS,
+    family_id=649,
     abilities=[
         Ability(
             title="ACE Nullifier",

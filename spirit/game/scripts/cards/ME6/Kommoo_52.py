@@ -29,6 +29,7 @@ card = PokemonCardDef(
     stage=PokemonStage.STAGE2,
     retreat_cost=2,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Hakamoo.Name",
+    family_id=782,
     abilities=[
         Ability(
             title="Scale Beat",

@@ -21,7 +21,9 @@
         "RSV10PT5",
         "ZSV10PT5",
         "ME4",
-        "ME5"
+        "ME5",
+        "SVP",
+        "ME6"
       ],
       "allSets": false,
       "bannedCards": [],
@@ -99,6 +101,36 @@
       "formatName": "Unlimited",
       "sets": [],
       "allSets": true,
+      "bannedCards": [],
+      "extraLegalCards": [],
+      "legalFrom": {}
+    },
+    {
+      "key": "StandardNightly",
+      "guid": "d2d49af0-b032-4fc0-8aed-82308c4fd58d",
+      "formatName": "Standard Nightly",
+      "sets": [
+        "Free_Energy",
+        "SV05",
+        "SV06",
+        "SV065",
+        "SV07",
+        "SV08",
+        "SV085",
+        "SV10",
+        "SV09",
+        "ME1",
+        "ME2",
+        "ME2PT5",
+        "ME3",
+        "RSV10PT5",
+        "ZSV10PT5",
+        "ME4",
+        "ME5",
+        "ME6",
+        "SVP"
+      ],
+      "allSets": false,
       "bannedCards": [],
       "extraLegalCards": [],
       "legalFrom": {}

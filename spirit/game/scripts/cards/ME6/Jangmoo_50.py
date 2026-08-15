@@ -23,6 +23,7 @@ card = PokemonCardDef(
     elements=[PokemonTypes.DRAGON],
     stage=PokemonStage.BASIC,
     retreat_cost=1,
+    family_id=782,
     abilities=[
         Attack(
             title="Hard Head",

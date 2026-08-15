@@ -18,6 +18,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=1,
     weakness_type=PokemonTypes.WATER,
+    family_id=146,
     abilities=[
         Attack(
             title="Fighting Wings",

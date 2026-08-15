@@ -25,7 +25,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.WATER,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Charcadet.Name",
-    family_id=937,
+    family_id=935,
     passive=TeraRulePassive(),
     abilities=[
         Attack(

@@ -68,6 +68,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
+    family_id=1025,
     abilities=[
         Ability(
             title="Subjugating Chains",

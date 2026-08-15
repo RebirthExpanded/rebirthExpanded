@@ -37,6 +37,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=0,
     weakness_type=PokemonTypes.FIGHTING,
+    family_id=298,
     abilities=[
         Attack(
             title="Hopping Charge",

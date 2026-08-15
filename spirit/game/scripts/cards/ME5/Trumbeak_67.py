@@ -27,6 +27,7 @@ card = PokemonCardDef(
     weakness_type=PokemonTypes.LIGHTNING,
     resistance_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Pikipek.Name",
+    family_id=731,
     abilities=[
         Attack(
             title="Fly",

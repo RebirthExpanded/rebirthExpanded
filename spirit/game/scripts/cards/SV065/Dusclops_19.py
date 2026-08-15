@@ -32,6 +32,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.DARKNESS,
     resistance_type=PokemonTypes.FIGHTING,
+    family_id=355,
     abilities=[
         Ability(
             title="Cursed Blast",

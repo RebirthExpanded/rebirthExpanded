@@ -36,6 +36,7 @@ card = PokemonCardDef(
     retreat_cost=3,
     weakness_type=PokemonTypes.PSYCHIC,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Makuhita.Name",
+    family_id=296,
     abilities=[
         Ability(
             title="Heave-Ho Catcher",

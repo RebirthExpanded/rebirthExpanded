@@ -17,6 +17,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=1,
     weakness_type=PokemonTypes.LIGHTNING,
+    family_id=54,
     abilities=[
         Ability(
             title="Damp",

@@ -21,7 +21,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.LIGHTNING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Goldeen.Name",
-    family_id=119,
+    family_id=118,
     abilities=[
         Ability(
             title="Festival Lead",

@@ -17,6 +17,7 @@ card = PokemonCardDef(
     elements=[PokemonTypes.DRAGON],
     stage=PokemonStage.BASIC,
     retreat_cost=1,
+    family_id=885,
     abilities=[
         Attack(
             title="Petty Grudge",

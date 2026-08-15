@@ -54,6 +54,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=3,
     weakness_type=PokemonTypes.FIGHTING,
+    family_id=901,
     abilities=[
         Ability(
             title="Seasoned Skill",

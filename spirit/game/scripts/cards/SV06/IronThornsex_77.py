@@ -52,6 +52,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=4,
     weakness_type=PokemonTypes.FIGHTING,
+    family_id=995,
     abilities=[
         Ability(
             title="Initialization",

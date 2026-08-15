@@ -19,6 +19,7 @@ card = PokemonCardDef(
     retreat_cost=3,
     weakness_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Dunsparce.Name",
+    family_id=206,
     abilities=[
         Attack(
             title="Tenacious Tail",

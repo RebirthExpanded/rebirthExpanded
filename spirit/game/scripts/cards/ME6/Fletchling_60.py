@@ -19,6 +19,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.LIGHTNING,
     resistance_type=PokemonTypes.FIGHTING,
+    family_id=661,
     abilities=[
         Attack(
             title="Surprise Attack",

@@ -26,6 +26,7 @@ card = PokemonCardDef(
     weakness_type=PokemonTypes.DARKNESS,
     resistance_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Golett.Name",
+    family_id=622,
     abilities=[
         Ability(
             title="Movement Restriction",

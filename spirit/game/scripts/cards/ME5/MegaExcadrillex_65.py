@@ -28,6 +28,7 @@ card = PokemonCardDef(
     weakness_type=PokemonTypes.FIRE,
     resistance_type=PokemonTypes.GRASS,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Drilbur.Name",
+    family_id=529,
     abilities=[
         Attack(
             title="Undermine",

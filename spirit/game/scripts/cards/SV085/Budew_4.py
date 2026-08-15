@@ -26,7 +26,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=0,
     weakness_type=PokemonTypes.FIRE,
-    family_id=315,
+    family_id=406,
     abilities=[
         Attack(
             title="Itchy Pollen",

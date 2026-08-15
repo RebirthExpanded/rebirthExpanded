@@ -63,7 +63,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.GRASS,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.NsZorua.Name",
-    family_id=571,
+    family_id=570,
     abilities=[
         Ability(
             title="Trade",

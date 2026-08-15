@@ -19,6 +19,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.GRASS,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Inkay.Name",
+    family_id=686,
     abilities=[
         Attack(
             title="Psycho Marionette",

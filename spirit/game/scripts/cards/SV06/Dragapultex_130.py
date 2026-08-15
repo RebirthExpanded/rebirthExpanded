@@ -28,6 +28,7 @@ card = PokemonCardDef(
     stage=PokemonStage.STAGE2,
     retreat_cost=1,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Drakloak.Name",
+    family_id=885,
     passive=TeraRulePassive(),
     abilities=[
         Attack(

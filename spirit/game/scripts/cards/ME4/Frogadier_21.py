@@ -20,6 +20,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.LIGHTNING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Froakie.Name",
+    family_id=656,
     abilities=[
         Attack(
             title="Summoning Jutsu",

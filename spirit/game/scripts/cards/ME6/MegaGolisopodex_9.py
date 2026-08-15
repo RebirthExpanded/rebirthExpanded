@@ -19,6 +19,7 @@ card = PokemonCardDef(
     retreat_cost=3,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Wimpod.Name",
+    family_id=767,
     abilities=[
         Attack(
             title="Finishing Blow",

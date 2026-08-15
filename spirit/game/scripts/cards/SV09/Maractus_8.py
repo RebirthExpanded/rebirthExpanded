@@ -31,6 +31,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=2,
     weakness_type=PokemonTypes.FIRE,
+    family_id=556,
     abilities=[
         Ability(
             title="Exploding Needles",

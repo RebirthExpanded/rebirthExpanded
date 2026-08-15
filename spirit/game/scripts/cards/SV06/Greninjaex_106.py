@@ -46,6 +46,7 @@ card = PokemonCardDef(
     stage=PokemonStage.STAGE2,
     retreat_cost=1,
     weakness_type=PokemonTypes.PSYCHIC,
+    family_id=656,
         evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Frogadier.Name",
     passive=TeraRulePassive(),
     abilities=[

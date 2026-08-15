@@ -44,6 +44,7 @@ card = PokemonCardDef(
     weakness_type=PokemonTypes.DARKNESS,
     resistance_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Frillish.Name",
+    family_id=592,
     abilities=[
         Ability(
             title="Oceanic Curse",

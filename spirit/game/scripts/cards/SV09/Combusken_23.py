@@ -18,7 +18,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.WATER,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Torchic.Name",
-    family_id=256,
+    family_id=255,
     abilities=[
         Attack(
             title="Slash",

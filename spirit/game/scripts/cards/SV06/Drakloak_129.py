@@ -38,6 +38,7 @@ card = PokemonCardDef(
     stage=PokemonStage.STAGE1,
     retreat_cost=1,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Dreepy.Name",
+    family_id=885,
     abilities=[
         Ability(
             title="Recon Directive",

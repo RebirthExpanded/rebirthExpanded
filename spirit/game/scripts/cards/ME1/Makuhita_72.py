@@ -17,6 +17,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=2,
     weakness_type=PokemonTypes.PSYCHIC,
+    family_id=296,
     abilities=[
         Attack(
             title="Corkscrew Punch",

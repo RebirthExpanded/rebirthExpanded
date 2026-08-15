@@ -25,6 +25,7 @@ card = PokemonCardDef(
     retreat_cost=3,
     weakness_type=PokemonTypes.DARKNESS,
     resistance_type=PokemonTypes.FIGHTING,
+    family_id=592,
     abilities=[
         Attack(
             title="Oceanic Gloom",

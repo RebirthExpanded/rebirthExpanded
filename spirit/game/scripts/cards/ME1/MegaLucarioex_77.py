@@ -44,6 +44,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.PSYCHIC,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Riolu.Name",
+    family_id=447,
     abilities=[
         Attack(
             title="Aura Jab",

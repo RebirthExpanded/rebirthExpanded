@@ -17,6 +17,7 @@ card = PokemonCardDef(
     elements=[PokemonTypes.DRAGON],
     stage=PokemonStage.BASIC,
     retreat_cost=2,
+    family_id=644,
     abilities=[
         Attack(
             title="Shred",

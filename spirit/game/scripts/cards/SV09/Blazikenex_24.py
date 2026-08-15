@@ -34,7 +34,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.WATER,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Combusken.Name",
-    family_id=257,
+    family_id=255,
     abilities=[
         Ability(
             title="Seething Spirit",

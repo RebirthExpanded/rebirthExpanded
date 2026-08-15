@@ -51,7 +51,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.GRASS,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.MarniesMorgrem.Name",
-    family_id=861,
+    family_id=859,
     abilities=[
         Ability(
             title="Punk Up",

@@ -60,6 +60,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Toxel.Name",
+    family_id=848,
     abilities=[
         Ability(
             title="Sinister Surge",

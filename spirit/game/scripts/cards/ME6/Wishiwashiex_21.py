@@ -31,6 +31,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=3,
     weakness_type=PokemonTypes.LIGHTNING,
+    family_id=746,
     abilities=[
         Ability(
             title="Ocean Gain",

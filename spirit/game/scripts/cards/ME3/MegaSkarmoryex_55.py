@@ -30,6 +30,7 @@ card = PokemonCardDef(
     retreat_cost=0,
     weakness_type=PokemonTypes.LIGHTNING,
     resistance_type=PokemonTypes.FIGHTING,
+    family_id=227,
     abilities=[
         Attack(
             title="Sonic Ripper",

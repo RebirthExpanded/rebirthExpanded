@@ -26,6 +26,7 @@ card = PokemonCardDef(
     weakness_type=PokemonTypes.DARKNESS,
     resistance_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Abra.Name",
+    family_id=63,
     abilities=[
         Ability(
             title="Psychic Draw",

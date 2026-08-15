@@ -41,6 +41,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.DARKNESS,
     resistance_type=PokemonTypes.FIGHTING,
+    family_id=605,
     abilities=[
         Attack(
             title="Slight Shift",

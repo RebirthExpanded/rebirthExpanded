@@ -50,6 +50,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=1,
     weakness_type=PokemonTypes.GRASS,
+    family_id=1017,
     passive=TeraRulePassive(),
     abilities=[
         Ability(

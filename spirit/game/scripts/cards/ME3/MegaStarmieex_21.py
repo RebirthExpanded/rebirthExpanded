@@ -19,6 +19,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.LIGHTNING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Staryu.Name",
+    family_id=120,
     abilities=[
         Attack(
             title="Jetting Blow",

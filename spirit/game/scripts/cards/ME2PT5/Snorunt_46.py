@@ -17,6 +17,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=1,
     weakness_type=PokemonTypes.METAL,
+    family_id=361,
     abilities=[
         Attack(
             title="Chilly",

@@ -18,6 +18,7 @@ card = PokemonCardDef(
     stage=PokemonStage.STAGE1,
     retreat_cost=2,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Jangmoo.Name",
+    family_id=782,
     abilities=[
         Attack(
             title="Double Smash",

@@ -18,6 +18,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=0,
     weakness_type=PokemonTypes.FIGHTING,
+    family_id=602,
     abilities=[
         Attack(
             title="Hold Still",

@@ -73,6 +73,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.LIGHTNING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Frogadier.Name",
+    family_id=656,
     abilities=[
         Ability(
             title="Mortal Shuriken",

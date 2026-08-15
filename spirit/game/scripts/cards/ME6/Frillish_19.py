@@ -17,6 +17,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=2,
     weakness_type=PokemonTypes.LIGHTNING,
+    family_id=592,
     abilities=[
         Attack(
             title="Hook",

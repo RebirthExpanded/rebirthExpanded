@@ -25,6 +25,7 @@ card = PokemonCardDef(
     weakness_type=PokemonTypes.LIGHTNING,
     resistance_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Trumbeak.Name",
+    family_id=731,
     abilities=[
         Ability(
             title="Aerial Draw",

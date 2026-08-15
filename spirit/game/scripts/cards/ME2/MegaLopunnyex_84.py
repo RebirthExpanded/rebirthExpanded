@@ -24,6 +24,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Buneary.Name",
+    family_id=427,
     abilities=[
         Attack(
             title="Gale Thrust",

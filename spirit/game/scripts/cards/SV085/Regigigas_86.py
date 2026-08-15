@@ -17,6 +17,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=4,
     weakness_type=PokemonTypes.FIGHTING,
+    family_id=486,
     abilities=[
         Attack(
             title="Jewel Breaker",

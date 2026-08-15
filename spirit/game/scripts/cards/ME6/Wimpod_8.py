@@ -36,6 +36,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=3,
     weakness_type=PokemonTypes.FIRE,
+    family_id=767,
     abilities=[
         Ability(
             title="Punk Out",

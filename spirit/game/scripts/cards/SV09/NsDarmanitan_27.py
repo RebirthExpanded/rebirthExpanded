@@ -23,7 +23,7 @@ card = PokemonCardDef(
     retreat_cost=3,
     weakness_type=PokemonTypes.WATER,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.NsDarumaka.Name",
-    family_id=555,
+    family_id=554,
     abilities=[
         Attack(
             title="Back Draft",

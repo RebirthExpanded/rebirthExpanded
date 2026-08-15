@@ -18,6 +18,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=2,
     weakness_type=PokemonTypes.GRASS,
+    family_id=529,
     abilities=[
         Attack(
             title="Call for Family",

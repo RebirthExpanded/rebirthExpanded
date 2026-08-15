@@ -37,6 +37,7 @@ card = PokemonCardDef(
     elements=[PokemonTypes.DRAGON],
     stage=PokemonStage.BASIC,
     retreat_cost=1,
+    family_id=978,
     abilities=[
         Ability(
             title="Attract Customers",

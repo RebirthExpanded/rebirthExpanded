@@ -38,7 +38,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.TeamRocketsTarountula.Name",
-    family_id=918,
+    family_id=917,
     abilities=[
         Ability(
             title="Charging Up",

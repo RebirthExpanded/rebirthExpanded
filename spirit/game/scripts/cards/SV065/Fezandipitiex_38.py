@@ -44,6 +44,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
+    family_id=1016,
     abilities=[
         Ability(
             title="Flip the Script",

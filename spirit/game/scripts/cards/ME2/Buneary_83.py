@@ -18,6 +18,7 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
+    family_id=427,
     abilities=[
         Attack(
             title="Run Around",

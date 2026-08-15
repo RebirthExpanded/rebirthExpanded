@@ -51,6 +51,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.LIGHTNING,
     resistance_type=PokemonTypes.FIGHTING,
+    family_id=384,
     abilities=[
         Ability(
             title="Roar of the Ruler",

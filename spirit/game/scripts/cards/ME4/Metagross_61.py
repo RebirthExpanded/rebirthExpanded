@@ -42,6 +42,7 @@ card = PokemonCardDef(
     weakness_type=PokemonTypes.FIRE,
     resistance_type=PokemonTypes.GRASS,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Metang.Name",
+    family_id=374,
     abilities=[
         Attack(
             title="Bounce Back",

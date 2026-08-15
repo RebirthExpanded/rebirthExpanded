@@ -6,7 +6,6 @@ from spirit.game.card_effects.trainers import (
 )
 from spirit.game.session.effects import is_pokemon_card
 
-
 async def max_rod(ctx):
     """Put up to 5 in any combination of Pokémon and Basic Energy cards from
     your discard pile into your hand."""
