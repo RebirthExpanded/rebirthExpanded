@@ -2215,6 +2215,17 @@ class GameSession:
             count = prize_value(pokemon.archetype_id)
             for passive, carrier in passive_pairs:
                 count = passive.modify_prizes_for_knockout(pokemon, ctx, count, carrier)
+            extra_seen = set()
+            for passive, carrier in passive_pairs:
+                key = getattr(passive, "stacking_key", None)
+                seen_key = (key, carrier.owning_player_id) if key is not None else None
+                if seen_key is not None and seen_key in extra_seen:
+                    continue
+                extra = await passive.extra_prizes_for_knockout(
+                    pokemon, ctx, count, carrier)
+                if seen_key is not None:
+                    extra_seen.add(seen_key)
+                count += extra
             # This-turn bonus-prize watchers (Star Order): attack-damage KOs
             # only, evaluated pre-move so Active-spot predicates still hold.
             taker_id = self._opponent_id(owner_id)

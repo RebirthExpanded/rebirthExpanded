@@ -1342,7 +1342,21 @@ class EffectContext:
 
     async def discard_cards(self, cards: List[CardEntity]):
         """Moves cards to their owner's discard pile (a public zone)."""
+        pending = []
+        if self.is_attack_effect() and self.attacker is not None:
+            for card in cards:
+                holder = carrier_pokemon(card)
+                if holder is not self.attacker:
+                    continue
+                definition = def_for(card.archetype_id)
+                hook = getattr(definition, "on_discarded_by_carrier_attack", None)
+                if hook is not None and hook is not unimplemented:
+                    pending.append((hook, card, holder))
         await self._move_to_public_pile(cards, "discard")
+        for hook, card, holder in pending:
+            self.deferred_actions.append(
+                lambda h=hook, e=card, p=holder: h(self, e, p)
+            )
 
     async def discard_energy_from(
         self, pokemon: PokemonEntity, count: int,

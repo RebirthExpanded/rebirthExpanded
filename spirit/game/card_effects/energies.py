@@ -112,6 +112,33 @@ class HeatFirePassive(Passive):
         return 0
 
 
+class GrowingGrassPassive(Passive):
+    """The Grass Pokemon this card is attached to gets +20 max HP."""
+
+    def max_hp_bonus(self, pokemon, carrier):
+        if carrier_pokemon(carrier) is pokemon \
+                and _pokemon_has_type(pokemon, PokemonTypes.GRASS):
+            return 20
+        return 0
+
+
+async def boomerang_reattach(ctx, energy, pokemon):
+    """After the carrier's attack discards this card, attach it again."""
+    if pokemon is None or pokemon in ctx.knockouts:
+        return
+    in_play = ctx.board.pokemon_in_play(pokemon.owning_player_id)
+    if pokemon not in in_play:
+        return
+    if energy not in ctx.discard_pile(energy.owning_player_id):
+        return
+    await ctx.attach_energy(energy, pokemon)
+
+
+async def enriching_energy_on_attach(ctx):
+    """When attached from hand: draw 4 cards."""
+    await ctx.draw_cards(4)
+
+
 async def gift_energy_on_ko(ctx):
     """When the carrier is Knocked Out by an opponent's attack: draw cards
     until you have 7 cards in your hand."""

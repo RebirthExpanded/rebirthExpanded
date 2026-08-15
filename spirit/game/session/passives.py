@@ -214,6 +214,14 @@ class Passive:
         evaluated BEFORE the stack moves, so board/conditions still count."""
         return count
 
+    async def extra_prizes_for_knockout(
+        self, pokemon: PokemonEntity, ctx: Any, count: int, carrier: BoardEntity
+    ) -> int:
+        """Extra prizes to add after sync modifiers (Togekiss Wonder Kiss coin
+        flip). Return the bonus amount, not a new total. stacking_key is
+        honored by the knockout resolver so copies don't stack."""
+        return 0
+
     def prize_destination(
         self, pokemon: PokemonEntity, ctx: Any, carrier: BoardEntity
     ) -> Optional[str]:

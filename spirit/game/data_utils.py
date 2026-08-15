@@ -216,6 +216,8 @@ def reprint(
             attach_cost=getattr(base, "attach_cost", None),
             on_attach=getattr(base, "on_attach", None),
             on_carrier_knocked_out=getattr(base, "on_carrier_knocked_out", None),
+            on_discarded_by_carrier_attack=getattr(
+                base, "on_discarded_by_carrier_attack", None),
             passive=getattr(base, "passive", None),
             granted_abilities=[
                 _clone_ability(a) for a in getattr(base, "granted_abilities", []) or []
@@ -835,6 +837,10 @@ class EnergyCardDef(CardDefinition):
     on_attach        -- async (ctx) run after attaching from hand (Capture's
                         search, Speed Lightning's draw). ctx.source is the
                         energy, ctx.attached_to the Pokemon.
+    on_discarded_by_carrier_attack -- async (ctx, energy, pokemon) queued after
+                        an attack used by the attached Pokemon discards this
+                        card (Boomerang Energy). Runs in deferred_actions after
+                        the attack, so the Pokemon is still in play if it lived.
     passive          -- continuous effect while attached (a passives.Passive).
     granted_abilities -- Abilities the energy grants its holder while attached
                         (Spiky Energy's ON_DAMAGED_BY_ATTACK), mirrored onto
@@ -856,6 +862,7 @@ class EnergyCardDef(CardDefinition):
         attach_cost: Optional[Any] = None,
         on_attach: Optional[Any] = None,
         on_carrier_knocked_out: Optional[Any] = None,
+        on_discarded_by_carrier_attack: Optional[Any] = None,
         passive: Optional[Any] = None,
         granted_abilities: Optional[List[Ability]] = None,
         display_name: Optional[str] = None,
@@ -877,6 +884,9 @@ class EnergyCardDef(CardDefinition):
         # async (ctx) run when the carrier Pokemon is Knocked Out by an
         # opponent's attack (Gift Energy's draw); ctx.source is the energy.
         self.on_carrier_knocked_out = on_carrier_knocked_out
+        # async (ctx, energy, pokemon) after the carrier's attack discards this
+        # card (Boomerang Energy reattach).
+        self.on_discarded_by_carrier_attack = on_discarded_by_carrier_attack
         self.passive = passive
         self.granted_abilities: List[Ability] = granted_abilities or []
         for idx, a in enumerate(self.granted_abilities):
