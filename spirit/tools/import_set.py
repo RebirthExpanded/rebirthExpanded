@@ -8,6 +8,8 @@ import requests
 from typing import Dict, Any, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
+from spirit.game.text_encoding import fix_mojibake as fix_text
+
 # Configuration (defaults, will be dynamically overridden in main)
 SET_CODE = "SWSH12"
 JSON_PATH = f"spirit/game/scripts/cards/{SET_CODE}/swsh12.json"
@@ -66,13 +68,6 @@ def clean_name(name: str) -> str:
 
 def get_guid(card_id: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"spirit.ptcgo.{card_id}"))
-
-def fix_text(s: str) -> str:
-    """Repairs cp1252 mojibake from the source API (e.g. 'PokÃ©mon' -> 'Pokémon')."""
-    try:
-        return s.encode("cp1252").decode("utf-8")
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        return s
 
 def py_str(s: str) -> str:
     """A safe Python string literal for generated scripts."""
@@ -160,7 +155,7 @@ def get_family_id(card: Dict[str, Any]) -> Optional[int]:
 def render_script(card: Dict[str, Any]) -> Optional[str]:
     """Renders the card definition script source for one API card dict."""
     supertype = card.get("supertype", "")
-    name = card.get("name", "Unknown")
+    name = fix_text(card.get("name", "Unknown"))
     number = card.get("number", "0")
     safe_name = clean_name(name)
 
@@ -178,7 +173,7 @@ def render_script(card: Dict[str, Any]) -> Optional[str]:
     guid = get_guid(card.get("id"))
 
     # Search keywords
-    subtypes = card.get("subtypes", [])
+    subtypes = [fix_text(s) for s in card.get("subtypes", [])]
     search_keywords = [name] + subtypes
     if "Pok" in supertype:
         search_keywords.append(safe_name)
@@ -211,9 +206,9 @@ card = PokemonCardDef(
     guid="{guid}",
     key="{SET_CODE}",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.{safe_name}.Name",
-    display_name="{name}",
-    searchable_by={json.dumps(search_keywords)},
-    subtypes={json.dumps(subtypes)},
+    display_name={py_str(name)},
+    searchable_by={json.dumps(search_keywords, ensure_ascii=False)},
+    subtypes={json.dumps(subtypes, ensure_ascii=False)},
     collector_number={number},
     set_code="{SET_CODE}",
     rarity={rarity},
@@ -233,6 +228,7 @@ card = PokemonCardDef(
                 content += f"    resistance_type={resist_type},\n"
 
         if evolves_from:
+            evolves_from = fix_text(evolves_from)
             content += f"    evolves_from=\"com.direwolfdigital.cake.data.archetypes.pokemon.{clean_name(evolves_from)}.Name\",\n"
 
         if family_id:
@@ -260,9 +256,9 @@ card = {trainer_class}(
     guid="{guid}",
     key="{SET_CODE}",
     name="com.direwolfdigital.cake.data.archetypes.trainer.{safe_name}.Name",
-    display_name="{name}",
-    searchable_by={json.dumps(search_keywords)},
-    subtypes={json.dumps(subtypes)},
+    display_name={py_str(name)},
+    searchable_by={json.dumps(search_keywords, ensure_ascii=False)},
+    subtypes={json.dumps(subtypes, ensure_ascii=False)},
     collector_number={number},
     set_code="{SET_CODE}",
     rarity={rarity},
@@ -284,10 +280,10 @@ from spirit.game.attributes import PokemonTypes, Rarities
 card = EnergyCardDef(
     guid="{guid}",
     key="{SET_CODE}",
-    name="{name}",
-    display_name="{name}",
-    searchable_by={json.dumps(search_keywords)},
-    subtypes={json.dumps(subtypes)},
+    name={py_str(name)},
+    display_name={py_str(name)},
+    searchable_by={json.dumps(search_keywords, ensure_ascii=False)},
+    subtypes={json.dumps(subtypes, ensure_ascii=False)},
     collector_number={number},
     set_code="{SET_CODE}",
     rarity={rarity},

@@ -39,6 +39,7 @@ from spirit.game.format_manager import FormatManager
 
 from spirit.game.scripts.cards import loader as card_loader
 from spirit.game.scripts.products import loader as product_loader
+from spirit.game.text_encoding import client_localization_value
 
 SETS_DB_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..', 'database', 'json_data', 'sets.json')
@@ -170,7 +171,8 @@ def _load_localizations():
         {"key": "minspec.init.collection", "value": "Initializing Spirit Collection..."}
     ]
 
-    # Register card-specific display names
+    # Register card-specific display names. Keep the real 'Pokémon' spelling;
+    # ASCII 'Pokemon Catcher' is an import/search alias, not the printed name.
     for card in CARDS_DB:
         if card.display_name:
             name_attr = card.get_attribute_value(AttrID.NAME)
@@ -182,7 +184,10 @@ def _load_localizations():
                     else:
                         token_id = str(name_attr)
                     if token_id:
-                        custom_strings.append({"key": token_id, "value": card.display_name})
+                        custom_strings.append({
+                            "key": token_id,
+                            "value": client_localization_value(card.display_name),
+                        })
                 except Exception:
                     pass
 
@@ -1017,13 +1022,13 @@ class DataSyncHandler(BaseHandler):
         res = {
             "messageName": OutboundMsg.ALL_LOCALIZATION_RELEASES.value,
             "locale": locale, 
-            "version": "spirit_v1", 
+            "version": "spirit_v3", 
             "releases": {}
         }
         
         client_checksums = message.get("keyedChecksums", {})
         server_releases = ["core"]
-        current_md5 = "spirit_hash_" + str(len(CACHED_LOCALIZATIONS))
+        current_md5 = "spirit_hash_v3_" + str(len(CACHED_LOCALIZATIONS))
         
         for rk in server_releases:
             if client_checksums.get(rk) != current_md5:

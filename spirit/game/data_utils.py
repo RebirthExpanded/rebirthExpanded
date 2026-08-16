@@ -4,6 +4,7 @@ import os
 import uuid
 from typing import Any, Callable, Optional, List, Dict
 from spirit.game.attributes import AttrID, CardType, TrainerType, PokemonStage, PokemonTypes, ProductType, AbilityTypes, Rarities, CLIENT_POKEMON_TYPE_NAMES
+from spirit.game.text_encoding import fix_mojibake, fix_mojibake_list, with_ascii_aliases
 
 _ABILITY_ID_NAMESPACE = uuid.UUID("a3f2c6e8-9d41-4d7a-8b5f-2e7c90d13a64")
 _REPRINT_GUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_DNS, "spiritptcgo.card.reprint")
@@ -541,9 +542,11 @@ class CardDefinition:
         self.collector_number = collector_number
         self.set_code = set_code
         self.rarity = rarity
-        self.display_name = display_name
-        self.searchable_by = searchable_by or []
-        self.subtypes = subtypes or []
+        self.display_name = fix_mojibake(display_name) if display_name else display_name
+        self.searchable_by = with_ascii_aliases(
+            fix_mojibake_list(searchable_by), self.display_name
+        )
+        self.subtypes = fix_mojibake_list(subtypes)
         self.extra_attributes = dict(attributes or {})
         # Server-only metadata for format/legality tooling. Do NOT emit this as
         # AttrID.REGULATION_MARK (202260): on the PTCGO client that ID is a
