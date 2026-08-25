@@ -230,6 +230,8 @@ original_game_cache/
 
 # Spirit Assets
 spirit/assets/bundleCache/en_US_*/
+# Generated foil masks (deterministic from card art + foil_mask_gen.py)
+spirit/assets/bundleCache/foil_masks/
 # The Logos bundle (top-nav Home button logo) is tiny + essential UI; ship it so a
 # fresh clone has a working Home button without needing a local game install.
 !spirit/assets/bundleCache/en_US_Logos/

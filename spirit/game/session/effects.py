@@ -107,6 +107,7 @@ class EffectContext:
         # Whether a CakeAttackEffect hit an opponent's Pokemon: gates the
         # non-damaging orb in the Attack bracket (mirrors M.N's flag7).
         self._dealt_opponent_damage = False
+        self._shielded_damage = False
         # Async callables run AFTER the choreography flushes (promotions and
         # anything else that must not interleave with the pending brackets).
         self.deferred_actions: List[Callable[[], Any]] = []
@@ -318,6 +319,18 @@ class EffectContext:
             self._in_interceptor = False
         return calc.amount
 
+    def _queue_damage_prevention(self, target: PokemonEntity):
+        self._queue(self.session._build_msg(
+            OutboundMsg.SHIELD_TARGETS_EFFECT.value,
+            {
+                "gameID": self.game_id,
+                "source": self.attacker.entity_id,
+                "targets": [target.entity_id],
+                "wasDamage": True,
+            },
+        ))
+        self._shielded_damage = True
+
     # ------------------------------------------------------------------
     # Damage / HP primitives
     # ------------------------------------------------------------------
@@ -386,10 +399,14 @@ class EffectContext:
                     f"[Effects {self.game_id}] Damage to {target.entity_id} "
                     f"prevented by a passive effect."
                 )
+                self._queue_damage_prevention(target)
                 return 0
             dealt = calc.amount
             if dealt > 0:
                 dealt = await self._run_damage_interceptors(calc, target)
+                if calc.prevented:
+                    self._queue_damage_prevention(target)
+                    return 0
 
         current = target.get_attribute(AttrID.HP, 0)
         remaining = max(0, current - dealt)
@@ -2446,19 +2463,25 @@ async def _send_attack_bracket(session, ctx: AttackContext, action_id: str, titl
         ))
     # The Attack executor dereferences the playmat's attack-source [0].
     await session._broadcast_attack_sources([ctx.attacker.entity_id])
-    # Non-damaging attacks (Read the Wind) need the r.u orb: with no damaging
-    # CakeAttackEffect, M.N injects it from the NonDamagingTargetsEffect's
-    # targets, and ONLY the orb clears the pulled-out attacker on both
-    # viewers. Damaging attacks get the lunge group instead -- an orb there
-    # would double up (S.j forces the non-damaging path).
-    if not ctx._dealt_opponent_damage:
+    cleanup = None
+    # Use an orb only with a real destination; targetless attacks take the Fizzled return curve.
+    if not ctx._dealt_opponent_damage and not ctx._shielded_damage:
         targets = (ctx.visual_targets or ctx._visual_sources
-                   or [k.entity_id for k in ctx.knockouts]
-                   or [ctx.attacker.entity_id])
-        extra.append(session._build_msg(
-            OutboundMsg.NON_DAMAGING_TARGETS_EFFECT.value,
-            {"gameID": session.game_id, "targets": targets},
-        ))
+                   or [k.entity_id for k in ctx.knockouts])
+        if targets:
+            extra.append(session._build_msg(
+                OutboundMsg.NON_DAMAGING_TARGETS_EFFECT.value,
+                {"gameID": session.game_id, "targets": targets},
+            ))
+        else:
+            cleanup = session._build_msg(
+                OutboundMsg.CLEANUP_ATTACK_EFFECT.value,
+                {
+                    "gameID": session.game_id,
+                    "entityID": ctx.attacker.entity_id,
+                    "cleanupCurvePrefix": "Fizzled",
+                },
+            )
     # Tuck the attacker's pulled-back ability panel home first; the executor
     # no-ops when no panel is up, so its bracket may be empty.
     attacker_viewer = session.players.get(ctx.player_id)
@@ -2479,8 +2502,10 @@ async def _send_attack_bracket(session, ctx: AttackContext, action_id: str, titl
                 inline.extend(msgs)
             else:
                 post_runs.append((name, msgs))
+        cleanup_messages = [cleanup] if cleanup is not None else []
         await session.send_game_sequence(
-            [viewer], GameSequence.ATTACK, [head] + extra + inline + [tail],
+            [viewer], GameSequence.ATTACK,
+            [head] + extra + inline + cleanup_messages + [tail],
         )
         for name, msgs in post_runs:
             if msgs:

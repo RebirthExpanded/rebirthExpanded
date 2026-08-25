@@ -18,10 +18,12 @@ except ImportError:
 ASSET_MAP_PATH = "spirit/server/asset_map.json"
 OUTPUT_DIR = "spirit/assets/bundleCache"
 
-def create_card_set_bundle(png_mapping, template_path, target_bundle_name):
+def create_card_set_bundle(png_mapping, template_path, target_bundle_name, keep_size=False):
     """
     Creates a custom PTCGO AssetBundle for a SET of cards using Dynamic Appending.
     png_mapping: dict of {asset_name: png_path}
+    keep_size: keep each source PNG's own dimensions (foil masks) instead of
+    resizing to the template prototype's size.
     """
     
     # 1. Resolve template data path
@@ -108,8 +110,11 @@ def create_card_set_bundle(png_mapping, template_path, target_bundle_name):
         try:
             img = Image.open(png_path)
             img_square = pad_to_square(img)
-            resample_filter = getattr(Image, 'LANCZOS', getattr(Image, 'ANTIALIAS', 1))
-            resized_img = img_square.resize(target_size, resample_filter)
+            if keep_size:
+                resized_img = img_square
+            else:
+                resample_filter = getattr(Image, 'LANCZOS', getattr(Image, 'ANTIALIAS', 1))
+                resized_img = img_square.resize(target_size, resample_filter)
 
             new_path_id = next_path_id
             next_path_id += 1
@@ -229,6 +234,8 @@ if __name__ == "__main__":
     parser.add_argument("--bundle", help="The target bundle name (e.g., en_US_XY11)")
     parser.add_argument("--asset", help="The internal asset name (e.g., 072) (for single card mode)")
     parser.add_argument("--mapping", help="JSON mapping of {asset_name: png_path} for batch mode")
+    parser.add_argument("--keep-size", action="store_true",
+                        help="Keep source PNG dimensions instead of resizing to the template size (foil masks)")
     parser.add_argument("--template", help="Path to template bundle",
                         default=r"spirit/templates/card_bundle")
 
@@ -242,7 +249,7 @@ if __name__ == "__main__":
     if args.mapping:
         with open(args.mapping, 'r') as f:
             mapping = json.load(f)
-        create_card_set_bundle(mapping, args.template, args.bundle)
+        create_card_set_bundle(mapping, args.template, args.bundle, keep_size=args.keep_size)
     elif args.png and args.bundle and args.asset:
         create_card_bundle(args.png, args.template, args.bundle, args.asset)
     elif args.pos_png and args.pos_bundle and args.pos_asset:

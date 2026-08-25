@@ -614,6 +614,9 @@ class OutboundMsg(str, Enum):
     # HP attribute update, ability-finished marker (k.U).
     ABILITY_PLAYED_EFFECT = "AbilityPlayedEffect"
     CAKE_ATTACK_EFFECT = "CakeAttackEffect"
+    # Prevented-hit barrier choreography: {source, targets, wasDamage}.
+    SHIELD_TARGETS_EFFECT = "ShieldTargetsEffect"
+    CLEANUP_ATTACK_EFFECT = "CleanupAttackEffect"
     # Raw damage-counter placement (Poison/Burn checkup ticks, Confusion self-hit):
     # no W/R, no passive pipeline -- damage counters, not attack damage.
     PLACE_DAMAGE_EFFECT = "PlaceDamageEffect"

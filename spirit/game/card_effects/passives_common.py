@@ -451,7 +451,10 @@ class FlipPreventDamagePassive(Passive):
             return None
         heads = await ctx.flip_coins(1, self.title,
                                      source=carrier_pokemon(carrier) or carrier)
-        return 0 if heads and heads[0] else None
+        if heads and heads[0]:
+            calc.prevented = True
+            return 0
+        return None
 
 
 def flip_prevent_damage_passive(title="") -> Passive:
