@@ -8,6 +8,7 @@ inline before any choreography is flushed.
 """
 
 import logging
+import traceback
 import random
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
 from .legal_actions import energy_provided_count
@@ -806,6 +807,29 @@ class EffectContext:
                 f"re-entered the copy chain {self._copy_chain}; fizzling."
             )
             return False
+        # The "you can't use more than 1 GX attack in a game" restriction is
+        # normally enforced by game_session._execute_attack (which never
+        # runs for a COPIED attack), so it has to be checked/recorded here
+        # too -- otherwise Regidrago VSTAR's Apex Dragon (or any other
+        # attack-copying effect) can replay a GX attack freely.
+        if getattr(ability, "gx", False) and self.player_id in self.session.turn_state.gx_used:
+            logging.info(
+                f"[Effects {self.game_id}] Copied GX attack '{ability.title}' "
+                f"blocked: player {self.player_id} already used a GX attack "
+                f"this game."
+            )
+            return False
+        # Same reasoning as the GX case above, for an Attack-form VSTAR Power
+        # (e.g. a VSTAR Pokemon whose VSTAR Power is itself an Attack with
+        # vstar=True rather than an activated Ability) reached via a copy
+        # effect like Apex Dragon.
+        if getattr(ability, "vstar", False) and self.player_id in self.session.turn_state.vstar_used:
+            logging.info(
+                f"[Effects {self.game_id}] Copied VSTAR attack "
+                f"'{ability.title}' blocked: player {self.player_id} already "
+                f"used a VSTAR Power this game."
+            )
+            return False
         self._copy_chain.append(ability.title)
         self.ability = ability
         if ability.effect is None or ability.effect is unimplemented:
@@ -817,6 +841,10 @@ class EffectContext:
             await self.deal_damage()
         else:
             await ability.effect(self)
+        if getattr(ability, "gx", False):
+            self.session.turn_state.gx_used.add(self.player_id)
+        if getattr(ability, "vstar", False):
+            self.session.turn_state.vstar_used.add(self.player_id)
         if getattr(ability, "locks_next_turn", False):
             self.session.turn_state.lock_attack(self.attacker.entity_id, ability.ability_id)
         return True
@@ -2360,6 +2388,11 @@ async def _send_ability_brackets(session, ctx: EffectContext,
     )
     extra: List[Dict[str, Any]] = []
     if ability.vstar:
+        logging.info(
+            f"[DIAG-MARKER] Sending VSTAR_POWER_USED_EFFECT (site: "
+            f"_send_ability_brackets) gameID={session.game_id} "
+            f"player={ctx.player_id}\n" + "".join(traceback.format_stack(limit=8))
+        )
         # Flips the user's playmat VSTAR marker face-down (handler P.Y).
         extra.append(session._build_msg(
             OutboundMsg.VSTAR_POWER_USED_EFFECT.value,
@@ -2501,8 +2534,23 @@ async def _send_attack_bracket(session, ctx: AttackContext, action_id: str, titl
     )
     extra: List[Dict[str, Any]] = []
     if ctx.ability is not None and ctx.ability.vstar:
+        logging.info(
+            f"[DIAG-MARKER] Sending VSTAR_POWER_USED_EFFECT (site: "
+            f"_send_attack_bracket) gameID={session.game_id} "
+            f"player={ctx.player_id}\n" + "".join(traceback.format_stack(limit=8))
+        )
         extra.append(session._build_msg(
             OutboundMsg.VSTAR_POWER_USED_EFFECT.value,
+            {"gameID": session.game_id, "user": ctx.player_id},
+        ))
+    if ctx.ability is not None and ctx.ability.gx:
+        logging.info(
+            f"[DIAG-MARKER] Sending GX_ATTACK_USED_EFFECT (site: "
+            f"_send_attack_bracket) gameID={session.game_id} "
+            f"player={ctx.player_id}\n" + "".join(traceback.format_stack(limit=8))
+        )
+        extra.append(session._build_msg(
+            OutboundMsg.GX_ATTACK_USED_EFFECT.value,
             {"gameID": session.game_id, "user": ctx.player_id},
         ))
     # The Attack executor dereferences the playmat's attack-source [0].

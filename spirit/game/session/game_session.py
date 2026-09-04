@@ -5092,6 +5092,8 @@ class GameSession:
                 self.turn_state.lock_attack(card.entity_id, action_id)
             if ability.vstar:
                 self.turn_state.vstar_used.add(player_id)
+            if ability.gx:
+                self.turn_state.gx_used.add(player_id)
 
         ctx = await resolve_attack(self, player_id, card, ability, action_id)
         # Effects like Aqua Return can remove the attacker itself from play.

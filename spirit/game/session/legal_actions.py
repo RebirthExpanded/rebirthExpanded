@@ -104,6 +104,8 @@ class TurnState:
     used_named_abilities: Set[str] = field(default_factory=set)
     # Players who already used their once-per-game VSTAR Power.
     vstar_used: Set[str] = field(default_factory=set)
+    # Players who already used their once-per-game GX attack.
+    gx_used: Set[str] = field(default_factory=set)
     # (entity_id, ability_id) -> last turn number the attack stays locked
     # ("during your next turn, this Pokemon can't use ...").
     attack_locks: Dict[Tuple[str, str], int] = field(default_factory=dict)
@@ -789,6 +791,9 @@ def _attack_entries(
             continue
         if definition is not None and definition.vstar \
                 and player_id in state.vstar_used:
+            continue
+        if definition is not None and definition.gx \
+                and player_id in state.gx_used:
             continue
         # Attack usage restriction ("You can use this attack only if...").
         if definition is not None and definition.condition is not None \

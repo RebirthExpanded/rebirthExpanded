@@ -413,6 +413,7 @@ class Ability:
         trigger: Optional[str] = None,
         activation: Optional[str] = None,
         vstar: bool = False,
+        gx: bool = False,
         passive: Optional[Any] = None,
         condition: Optional[Callable] = None,
         shared_once_per_turn: Optional[str] = None,
@@ -440,6 +441,8 @@ class Ability:
         self.activation = activation
         # VSTAR Powers are usable once per game and flip the playmat marker.
         self.vstar = vstar
+        # GX attacks are usable once per game (Pokemon-GX rule box).
+        self.gx = gx
         # A passives.Passive for continuous effects (active while in play).
         self.passive = passive
         self.condition = condition
@@ -489,13 +492,14 @@ class Attack(Ability):
         ability_type: AbilityTypes = AbilityTypes.ATTACK,
         effect: Optional[Any] = None,
         vstar: bool = False,
+        gx: bool = False,
         locks_next_turn: bool = False,
         condition: Optional[Callable] = None,
         usable_first_turn: bool = False,
         usable_despite_conditions: bool = False
     ):
         super().__init__(title, game_text, ability_type, effect, vstar=vstar,
-                         condition=condition)
+                         gx=gx, condition=condition)
         self.cost = cost or {}
         self.damage = damage
         self.damage_operator = damage_operator
