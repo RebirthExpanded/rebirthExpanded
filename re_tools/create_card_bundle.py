@@ -18,6 +18,38 @@ except ImportError:
 ASSET_MAP_PATH = "spirit/server/asset_map.json"
 OUTPUT_DIR = "spirit/assets/bundleCache"
 
+
+def build_full_mip_chain_bytes(top_img, texture_format, mip_count, resample_filter):
+    """Downsamples `top_img` into a full Unity-style mip pyramid (largest
+    level first) and encodes each level with UnityPy's own texture encoder,
+    matching `texture_format`. Returns (concatenated_bytes, actual_mip_count).
+
+    Without this, only the top-level image gets encoded and m_MipCount stays
+    at 1 while the texture's declared/expected mip count (matching the
+    template prototype) is higher -- the client then samples mip levels that
+    were never written, which is what produced the abnormal brightness on
+    small/thumbnail renders while the full-size view (mip 0, which DOES
+    exist) looked correct.
+    """
+    from UnityPy.export.Texture2DConverter import image_to_texture2d
+
+    mips = []
+    cur = top_img
+    w, h = cur.size
+    while len(mips) < mip_count and (w > 1 or h > 1 or not mips):
+        mips.append(cur)
+        if w == 1 and h == 1:
+            break
+        w, h = max(1, w // 2), max(1, h // 2)
+        cur = cur.resize((w, h), resample_filter)
+
+    chunks = []
+    for level in mips:
+        encoded, _ = image_to_texture2d(level, texture_format)
+        chunks.append(encoded)
+
+    return b"".join(chunks), len(mips)
+
 def create_card_set_bundle(png_mapping, template_path, target_bundle_name):
     """
     Creates a custom PTCGO AssetBundle for a SET of cards using Dynamic Appending.
@@ -64,7 +96,10 @@ def create_card_set_bundle(png_mapping, template_path, target_bundle_name):
 
     proto_data = prototype_obj.read()
     target_size = (proto_data.m_Width, proto_data.m_Height)
-    print(f"Prototype size: {target_size}")
+    proto_mip_count = getattr(proto_data, "m_MipCount", 1) or 1
+    proto_texture_format = proto_data.m_TextureFormat
+    print(f"Prototype size: {target_size}, mip count: {proto_mip_count}, "
+          f"format: {proto_texture_format}")
 
     unique_prefix = target_bundle_name.replace(".unity3d", "")
 
@@ -107,6 +142,16 @@ def create_card_set_bundle(png_mapping, template_path, target_bundle_name):
         print(f"Processing asset: {asset_name} from {png_path}")
         try:
             img = Image.open(png_path)
+            # Normalize to a known, consistent format before any processing.
+            # Without this, a source PNG that isn't already RGBA (palette
+            # mode, embedded ICC profile, no alpha channel, etc.) gets
+            # passed straight into the Unity texture assignment below with
+            # whatever mode/profile it happened to be saved in, which can
+            # produce abnormal brightness/color once the client decodes it.
+            if img.mode != "RGBA":
+                img = img.convert("RGBA")
+            if "icc_profile" in img.info:
+                img.info.pop("icc_profile")
             img_square = pad_to_square(img)
             resample_filter = getattr(Image, 'LANCZOS', getattr(Image, 'ANTIALIAS', 1))
             resized_img = img_square.resize(target_size, resample_filter)
@@ -120,10 +165,28 @@ def create_card_set_bundle(png_mapping, template_path, target_bundle_name):
             cloned_obj.path_id = new_path_id
             asset.objects[new_path_id] = cloned_obj
 
-            # 2. Update the cloned texture with our custom PNG data
+            # 2. Build the full mip chain (matching the prototype's mip
+            #    count) and write it directly, instead of `read_obj.image =
+            #    resized_img`, which only ever wrote mip level 0 and left
+            #    m_MipCount at 1 -- the client then read past the end of
+            #    the actual data for any smaller mip level it sampled
+            #    (thumbnails), which is what caused the brightness bug.
             read_obj = cloned_obj.read()
             read_obj.m_Name = asset_name
-            read_obj.image = resized_img
+            try:
+                mip_bytes, actual_mip_count = build_full_mip_chain_bytes(
+                    resized_img, proto_texture_format, proto_mip_count,
+                    resample_filter,
+                )
+                read_obj.image_data = mip_bytes
+                read_obj.m_MipCount = actual_mip_count
+                read_obj.m_CompleteImageSize = len(mip_bytes)
+                read_obj.m_Width, read_obj.m_Height = resized_img.size
+            except Exception as mip_err:
+                print(f"Warning: full mip-chain build failed for "
+                      f"'{asset_name}' ({mip_err}); falling back to "
+                      f"single-level image (thumbnail may look wrong).")
+                read_obj.image = resized_img
             cloned_obj.save_typetree(read_obj)
 
             # 3. Create a cloned AssetInfo pointing to the new PathID
