@@ -6,6 +6,8 @@ from spirit.game.session.effects import is_pokemon_card
 def _dragon_discard_attacks(ctx):
     pairs = []
     seen = set()
+    gx_spent = ctx.player_id in ctx.session.turn_state.gx_used
+    vstar_spent = ctx.player_id in ctx.session.turn_state.vstar_used
     for card in ctx.discard_pile():
         if not is_pokemon_card(card):
             continue
@@ -17,6 +19,14 @@ def _dragon_discard_attacks(ctx):
             continue
         for ability in getattr(definition, "abilities", []):
             if isinstance(ability, Attack):
+                # A GX attack can't be copied once this player has already
+                # used their one GX attack for the game (Latios-GX's Clear
+                # Vision-GX aside, this is the "used it myself" case).
+                if getattr(ability, "gx", False) and gx_spent:
+                    continue
+                # Same idea for an Attack-form VSTAR Power.
+                if getattr(ability, "vstar", False) and vstar_spent:
+                    continue
                 key = (ability.title, ability.game_text)
                 if key in seen:
                     continue
