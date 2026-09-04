@@ -245,4 +245,8 @@ AGENTS.md
 
 unity_ptcgo_recon/
 docs/
-native/
+spirit/server/asset_map.json 
+venv/ 
+spirit/assets/bundleCache/ 
+*.db 
+__pycache__/ 
