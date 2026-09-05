@@ -1229,7 +1229,8 @@ def _basic_attacker(calc, carrier) -> bool:
     if calc.target is not carrier:
         return False
     attacker = calc.attacker
-    return attacker is not None and         attacker.get_attribute(AttrID.STAGE) == PokemonStage.BASIC.value
+    return (attacker is not None
+            and attacker.get_attribute(AttrID.STAGE) == PokemonStage.BASIC.value)
 
 
 async def shield_from_basics(ctx):
@@ -1243,3 +1244,20 @@ async def shield_from_basics(ctx):
     ctx.add_passive_through_opponents_turn(
         ctx.attacker, prevent_damage_when(_basic_attacker)
     )
+
+
+# --- "if any of your Pokemon were Knocked Out during your opponent's last
+#      turn" ---------------------------------------------------------------
+
+def ally_ko_last_turn(board, player_id, pokemon=None) -> bool:
+    """Ability condition: the player lost a Pokemon on the opponent's turn.
+
+    Fezandipiti ex's Flip the Script and Oricorio-GX's Dance of Tribute, which
+    print the same clause. The engine's turn ledger only records knockouts
+    dealt by attacks, so a Pokemon lost to poison or to an Ability does not
+    switch the condition on.
+    """
+    turn_state = getattr(board, "turn_state", None)
+    if turn_state is None:
+        return False
+    return bool(getattr(turn_state, "kos_by_attack_last_turn", {}).get(player_id))
