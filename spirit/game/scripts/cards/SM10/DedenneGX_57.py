@@ -69,15 +69,11 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
-    # NOT YET VERIFIED AGAINST THE CLIENT. This is the only Metal resistance
-    # and the only non-30 amount in the whole pool (the rest are
-    # Fighting/Grass at -30), and a deck holding this card in exactly this
-    # configuration once threw KeyNotFoundException in the client's
-    # EvolutionsRenderUtil.GetEvolutions on save. Whether the type or the
-    # amount caused that was never isolated -- the run that appeared to
-    # clear it also had the card's resistance removed entirely. If the deck
-    # builder crashes on save again, try resistance_amount=30 first (keeps
-    # the Metal type); if it still crashes, drop both lines.
+    # The only Metal resistance and the only non-30 amount in the pool (the
+    # rest are Fighting/Grass at -30), so it was the prime suspect for a
+    # deck-save KeyNotFoundException here -- wrongly: the client saves this
+    # card fine. The real cause was elsewhere (a Pokemon with no family_id
+    # is missing from the map EvolutionsRenderUtil reads). Verified working.
     resistance_type=PokemonTypes.METAL,
     resistance_amount=20,
     family_id=702,

@@ -63,7 +63,11 @@ card = PokemonCardDef(
     display_name="Dialga-GX",
     collector_number=100,
     set_code="SM5",
-    rarity=Rarities.RareUltra,
+    # Rare Holo GX per the printed card; it was filed as RareUltra, which is
+    # the client's "Full Art" rarity. (This does not restore the deck
+    # builder's "Pokemon-GX" filter -- pie-src.dll has no GX predicate at
+    # all, so that row matches nothing whatever the server sends.)
+    rarity=Rarities.RareHoloGX,
     hp=180,
     elements=[PokemonTypes.DRAGON],
     stage=PokemonStage.BASIC,
