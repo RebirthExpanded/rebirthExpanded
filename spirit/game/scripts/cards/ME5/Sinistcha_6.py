@@ -1,21 +1,15 @@
-from spirit.game.data_utils import PokemonCardDef, Attack, Ability, def_for
+from spirit.game.data_utils import PokemonCardDef, Attack, Ability
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
 from spirit.game.card_effects.attacks_common import place_counters
-from spirit.game.card_effects.passives_common import full_effect_shield_passive
-
-
-def _has_hide_n_sneak(card):
-    definition = def_for(getattr(card, "archetype_id", None) or "")
-    for ability in getattr(definition, "abilities", None) or []:
-        if getattr(ability, "title", None) == "Hide 'n' Sneak":
-            return True
-    return False
+from spirit.game.card_effects.passives_common import (
+    count_hide_n_sneak_in_discard, full_effect_shield_passive,
+)
 
 
 async def matcha_spin(ctx):
     """If you have 6 or more Pokémon that have Hide 'n' Sneak in your discard
     pile, place 4 damage counters on each of your opponent's Pokémon."""
-    if sum(1 for c in ctx.discard_pile() if _has_hide_n_sneak(c)) < 6:
+    if count_hide_n_sneak_in_discard(ctx) < 6:
         return
     await place_counters(4, "each_opponent")(ctx)
 

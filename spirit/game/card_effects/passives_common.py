@@ -15,8 +15,10 @@ preds (no_retreat / ability_lock / healing_block / retreat_free) take
 from typing import Any, Callable, Optional
 
 from spirit.game.attributes import AttrID, TrainerType
+from spirit.game.data_utils import def_for
 from spirit.game.session.passives import (
     Passive,
+    out_of_play_ability_locked,
     TurnDamageModifier,
     carrier_pokemon,
     effective_max_hp,
@@ -871,3 +873,25 @@ def raise_defender_retreat_cost_next_turn(extra=1):
         await ctx.deal_damage()
         await apply_defender_retreat_cost_raise(ctx, extra)
     return effect
+
+
+def count_hide_n_sneak_in_discard(ctx) -> int:
+    """How many Pokemon in your discard pile have the Hide 'n' Sneak Ability.
+
+    Sinistcha, Dhelmise and Spiritomb each gate an attack on this count. The
+    text READS an Ability instead of using one, so a lock that reaches the
+    discard pile takes cards out of the count: while Garbotoxin is on, "each
+    Pokemon ... in each player's discard pile has no Abilities", and a card
+    with no Abilities does not have this one.
+    """
+    return sum(1 for card in ctx.discard_pile()
+               if has_hide_n_sneak(ctx.board, card))
+
+
+def has_hide_n_sneak(board, card) -> bool:
+    """Whether `card` counts as having Hide 'n' Sneak where it currently sits."""
+    if out_of_play_ability_locked(board, card):
+        return False
+    definition = def_for(getattr(card, "archetype_id", None) or "")
+    return any(getattr(ability, "title", None) == "Hide 'n' Sneak"
+               for ability in (getattr(definition, "abilities", None) or []))

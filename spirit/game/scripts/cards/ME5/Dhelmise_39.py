@@ -1,18 +1,13 @@
-from spirit.game.data_utils import PokemonCardDef, Attack, def_for
+from spirit.game.data_utils import PokemonCardDef, Attack
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
 from spirit.game.card_effects.attacks_common import bonus_if
-
-
-def _has_hide_n_sneak(card):
-    definition = def_for(getattr(card, "archetype_id", None) or "")
-    for ability in getattr(definition, "abilities", None) or []:
-        if getattr(ability, "title", None) == "Hide 'n' Sneak":
-            return True
-    return False
+from spirit.game.card_effects.passives_common import (
+    count_hide_n_sneak_in_discard,
+)
 
 
 def _four_or_more_hide_n_sneak(ctx):
-    return sum(1 for c in ctx.discard_pile() if _has_hide_n_sneak(c)) >= 4
+    return count_hide_n_sneak_in_discard(ctx) >= 4
 
 
 card = PokemonCardDef(
