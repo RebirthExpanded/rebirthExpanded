@@ -182,20 +182,22 @@ def has_two_metal_energy_in_hand(board, player_id) -> bool:
 
 
 def _tools_and_stadium(board):
-    """Every attached Pokemon Tool plus the Stadium in play."""
+    """Every attached Pokemon Tool plus the Stadium in play, both sides."""
     targets = []
     for pid in board.player_ids:
         for pokemon in board.pokemon_in_play(pid):
-            for child in pokemon.children:
-                if child.get_attribute(AttrID.TRAINER_TYPE) == TrainerType.POKEMON_TOOL.value:
-                    targets.append(child)
+            targets.extend(c for c in pokemon.children if is_pokemon_tool(c))
     stadium_area = board.find_global_area("activeStadium")
     targets.extend(stadium_area.children if stadium_area else [])
     return targets
 
 
+def tools_or_stadium_in_play(board, player_id=None):
+    return bool(_tools_and_stadium(board))
+
+
 def lost_vacuum_playable(board, player_id):
-    return hand_size_at_least(2)(board, player_id) and bool(_tools_and_stadium(board))
+    return hand_size_at_least(2)(board, player_id)         and tools_or_stadium_in_play(board)
 
 
 def serena_playable(board, player_id):
@@ -606,6 +608,21 @@ async def lost_vacuum(ctx):
         targets, 1, prompt="Choose a Pokémon Tool or Stadium to put in the Lost Zone",
     )
     await ctx.move_to_lost_zone(picks)
+
+
+async def field_blower(ctx):
+    """Discard up to 2 Pokemon Tools and/or Stadiums in play, either side."""
+    targets = _tools_and_stadium(ctx.board)
+    if not targets:
+        return
+    picks = await ctx.choose_cards(
+        targets, 2, minimum=1,
+        # The client ships its own string for this card; using the key gets
+        # the localized wording instead of an English literal.
+        prompt="playmat.prompt.sm2_125.fieldblower",
+    )
+    if picks:
+        await ctx.discard_cards(picks)
 
 
 async def battle_vip_pass(ctx):
