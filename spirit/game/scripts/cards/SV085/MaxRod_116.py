@@ -2,17 +2,13 @@ from spirit.game.data_utils import ItemCardDef
 from spirit.game.attributes import Rarities
 from spirit.game.card_effects.trainers import (
     has_pokemon_or_basic_energy_in_discard,
-    is_basic_energy_card,
+    pokemon_or_basic_energy,
 )
-from spirit.game.session.effects import is_pokemon_card
 
 async def max_rod(ctx):
     """Put up to 5 in any combination of Pokémon and Basic Energy cards from
     your discard pile into your hand."""
-    candidates = [
-        c for c in ctx.discard_pile()
-        if is_pokemon_card(c) or is_basic_energy_card(c)
-    ]
+    candidates = pokemon_or_basic_energy(ctx.discard_pile())
     if not candidates:
         return
     picks = await ctx.choose_cards(

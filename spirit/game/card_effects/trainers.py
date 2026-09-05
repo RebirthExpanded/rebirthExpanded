@@ -610,6 +610,20 @@ async def lost_vacuum(ctx):
     await ctx.move_to_lost_zone(picks)
 
 
+async def super_rod(ctx):
+    """Shuffle 3 Pokemon and/or basic Energy cards from the discard into the
+    deck (fewer if the discard cannot supply 3)."""
+    candidates = pokemon_or_basic_energy(ctx.discard_pile())
+    if not candidates:
+        return
+    picks = await ctx.choose_cards(
+        candidates, 3,
+        prompt="Choose 3 Pokémon and/or basic Energy cards to shuffle into your deck.",
+    )
+    if picks:
+        await ctx.shuffle_into_deck(picks)
+
+
 async def field_blower(ctx):
     """Discard up to 2 Pokemon Tools and/or Stadiums in play, either side."""
     targets = _tools_and_stadium(ctx.board)
@@ -808,9 +822,14 @@ def has_basic_energy_in_discard(board, player_id) -> bool:
     return any(is_basic_energy_card(c) for c in _discard(board, player_id))
 
 
+def pokemon_or_basic_energy(cards):
+    """The "in any combination of Pokemon and basic Energy cards" filter
+    (Super Rod, Max Rod)."""
+    return [c for c in cards if is_pokemon_card(c) or is_basic_energy_card(c)]
+
+
 def has_pokemon_or_basic_energy_in_discard(board, player_id) -> bool:
-    return any(is_pokemon_card(c) or is_basic_energy_card(c)
-               for c in _discard(board, player_id))
+    return bool(pokemon_or_basic_energy(_discard(board, player_id)))
 
 
 # --- Colress's Experiment (LOR, Supporter) -------------------------------
