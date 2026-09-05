@@ -1412,6 +1412,7 @@ class EffectContext:
         self, pokemon: PokemonEntity, amount: int,
         predicate: Optional[Callable[[CardEntity], bool]] = None,
         prompt: str = "Choose Energy to discard",
+        partial: bool = False,
     ) -> List[CardEntity]:
         """Discard cards providing at least ``amount`` attached Energy.
 
@@ -1419,6 +1420,11 @@ class EffectContext:
         example, Hyper Potion's "discard 2 Energy"). ``discard_energy_from``
         remains the physical-card-count primitive for text that says "Energy
         cards" or otherwise requires a specific number of card entities.
+
+        By default a short pile pays nothing, which is what a cost needs:
+        Hyper Potion cannot be played at all unless 2 Energy come off. An
+        attack that discards as an after-effect passes partial=True instead
+        and takes whatever is attached.
         """
 
         energies = [
@@ -1428,10 +1434,15 @@ class EffectContext:
         total = sum(
             energy_provided_count(energy, self.board) for energy in energies
         )
-        if amount <= 0 or total < amount:
+        if amount <= 0:
             return []
+        if total < amount:
+            if not partial:
+                return []
+            await self.discard_cards(energies)
+            return energies
 
-        if total <= amount:
+        if total == amount:
             picked = energies
         else:
             picked_ids = await self.session.prompt_energy_unit_picker(

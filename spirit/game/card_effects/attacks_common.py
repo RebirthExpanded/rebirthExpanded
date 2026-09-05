@@ -435,7 +435,13 @@ def self_energy_discard_attack(count: Optional[int] = None,
                                before_damage: bool = False,
                                then_damage: Optional[int] = None, also=None):
     """Discard own attached Energy (count, or all_energy=True) around the
-    printed (or then_damage) damage; before_damage follows the printed order."""
+    printed (or then_damage) damage; before_damage follows the printed order.
+
+    Every card wired to this reads "Discard N Energy", never "Energy cards",
+    so the count is a number of Energy and not of card entities: one Double
+    Dragon Energy pays a 2 by itself. all_energy takes the pile whatever it
+    provides, so that branch stays on the card-count primitive.
+    """
     if count is None and not all_energy:
         raise ValueError("self_energy_discard_attack: pass count= or all_energy=True")
     type_value = getattr(energy_type, "value", energy_type)
@@ -443,9 +449,13 @@ def self_energy_discard_attack(count: Optional[int] = None,
         if type_value is not None else None
 
     async def _discard(ctx):
-        await ctx.discard_energy_from(
-            ctx.attacker, 99 if all_energy else count, predicate=pred,
-            prompt="Choose Energy to discard from this Pokémon")
+        prompt = "Choose Energy to discard from this Pokémon"
+        if all_energy:
+            await ctx.discard_energy_from(ctx.attacker, 99, predicate=pred,
+                                          prompt=prompt)
+            return
+        await ctx.discard_energy_units_from(
+            ctx.attacker, count, predicate=pred, prompt=prompt, partial=True)
 
     async def effect(ctx):
         if before_damage:
