@@ -1253,11 +1253,12 @@ def ally_ko_last_turn(board, player_id, pokemon=None) -> bool:
     """Ability condition: the player lost a Pokemon on the opponent's turn.
 
     Fezandipiti ex's Flip the Script and Oricorio-GX's Dance of Tribute, which
-    print the same clause. The engine's turn ledger only records knockouts
-    dealt by attacks, so a Pokemon lost to poison or to an Ability does not
-    switch the condition on.
+    print the same clause. Neither says "by damage from an opponent's attack",
+    so this reads kos_suffered_last_turn -- every knockout, including poison
+    at Checkup and damage counters -- rather than the narrower kos_by_attack
+    ledger that Dhelmise V's printed wording does ask for.
     """
     turn_state = getattr(board, "turn_state", None)
     if turn_state is None:
         return False
-    return bool(getattr(turn_state, "kos_by_attack_last_turn", {}).get(player_id))
+    return bool(getattr(turn_state, "kos_suffered_last_turn", {}).get(player_id))

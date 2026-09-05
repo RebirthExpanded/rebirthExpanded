@@ -133,6 +133,11 @@ class TurnState:
     trainers_played_last_turn: List[Tuple[str, str, int]] = field(default_factory=list)
     attacks_used_last_turn: List[Tuple[str, str, str]] = field(default_factory=list)
     kos_by_attack_last_turn: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
+    # Every knockout, whatever caused it, keyed by the owner of the Pokemon
+    # that was lost. "Knocked Out during your opponent's last turn" counts
+    # poison, damage counters and Trainers too, which kos_by_attack does not.
+    kos_suffered: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
+    kos_suffered_last_turn: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
     damage_taken_last_turn: Dict[str, int] = field(default_factory=dict)
     prizes_taken_last_turn: Dict[str, int] = field(default_factory=dict)
     retreated_entities_last_turn: Set[str] = field(default_factory=set)
@@ -194,6 +199,8 @@ class TurnState:
         self.attacks_used = []
         self.kos_by_attack_last_turn = self.kos_by_attack
         self.kos_by_attack = {}
+        self.kos_suffered_last_turn = self.kos_suffered
+        self.kos_suffered = {}
         self.damage_taken_last_turn = self.damage_taken
         self.damage_taken = {}
         self.prizes_taken_last_turn = self.prizes_taken

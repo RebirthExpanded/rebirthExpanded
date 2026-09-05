@@ -2348,11 +2348,17 @@ class GameSession:
                 await self.send_game_sequence(
                     list(self.players.values()), GameSequence.KNOCKOUT, moves
                 )
+            entry = {
+                "archetype_id": pokemon.archetype_id,
+                "subtypes": list(subtypes_for(pokemon.archetype_id)),
+            }
+            # "Knocked Out during your opponent's last turn" (Fezandipiti ex,
+            # Oricorio-GX) counts every knockout: poison at Checkup, damage
+            # counters, a Trainer. kos_by_attack stays narrow because some
+            # text does say "by damage from an opponent's attack" (Dhelmise V).
+            self.turn_state.kos_suffered.setdefault(owner_id, []).append(dict(entry))
             if _damage_ko(pokemon) and ctx.attacker.owning_player_id != owner_id:
-                self.turn_state.kos_by_attack.setdefault(owner_id, []).append({
-                    "archetype_id": pokemon.archetype_id,
-                    "subtypes": list(subtypes_for(pokemon.archetype_id)),
-                })
+                self.turn_state.kos_by_attack.setdefault(owner_id, []).append(entry)
             if was_active and owner_id not in promotions:
                 promotions.append(owner_id)
             logging.info(
