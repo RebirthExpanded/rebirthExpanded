@@ -2190,6 +2190,13 @@ def is_supporter_card(card: CardEntity) -> bool:
     return card.get_attribute(AttrID.TRAINER_TYPE) == TrainerType.SUPPORTER.value
 
 
+def is_pokemon_tool(card: CardEntity) -> bool:
+    # POKEMON_TOOL_F is the Team Flare tool subtype; no card in the pool
+    # carries it yet, but it is a Pokemon Tool for search and discard text.
+    return card.get_attribute(AttrID.TRAINER_TYPE) in (
+        TrainerType.POKEMON_TOOL.value, TrainerType.POKEMON_TOOL_F.value)
+
+
 def is_special_energy(card: CardEntity) -> bool:
     return bool(card.get_attribute(AttrID.IS_SPECIAL_ENERGY))
 

@@ -15,6 +15,7 @@ from spirit.game.session.effects import (
     is_evolution_pokemon,
     is_item_card,
     is_pokemon_card,
+    is_pokemon_tool,
     is_special_energy,
     is_supporter_card,
     is_water_pokemon,
@@ -268,6 +269,19 @@ async def irida(ctx):
         prompt="Choose up to 1 Water Pokémon and up to 1 Item card",
     )
     await ctx.put_in_hand(water + items, reveal=True)
+    await ctx.shuffle_deck()
+
+
+async def arven(ctx):
+    """Search the deck for up to 1 Item card and up to 1 Pokemon Tool card."""
+    items, tools = await ctx.search_deck_groups(
+        [
+            (is_item_card, 1, "playmat.prompt.select1item"),
+            (is_pokemon_tool, 1, "playmat.prompt.selectapoketoolcard"),
+        ],
+        prompt="Choose up to 1 Item card and up to 1 Pokémon Tool card",
+    )
+    await ctx.put_in_hand(items + tools, reveal=True)
     await ctx.shuffle_deck()
 
 
