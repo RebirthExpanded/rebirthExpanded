@@ -176,7 +176,15 @@ class TurnState:
 
     def begin_turn(self, player_id: str, board: Optional[Any] = None):
         """Advances to the next turn, resets the once-per-turn flags, rotates
-        the two-turn history, and prunes expired turn-scoped effects."""
+        the two-turn history, and prunes expired turn-scoped effects.
+
+        A second turn in a row for the same player (Dialga-GX's Timeless GX)
+        leaves the knockout ledgers where they are. The opponent has not had a
+        turn in between, so "Knocked Out during your opponent's last turn"
+        still means the turn it meant a moment ago, and Dance of Tribute /
+        Flip the Script stay usable through the extra turn.
+        """
+        extra_turn = bool(self.active_player_id) and self.active_player_id == player_id
         if self.active_player_id:
             self.attack_titles_prev_turn_by_player[self.active_player_id] = [
                 title for _, _, title in self.attacks_used
@@ -197,10 +205,11 @@ class TurnState:
         self.trainers_played = []
         self.attacks_used_last_turn = self.attacks_used
         self.attacks_used = []
-        self.kos_by_attack_last_turn = self.kos_by_attack
-        self.kos_by_attack = {}
-        self.kos_suffered_last_turn = self.kos_suffered
-        self.kos_suffered = {}
+        if not extra_turn:
+            self.kos_by_attack_last_turn = self.kos_by_attack
+            self.kos_by_attack = {}
+            self.kos_suffered_last_turn = self.kos_suffered
+            self.kos_suffered = {}
         self.damage_taken_last_turn = self.damage_taken
         self.damage_taken = {}
         self.prizes_taken_last_turn = self.prizes_taken
