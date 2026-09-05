@@ -4,7 +4,7 @@ from spirit.game.card_effects.support_common import shuffle_hand_into_deck_draw
 
 
 def _unfair_stamp_condition(board, player_id, card=None) -> bool:
-    return bool(board.turn_state.kos_by_attack_last_turn.get(player_id))
+    return bool(board.turn_state.pokemon_lost_last_turn(player_id))
 
 
 card = ItemCardDef(

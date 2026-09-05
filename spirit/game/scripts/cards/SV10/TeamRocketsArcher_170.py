@@ -9,7 +9,7 @@ def _is_team_rockets_archetype(archetype_id) -> bool:
 
 
 def archer_condition(board, player_id):
-    ledger = (board.turn_state.kos_by_attack_last_turn or {}).get(player_id, [])
+    ledger = board.turn_state.pokemon_lost_last_turn(player_id)
     return any(_is_team_rockets_archetype(e.get("archetype_id")) for e in ledger)
 
 

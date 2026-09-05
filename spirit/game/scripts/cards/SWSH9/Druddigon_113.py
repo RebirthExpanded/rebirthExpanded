@@ -4,7 +4,7 @@ from spirit.game.card_effects.attacks_common import bonus_if
 
 
 def _kos_suffered_last_turn(ctx):
-    return ctx.kos_suffered_last_turn() > 0
+    return ctx.kos_by_attack_last_turn() > 0
 
 
 card = PokemonCardDef(

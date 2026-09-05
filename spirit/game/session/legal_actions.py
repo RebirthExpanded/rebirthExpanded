@@ -174,6 +174,16 @@ class TurnState:
     # auto-selects it and opens the attack panel.
     auto_select_attack_entity_id: Optional[str] = None
 
+    def pokemon_lost_last_turn(self, player_id: str) -> List[Dict[str, Any]]:
+        """"if any of your Pokemon were Knocked Out during your opponent's
+        last turn" -- every knockout, whatever caused it.
+
+        The one place that decides which ledger that sentence means. Text
+        that instead says "by damage from an opponent's attack" (Dhelmise V,
+        Kangaskhan) reads kos_by_attack_last_turn directly.
+        """
+        return (self.kos_suffered_last_turn or {}).get(player_id, [])
+
     def begin_turn(self, player_id: str, board: Optional[Any] = None):
         """Advances to the next turn, resets the once-per-turn flags, rotates
         the two-turn history, and prunes expired turn-scoped effects.

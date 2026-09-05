@@ -725,7 +725,14 @@ class EffectContext:
     # ------------------------------------------------------------------
 
     def kos_suffered_last_turn(self, player_id: Optional[str] = None) -> int:
-        """How many of a player's Pokemon were KO'd by attacks last turn."""
+        """How many of a player's Pokemon were Knocked Out last turn, whatever
+        caused it (Bruno, Cynthia's Ambition, Gym Trainer, Zamazenta)."""
+        return len(self.session.turn_state.pokemon_lost_last_turn(
+            player_id or self.player_id))
+
+    def kos_by_attack_last_turn(self, player_id: Optional[str] = None) -> int:
+        """How many were KO'd specifically by damage from an opponent's attack
+        (Kangaskhan, Tropius, Druddigon, Hisuian Basculegion print that)."""
         ledger = self.session.turn_state.kos_by_attack_last_turn
         return len(ledger.get(player_id or self.player_id, []))
 

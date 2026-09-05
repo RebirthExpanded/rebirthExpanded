@@ -1261,4 +1261,5 @@ def ally_ko_last_turn(board, player_id, pokemon=None) -> bool:
     turn_state = getattr(board, "turn_state", None)
     if turn_state is None:
         return False
-    return bool(getattr(turn_state, "kos_suffered_last_turn", {}).get(player_id))
+    getter = getattr(turn_state, "pokemon_lost_last_turn", None)
+    return bool(getter(player_id)) if getter else False

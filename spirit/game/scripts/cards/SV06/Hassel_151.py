@@ -4,7 +4,7 @@ from spirit.game.card_effects.trainers import deck_nonempty
 
 
 def hassel_playable(board, player_id):
-    if not board.turn_state.kos_by_attack_last_turn.get(player_id):
+    if not board.turn_state.pokemon_lost_last_turn(player_id):
         return False
     return deck_nonempty(board, player_id)
 

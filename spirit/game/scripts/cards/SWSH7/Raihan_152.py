@@ -14,7 +14,7 @@ async def _raihan_search(ctx, picks):
 
 
 def _raihan_condition(board, player_id):
-    return bool(board.turn_state.kos_by_attack_last_turn.get(player_id))
+    return bool(board.turn_state.pokemon_lost_last_turn(player_id))
 
 
 card = SupporterCardDef(

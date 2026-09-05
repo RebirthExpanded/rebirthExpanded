@@ -3,7 +3,7 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, Special
 
 
 async def _grudge_dive(ctx):
-    if ctx.kos_suffered_last_turn() > 0:
+    if ctx.kos_by_attack_last_turn() > 0:
         await ctx.deal_damage(120)
         await ctx.apply_special_condition(ctx.defender, SpecialConditions.CONFUSED)
     else:

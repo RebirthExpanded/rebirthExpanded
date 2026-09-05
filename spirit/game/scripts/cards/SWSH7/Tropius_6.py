@@ -25,7 +25,7 @@ card = PokemonCardDef(
             cost={PokemonTypes.GRASS: 1, PokemonTypes.COLORLESS: 1},
             damage=30,
             damage_operator="+",
-            effect=bonus_if(lambda ctx: ctx.kos_suffered_last_turn() > 0, 90),
+            effect=bonus_if(lambda ctx: ctx.kos_by_attack_last_turn() > 0, 90),
         ),
         Attack(
             title="Solar Beam",
