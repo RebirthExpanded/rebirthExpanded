@@ -779,6 +779,23 @@ class PathToThePeakPassive(Passive):
         return has_rule_box(pokemon.archetype_id)
 
 
+class SilentLabPassive(Passive):
+    """Basic Pokemon have no Abilities -- in play, in hand and in the discard
+    pile, on both sides.
+
+    Garbotoxin's pair of hooks with a different filter and no switch: a
+    Stadium is always on, and unlike Klefki's Mischievous Lock there is no
+    "except" clause to honour, so every Basic loses its Abilities including
+    Klefki's own.
+    """
+
+    def blocks_abilities(self, pokemon, carrier):
+        return is_basic_pokemon(pokemon)
+
+    def blocks_out_of_play_abilities(self, card, carrier):
+        return is_basic_pokemon(card)
+
+
 class LostCityPassive(Passive):
     """Knocked Out Pokemon go to the Lost Zone instead of the discard pile."""
 
