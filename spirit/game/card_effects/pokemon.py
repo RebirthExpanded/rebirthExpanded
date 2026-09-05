@@ -13,6 +13,7 @@ from spirit.game.data_utils import (
     is_pokemon_v, subtypes_for,
 )
 from spirit.game.session.constants import BENCH_CAPACITY
+from spirit.game.card_effects.passives_common import prevent_damage_when
 from spirit.game.session.effects import (
     full_stack,
     is_basic_pokemon,
@@ -1219,3 +1220,26 @@ async def phantom_transformation(ctx):
     if picks:
         await ctx.identity_swap(ctx.source, picks[0], destination="discard",
                                 transfer=False)
+
+
+# --- Shield from Basic attackers -------------------------------------------
+
+def _basic_attacker(calc, carrier) -> bool:
+    """prevent_damage_when pred: the carrier is being hit by a Basic Pokemon."""
+    if calc.target is not carrier:
+        return False
+    attacker = calc.attacker
+    return attacker is not None and         attacker.get_attribute(AttrID.STAGE) == PokemonStage.BASIC.value
+
+
+async def shield_from_basics(ctx):
+    """Printed damage, then during the opponent's next turn prevent all damage
+    done to this Pokemon by attacks from Basic Pokemon.
+
+    Flying Pikachu VMAX's Max Balloon and Noivern ex's Covert Flight, which
+    print the same sentence.
+    """
+    await ctx.deal_damage()
+    ctx.add_passive_through_opponents_turn(
+        ctx.attacker, prevent_damage_when(_basic_attacker)
+    )

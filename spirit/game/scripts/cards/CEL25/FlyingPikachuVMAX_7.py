@@ -1,21 +1,6 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
-from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, AttrID
-from spirit.game.card_effects.passives_common import prevent_damage_when
-
-
-def _max_balloon_shield(calc, carrier):
-    if calc.target is not carrier:
-        return False
-    attacker = calc.attacker
-    return attacker is not None and \
-        attacker.get_attribute(AttrID.STAGE) == PokemonStage.BASIC.value
-
-
-async def _max_balloon(ctx):
-    await ctx.deal_damage()
-    ctx.add_passive_through_opponents_turn(
-        ctx.attacker, prevent_damage_when(_max_balloon_shield)
-    )
+from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
+from spirit.game.card_effects.pokemon import shield_from_basics
 
 
 card = PokemonCardDef(
@@ -42,7 +27,7 @@ card = PokemonCardDef(
             game_text="During your opponent's next turn, prevent all damage done to this Pok\u00e9mon by attacks from Basic Pok\u00e9mon.",
             cost={PokemonTypes.LIGHTNING: 1, PokemonTypes.COLORLESS: 2},
             damage=160,
-            effect=_max_balloon,
+            effect=shield_from_basics,
         ),
     ],
 )

@@ -2182,6 +2182,10 @@ def is_item_card(card: CardEntity) -> bool:
     return card.get_attribute(AttrID.TRAINER_TYPE) == TrainerType.ITEM.value
 
 
+def is_stadium_card(card: CardEntity) -> bool:
+    return card.get_attribute(AttrID.TRAINER_TYPE) == TrainerType.STADIUM.value
+
+
 def is_supporter_card(card: CardEntity) -> bool:
     return card.get_attribute(AttrID.TRAINER_TYPE) == TrainerType.SUPPORTER.value
 
