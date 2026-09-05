@@ -325,6 +325,25 @@ class Passive:
         no opinion, the smallest override wins."""
         return None
 
+    def player_visualizations(
+        self, player_id: str, carrier: BoardEntity
+    ) -> List[Dict[str, Any]]:
+        """Persistent status rows shown on `player_id`'s side of the playmat
+        (attr 200370 on their PlayerEntity), as opposed to the turn-scoped PiPs
+        add_turn_stat_visualization puts on a Pokemon.
+
+        Return the viz dicts this passive contributes for that player. They are
+        recomputed from scratch whenever the board settles, so a passive that
+        stops applying simply stops returning them -- there is no teardown.
+
+        No card uses this yet, and the one attempt crashed the client:
+        `displayType` must name a real VisualizationTypes member, because the
+        client parses it into the enum and dereferences the result unguarded.
+        A row carrying anything else -- a card-specific name taken from a
+        LocalizationDB key, say -- throws NullReferenceException inside the
+        sequence handling, not at the rendering site."""
+        return []
+
     def attack_keeps_turn(self, attacker: PokemonEntity, ability: Any,
                           ctx: Any, carrier: BoardEntity) -> bool:
         """True to keep the turn going after `attacker`'s attack resolved
@@ -930,6 +949,18 @@ def effective_bench_capacity(board: BoardState, player_id: str) -> int:
         for v in [passive.bench_capacity(player_id, carrier)] if v is not None
     ]
     return max(1, min(values)) if values else BENCH_SLOT_COUNT
+
+
+def player_visualizations(board: BoardState, player_id: str) -> List[Dict[str, Any]]:
+    """Every active passive's status rows for `player_id`, in passive order.
+
+    Derived state, not stored: the caller replaces the player's attr 200370
+    with whatever this returns, so a Stadium leaving play removes its rows
+    without anyone having to remember to clear them."""
+    rows: List[Dict[str, Any]] = []
+    for passive, carrier in active_passives(board):
+        rows.extend(passive.player_visualizations(player_id, carrier) or [])
+    return rows
 
 
 def tool_slots_free(board: Optional[BoardState], pokemon: PokemonEntity) -> int:

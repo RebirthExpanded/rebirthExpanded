@@ -117,7 +117,8 @@ from .passives import (
     ability_locked, active_passives, active_to_bench_counters,
     burn_recovery_blocked, effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, energy_attach_taxer, evolve_heal_amount,
-    granted_extra_attacks, retreat_energy_destination, tool_slots_free,
+    granted_extra_attacks, player_visualizations,
+    retreat_energy_destination, tool_slots_free,
     tool_suppressed, special_energy_suppressed,
 )
 from .legal_actions import (
@@ -2448,6 +2449,9 @@ class GameSession:
             await self.resync_effective_max_hp()
         finally:
             self._enforcing_bench = False
+            # Every path that can change the board settles through here, so it
+            # is the one place persistent player status rows need refreshing.
+            await self.sync_player_visualizations()
 
     async def resync_effective_max_hp(self):
         """Re-syncs in-play Pokemon HP against the live effective max: a
@@ -4253,6 +4257,23 @@ class GameSession:
             await self._broadcast_entity_attribute(
                 active, AttrID.PIE_ABILITIES, entries
             )
+
+    async def sync_player_visualizations(self):
+        """Rewrites each player's persistent status rows (attr 200370 on their
+        PlayerEntity) from the passives currently in play.
+
+        Recomputed rather than pushed and popped, so a Stadium that leaves play
+        takes its rows with it. Only broadcasts on change, so the common case --
+        no passive contributing any -- costs a comparison per player."""
+        for player_id in self.players:
+            entity = self.board_state.find_player_entity(player_id)
+            if entity is None:
+                continue
+            rows = player_visualizations(self.board_state, player_id)
+            if rows != (entity.get_attribute(AttrID.SPECIAL_VISUALIZATIONS) or []):
+                await self._broadcast_entity_attribute(
+                    entity, AttrID.SPECIAL_VISUALIZATIONS, rows
+                )
 
     async def add_turn_stat_visualization(
         self, pokemon: PokemonEntity, arrow: str, display_type: str,
