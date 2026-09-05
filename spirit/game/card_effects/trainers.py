@@ -611,14 +611,20 @@ async def lost_vacuum(ctx):
 
 
 async def super_rod(ctx):
-    """Shuffle 3 Pokemon and/or basic Energy cards from the discard into the
-    deck (fewer if the discard cannot supply 3)."""
+    """Shuffle up to 3 Pokemon and/or basic Energy cards from the discard into
+    the deck.
+
+    "Up to" is the errata'd wording, matching the SV reprint: the player may
+    take fewer than 3 even when more are available, so minimum=0 as on Max
+    Rod rather than the "exactly 3" the BW-era card first printed.
+    """
     candidates = pokemon_or_basic_energy(ctx.discard_pile())
     if not candidates:
         return
     picks = await ctx.choose_cards(
-        candidates, 3,
-        prompt="Choose 3 Pokémon and/or basic Energy cards to shuffle into your deck.",
+        candidates, 3, minimum=0,
+        prompt="Choose up to 3 Pokémon and/or basic Energy cards to shuffle "
+               "into your deck.",
     )
     if picks:
         await ctx.shuffle_into_deck(picks)

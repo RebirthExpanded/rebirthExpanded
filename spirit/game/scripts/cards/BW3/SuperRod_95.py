@@ -2,18 +2,20 @@
 
 Item.
 
-  "Shuffle 3 in any combination of Pokemon and basic Energy cards from your
-   discard pile back into your deck."
+  "Shuffle up to 3 in any combination of Pokemon and basic Energy cards from
+   your discard pile back into your deck."
+
+The card was printed as a flat "Shuffle 3" and has since been errata'd to
+"up to 3", which is also how the SV reprint reads.
 
 Max Rod's other half. Both read the same "in any combination of Pokemon and
 basic Energy cards" pile, which is now pokemon_or_basic_energy in
 card_effects/trainers.py; Max Rod puts up to 5 of them into the hand, this
 shuffles 3 back into the deck.
 
-choose_cards with no minimum means exactly 3, or everything if the discard
-cannot supply 3 -- which is what the printed "Shuffle 3" (not "up to 3")
-asks for. The SV reprint does say "up to 3"; this is the BW-era print, the
-one the Japanese Dragon Selection card matches.
+minimum=0 is the "up to": the player may stop at 1 or 2 with more still
+available, and the discard cannot supply more than it holds anyway. The
+condition keeps the card unplayable when there is nothing to take at all.
 
 The English print drops the Japanese card's "show them to your opponent"
 step, and nothing is lost: the discard pile is a public zone.
