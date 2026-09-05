@@ -213,6 +213,7 @@ def reprint(
             is_special=bool(_attr_value(base, AttrID.IS_SPECIAL_ENERGY, False)),
             provides=provides,
             attach_to=getattr(base, "attach_to", None),
+            discard_if_invalid=getattr(base, "discard_if_invalid", False),
             attach_condition=getattr(base, "attach_condition", None),
             attach_cost=getattr(base, "attach_cost", None),
             on_attach=getattr(base, "on_attach", None),
@@ -836,6 +837,12 @@ class EnergyCardDef(CardDefinition):
                         attach targets ("This card can only be attached to..."
                         card text only; type-gated benefits belong in the
                         passive/on_attach, not here).
+    discard_if_invalid -- the card also prints "if it is attached to anything
+                        else, discard this card" (Double Dragon Energy, Team
+                        Rocket's Energy). Re-checks attach_to after an effect
+                        moves or attaches the card, not just when it is played
+                        from hand; opt-in because a bare attach_to restriction
+                        does not by itself discard.
     attach_condition -- predicate(board, player_id) -> bool gating whether the
                         attach may be offered at all (Aurora needs another
                         card in hand to discard).
@@ -865,6 +872,7 @@ class EnergyCardDef(CardDefinition):
         is_special: bool = False,
         provides: Optional[List[List[PokemonTypes]]] = None,
         attach_to: Optional[Callable] = None,
+        discard_if_invalid: bool = False,
         attach_condition: Optional[Callable] = None,
         attach_cost: Optional[Any] = None,
         on_attach: Optional[Any] = None,
@@ -885,6 +893,7 @@ class EnergyCardDef(CardDefinition):
         )
         self.energy_type = energy_type
         self.attach_to = attach_to
+        self.discard_if_invalid = discard_if_invalid
         self.attach_condition = attach_condition
         self.attach_cost = attach_cost
         self.on_attach = on_attach

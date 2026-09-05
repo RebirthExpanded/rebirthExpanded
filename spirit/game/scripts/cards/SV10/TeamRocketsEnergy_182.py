@@ -22,6 +22,7 @@ card = EnergyCardDef(
     energy_type=PokemonTypes.COLORLESS,
     is_special=True,
     attach_to=_is_team_rockets,
+    discard_if_invalid=True,
     provides=[
         [PokemonTypes.PSYCHIC, PokemonTypes.PSYCHIC],
         [PokemonTypes.PSYCHIC, PokemonTypes.DARKNESS],

@@ -17,11 +17,15 @@ Two halves, handled separately:
                 two different type requirements -- which matches the ruling
                 that Double Dragon Energy can pay, say, [W][L] on its own.
 
-NOT enforced: the trailing "if the Pokemon this card is attached to is not
-a Dragon Pokemon, discard this card" clause. Passive has no state-based
-re-check hook, so a Dragon that stops being a Dragon after the attach
-(evolving into a non-Dragon, Kecleon's Chromashift) keeps the card. The
-attach itself is already gated, so this only matters in those edge cases.
+The trailing "if the Pokemon this card is attached to is not a Dragon
+Pokemon, discard this card" clause is discard_if_invalid: attach_to gates
+playing the card from hand, and that flag makes the engine re-read the same
+predicate after an effect moves or attaches the card, which is how Elgyem's
+Slight Shift stops being a way to park this on a Klefki.
+
+Still not covered: a Dragon that stops being a Dragon while the card sits on
+it (evolving into a non-Dragon, Kecleon's Chromashift). Nothing re-reads the
+restriction on evolution, only on attach and move.
 
 Roaring Skies is registered in sets.json as "XY6" (externalId "ROS"), and
 that is the value AutoBundle matches on -- see the note in SM5/DialgaGX_100.py
@@ -60,5 +64,6 @@ card = EnergyCardDef(
     energy_type=PokemonTypes.COLORLESS,
     is_special=True,
     attach_to=_is_dragon,
+    discard_if_invalid=True,
     provides=ALL_TYPES_TWO_AT_A_TIME,
 )

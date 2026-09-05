@@ -1827,6 +1827,32 @@ class EffectContext:
             self.knockouts.append(incoming)
         return True
 
+    async def enforce_attachment_restrictions(
+        self, pokemon: Optional[PokemonEntity]
+    ) -> List[CardEntity]:
+        """Discard attachments whose card says to, when they end up on a
+        Pokemon they may not be attached to.
+
+        Double Dragon Energy and Team Rocket's Energy both print "if it is
+        attached to anything else, discard this card". Playing one from hand
+        is already gated by attach_to, but an effect that MOVES a card
+        (Elgyem's Slight Shift) or attaches it from another zone is not, so
+        the restriction is re-read after those.
+        """
+        if pokemon is None:
+            return []
+        illegal = []
+        for card in list(pokemon.children):
+            definition = def_for(card.archetype_id)
+            if not getattr(definition, "discard_if_invalid", False):
+                continue
+            restriction = getattr(definition, "attach_to", None)
+            if restriction is not None and not restriction(pokemon):
+                illegal.append(card)
+        if illegal:
+            await self.discard_cards(illegal)
+        return illegal
+
     async def attach_energy(self, energy: CardEntity, pokemon: PokemonEntity,
                             counts_as_attachment: bool = False) -> bool:
         """Attaches an energy card from any zone underneath a Pokemon
@@ -1848,6 +1874,7 @@ class EffectContext:
             self.deferred_actions.append(
                 lambda e=energy, p=pokemon: self.session.fire_energy_attached_triggers(
                     self.player_id, e, p))
+        await self.enforce_attachment_restrictions(pokemon)
         return True
 
     async def move_energy(self, energy: CardEntity, to_pokemon: PokemonEntity) -> bool:
@@ -1877,6 +1904,7 @@ class EffectContext:
         if old_holder is not None:
             self._shift_max_hp(old_holder, max_before_old)
         self._shift_max_hp(to_pokemon, max_before_new)
+        await self.enforce_attachment_restrictions(to_pokemon)
         return True
 
     def _shift_max_hp(self, pokemon: PokemonEntity, max_before: int) -> None:
