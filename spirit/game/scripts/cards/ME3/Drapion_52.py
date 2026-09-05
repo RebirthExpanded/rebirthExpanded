@@ -22,6 +22,7 @@ card = PokemonCardDef(
     hp=140,
     elements=[PokemonTypes.DARKNESS],
     stage=PokemonStage.STAGE1,
+    family_id=451,
     retreat_cost=3,
     weakness_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Skorupi.Name",

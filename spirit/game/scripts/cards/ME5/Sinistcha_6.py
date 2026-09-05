@@ -34,6 +34,7 @@ card = PokemonCardDef(
     hp=60,
     elements=[PokemonTypes.GRASS],
     stage=PokemonStage.STAGE1,
+    family_id=1012,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Poltchageist.Name",

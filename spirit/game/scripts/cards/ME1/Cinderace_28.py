@@ -34,6 +34,7 @@ card = PokemonCardDef(
     hp=160,
     elements=[PokemonTypes.FIRE],
     stage=PokemonStage.STAGE2,
+    family_id=813,
     retreat_cost=0,
     weakness_type=PokemonTypes.WATER,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Raboot.Name",

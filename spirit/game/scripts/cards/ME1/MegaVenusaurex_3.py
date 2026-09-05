@@ -40,6 +40,7 @@ card = PokemonCardDef(
     hp=380,
     elements=[PokemonTypes.GRASS],
     stage=PokemonStage.STAGE2,
+    family_id=1,
     retreat_cost=4,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Ivysaur.Name",

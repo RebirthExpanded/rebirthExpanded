@@ -21,6 +21,7 @@ card = PokemonCardDef(
     hp=140,
     elements=[PokemonTypes.FIGHTING],
     stage=PokemonStage.STAGE2,
+    family_id=56,
     retreat_cost=2,
     weakness_type=PokemonTypes.PSYCHIC,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Primeape.Name",

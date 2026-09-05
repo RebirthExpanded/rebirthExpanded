@@ -16,6 +16,7 @@ card = PokemonCardDef(
     hp=90,
     elements=[PokemonTypes.PSYCHIC],
     stage=PokemonStage.STAGE1,
+    family_id=175,
     retreat_cost=1,
     weakness_type=PokemonTypes.METAL,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Togepi.Name",

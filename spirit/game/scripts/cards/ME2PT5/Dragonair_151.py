@@ -25,6 +25,7 @@ card = PokemonCardDef(
     stage=PokemonStage.STAGE1,
     retreat_cost=2,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Dratini.Name",
+    family_id=147,
     abilities=[
         Ability(
             title="Evolutionary Guidance",

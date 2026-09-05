@@ -39,6 +39,7 @@ card = PokemonCardDef(
     hp=360,
     elements=[PokemonTypes.FIRE],
     stage=PokemonStage.STAGE2,
+    family_id=4,
     retreat_cost=2,
     weakness_type=PokemonTypes.WATER,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Charmeleon.Name",

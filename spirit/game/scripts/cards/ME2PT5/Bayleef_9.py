@@ -15,6 +15,7 @@ card = PokemonCardDef(
     hp=100,
     elements=[PokemonTypes.GRASS],
     stage=PokemonStage.STAGE1,
+    family_id=152,
     retreat_cost=2,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Chikorita.Name",

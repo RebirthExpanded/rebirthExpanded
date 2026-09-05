@@ -39,6 +39,7 @@ card = PokemonCardDef(
     hp=100,
     elements=[PokemonTypes.LIGHTNING],
     stage=PokemonStage.STAGE1,
+    family_id=81,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Magnemite.Name",

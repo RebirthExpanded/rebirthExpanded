@@ -33,6 +33,7 @@ card = PokemonCardDef(
     stage=PokemonStage.STAGE2,
     retreat_cost=2,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Dragonair.Name",
+    family_id=147,
     abilities=[
         Ability(
             title="Sky Transport",

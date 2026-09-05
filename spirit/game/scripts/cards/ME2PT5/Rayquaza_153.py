@@ -20,6 +20,7 @@ card = PokemonCardDef(
     hp=120,
     elements=[PokemonTypes.DRAGON],
     stage=PokemonStage.BASIC,
+    family_id=384,
     retreat_cost=1,
     abilities=[
         Attack(

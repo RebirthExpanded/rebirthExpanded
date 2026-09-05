@@ -16,6 +16,7 @@ card = PokemonCardDef(
     hp=100,
     elements=[PokemonTypes.METAL],
     stage=PokemonStage.STAGE1,
+    family_id=410,
     retreat_cost=3,
     weakness_type=PokemonTypes.FIRE,
     resistance_type=PokemonTypes.GRASS,

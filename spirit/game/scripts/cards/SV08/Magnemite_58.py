@@ -15,6 +15,7 @@ card = PokemonCardDef(
     hp=60,
     elements=[PokemonTypes.LIGHTNING],
     stage=PokemonStage.BASIC,
+    family_id=81,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
     abilities=[

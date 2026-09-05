@@ -17,6 +17,7 @@ card = PokemonCardDef(
     hp=80,
     elements=[PokemonTypes.PSYCHIC],
     stage=PokemonStage.BASIC,
+    family_id=79,
     retreat_cost=2,
     weakness_type=PokemonTypes.DARKNESS,
     resistance_type=PokemonTypes.FIGHTING,

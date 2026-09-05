@@ -16,6 +16,7 @@ card = PokemonCardDef(
     hp=70,
     elements=[PokemonTypes.WATER],
     stage=PokemonStage.BASIC,
+    family_id=158,
     retreat_cost=1,
     weakness_type=PokemonTypes.LIGHTNING,
     abilities=[

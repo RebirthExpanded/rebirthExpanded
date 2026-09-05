@@ -16,6 +16,7 @@ card = PokemonCardDef(
     hp=360,
     elements=[PokemonTypes.GRASS],
     stage=PokemonStage.STAGE2,
+    family_id=152,
     retreat_cost=2,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Bayleef.Name",

@@ -15,6 +15,7 @@ card = PokemonCardDef(
     hp=110,
     elements=[PokemonTypes.FIRE],
     stage=PokemonStage.STAGE1,
+    family_id=4,
     retreat_cost=2,
     weakness_type=PokemonTypes.WATER,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Charmander.Name",

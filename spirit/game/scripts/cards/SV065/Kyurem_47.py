@@ -54,6 +54,7 @@ card = PokemonCardDef(
     hp=130,
     elements=[PokemonTypes.DRAGON],
     stage=PokemonStage.BASIC,
+    family_id=646,
     retreat_cost=2,
     abilities=[
         Ability(

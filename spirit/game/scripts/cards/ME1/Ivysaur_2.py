@@ -15,6 +15,7 @@ card = PokemonCardDef(
     hp=110,
     elements=[PokemonTypes.GRASS],
     stage=PokemonStage.STAGE1,
+    family_id=1,
     retreat_cost=3,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Bulbasaur.Name",

@@ -31,6 +31,7 @@ card = PokemonCardDef(
     hp=80,
     elements=[PokemonTypes.DARKNESS],
     stage=PokemonStage.BASIC,
+    family_id=1025,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
     abilities=[

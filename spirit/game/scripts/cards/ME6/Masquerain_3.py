@@ -47,6 +47,7 @@ card = PokemonCardDef(
     hp=110,
     elements=[PokemonTypes.GRASS],
     stage=PokemonStage.STAGE1,
+    family_id=283,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Surskit.Name",

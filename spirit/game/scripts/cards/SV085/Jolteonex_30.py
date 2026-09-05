@@ -38,6 +38,7 @@ card = PokemonCardDef(
     hp=260,
     elements=[PokemonTypes.LIGHTNING],
     stage=PokemonStage.STAGE1,
+    family_id=133,
     retreat_cost=0,
     weakness_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Eevee.Name",

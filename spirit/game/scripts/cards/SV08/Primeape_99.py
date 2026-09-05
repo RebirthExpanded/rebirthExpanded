@@ -27,6 +27,7 @@ card = PokemonCardDef(
     hp=110,
     elements=[PokemonTypes.FIGHTING],
     stage=PokemonStage.STAGE1,
+    family_id=56,
     retreat_cost=2,
     weakness_type=PokemonTypes.PSYCHIC,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Mankey.Name",

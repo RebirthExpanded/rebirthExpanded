@@ -18,6 +18,7 @@ card = PokemonCardDef(
     hp=270,
     elements=[PokemonTypes.FIRE],
     stage=PokemonStage.STAGE1,
+    family_id=133,
     retreat_cost=2,
     weakness_type=PokemonTypes.WATER,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Eevee.Name",
