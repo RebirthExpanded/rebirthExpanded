@@ -1540,7 +1540,15 @@ async def test_reorder_deck_top():
     assert [c.entity_id for c in ctx.deck_top(3)] == \
         [c.entity_id for c in reversed(top_before)], "picked order = new top order"
     assert len(ctx.deck(P1)) == deck_size
-    assert ctx._messages == [], "hidden reorder sends nothing on the wire"
+    # Upstream 8370241 made a reorder announce itself so the client can play
+    # the shuffle animation (Rotom Phone). The new order is the only thing on
+    # the wire: the cards themselves stay face-down.
+    names = [m[1].get("name") for m in ctx._messages]
+    assert names == ["PileReordered"], f"expected one PileReordered, got {names}"
+    # children run bottom-first, so the new top three are the last three,
+    # reversed.
+    reordered = ctx._messages[0][1]["value"]
+    assert list(reversed(reordered["children"][-3:])) ==         [c.entity_id for c in reversed(top_before)], "announces the new order"
 
 
 async def test_unplayable_from_hand():

@@ -581,6 +581,23 @@ class OutboundMsg(str, Enum):
     CUSTOM_CHOICE_REQUIRED = "CustomChoiceRequired"
     NOTIFY_GAME_CHAT = "NotifyGameChat"
 
+    # Unimplemented message emissions: client_source/coredll/core/*Effect.cs.
+    ANIMATION_DELAY_EFFECT = "AnimationDelayEffect"
+    BLINK_EFFECT = "BlinkEffect"
+    PHASE_CHANGE_EFFECT = "PhaseChangeEffect"
+    WAIT_FOR_TARGET_ON_EFFECT = "WaitForTargetOnEffect"
+    WAIT_FOR_TARGET_OFF_EFFECT = "WaitForTargetOffEffect"
+
+    # Unimplemented message emissions: client_source/pie/pie-src/*Effect.cs.
+    WAITING_FOR_OPPONENT_EFFECT = "WaitingForOpponentEffect"
+    DONE_WAITING_FOR_OPPONENT_EFFECT = "DoneWaitingForOpponentEffect"
+    POST_ACTION_PHASE_EFFECT = "PostActionPhaseEffect"
+    ROCK_PAPER_SCISSORS_EFFECT = "RockPaperScissorsEffect"
+
+    # Unimplemented message emissions: dwd.core.match.interaction.messages.incoming.
+    PLAYER_INTERACTED_WITH_ENTITY_EFFECT = "PlayerInteractedWithEntityEffect"
+    PLAYER_STOPPED_INTERACTING_EFFECT = "PlayerStoppedInteractingEffect"
+
     # Setup phase (post coin flip): entity movement + reveal + mulligan
     ENTITY_MOVED = "EntityMoved"
     ENTITY_INTRODUCED = "EntityIntroduced"
@@ -591,8 +608,13 @@ class OutboundMsg(str, Enum):
     # Return=true tucks it back afterwards, Return=false leaves it in the
     # multiPresentArea for a following attach move (l.a) to consume.
     REVEAL_CARD_TO_ALL_EFFECT = "RevealCardToAllEffect"
+    # Unimplemented message emissions: client_source/pie/pie-src/RevealCardsTo*Effect.cs.
+    REVEAL_CARDS_TO_ALL_EFFECT = "RevealCardsToAllEffect"
+    REVEAL_CARDS_TO_PLAYER_EFFECT = "RevealCardsToPlayerEffect"
     MULLIGAN_CHOICE_REQUIRED = "MulliganChoiceRequired"
     SHUFFLED = "Shuffled"
+    # Source: PileReordered.cs; children contains the complete pile, bottom first.
+    PILE_REORDERED = "PileReordered"
     # Deck-lift animation trigger (S.I); required in HandShuffledAndMovedToDeck.
     PLACE_ON_BOTTOM = "PlaceOnBottom"
     # Full-screen carousel revealing a player's mulliganed hand(s) to the opponent.
@@ -609,11 +631,36 @@ class OutboundMsg(str, Enum):
     # knockout replacement): pick one entity, no action tree.
     SELECTION_WITH_TARGETS_REQUIRED = "SelectionWithTargetsRequired"
 
+    # Unimplemented message emissions: client_source/pie/pie-src/Evolve*Effect.cs.
+    EVOLVE_EFFECT = "EvolveEffect"
+    EVOLVE_WITH_CONTEXT_EFFECT = "EvolveWithContextEffect"
+    # Unimplemented message emission: pie.code.pie.gameModules.playmat.messages.
+    ENERGY_SWAP_EFFECT = "EnergySwapEffect"
+
+    # Unimplemented condition messages (mechanics currently use attribute updates).
+    ADD_SPECIAL_CONDITION_EFFECT = "AddSpecialConditionEffect"
+    REMOVE_SPECIAL_CONDITION_EFFECT = "RemoveSpecialConditionEffect"
+    BURN_EFFECT = "BurnEffect"
+    CONFUSE_EFFECT = "ConfuseEffect"
+    PARALYZE_EFFECT = "ParalyzeEffect"
+    POISON_EFFECT = "PoisonEffect"
+    SLEEP_EFFECT = "SleepEffect"
+    REMOVE_BURN_EFFECT = "RemoveBurnEffect"
+    REMOVE_CONFUSE_EFFECT = "RemoveConfuseEffect"
+    REMOVE_PARALYZE_EFFECT = "RemoveParalyzeEffect"
+    REMOVE_POISON_EFFECT = "RemovePoisonEffect"
+    REMOVE_SLEEP_EFFECT = "RemoveSleepEffect"
+
     # Attack choreography (inside an "Attack" sequence bracket, in order):
     # ability-begin marker (L.o), damage popup + lunge trigger (m.m),
     # HP attribute update, ability-finished marker (k.U).
     ABILITY_PLAYED_EFFECT = "AbilityPlayedEffect"
+    # Unimplemented message emission: client_source/pie/pie-src/CakeAbilitySelectedEffect.cs.
+    CAKE_ABILITY_SELECTED_EFFECT = "CakeAbilitySelectedEffect"
     CAKE_ATTACK_EFFECT = "CakeAttackEffect"
+    # Prevented-hit barrier choreography: {source, targets, wasDamage}.
+    SHIELD_TARGETS_EFFECT = "ShieldTargetsEffect"
+    CLEANUP_ATTACK_EFFECT = "CleanupAttackEffect"
     # Raw damage-counter placement (Poison/Burn checkup ticks, Confusion self-hit):
     # no W/R, no passive pipeline -- damage counters, not attack damage.
     PLACE_DAMAGE_EFFECT = "PlaceDamageEffect"
@@ -624,6 +671,11 @@ class OutboundMsg(str, Enum):
     ABILITY_FINISHED_EFFECT = "AbilityFinishedEffect"
     # Named entity parameter for a bracket executor (e.g. Evolve needs "From"/"Into").
     ENTITY_ID_DATA_EFFECT = "EntityIDDataEffect"
+    # Unimplemented message emissions: dwd.core.match.sequence.dataEffects.
+    ENTITY_ID_LIST_DATA_EFFECT = "EntityIDListDataEffect"
+    INT_DATA_EFFECT = "IntDataEffect"
+    SOURCE_TARGET_DATA_EFFECT = "SourceTargetDataEffect"
+    STRING_DATA_EFFECT = "StringDataEffect"
     # Orb-of-light targets: the Attack executor injects the r.u projectile group
     # from the playmat's attack-source entity to these targets.
     NON_DAMAGING_TARGETS_EFFECT = "NonDamagingTargetsEffect"
@@ -632,6 +684,15 @@ class OutboundMsg(str, Enum):
     VSTAR_POWER_USED_EFFECT = "VSTARPowerUsedEffect"
     # GX equivalent of the VSTAR marker flip (handler b.M).
     GX_ATTACK_USED_EFFECT = "GXAttackUsedEffect"
+
+    # Unimplemented generic combat messages: sausage-core/dwd/core/match/effects and core.
+    ATTACK_EFFECT = "AttackEffect"
+    CLEAR_ATTACK_EFFECT = "ClearAttackEffect"
+    SWAP_ATTACKER_EFFECT = "SwapAttackerEffect"
+    DEFEND_EFFECT = "DefendEffect"
+    CLEAR_DEFEND_EFFECT = "ClearDefendEffect"
+    SWAP_DEFENDER_EFFECT = "SwapDefenderEffect"
+
     # End-of-game dialog (handler D.Z): winner/loser account IDs + reward info.
     GAME_COMPLETED_MESSAGE = "GameCompletedMessage"
 
