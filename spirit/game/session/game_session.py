@@ -4955,11 +4955,28 @@ class GameSession:
         self.stat_add(player_id, "trainersplayed")
         logging.info(
             f"[Session {self.game_id}] {self.players[player_id].screen_name} "
-            f"played stadium {card.entity_id} (effect pending effects API)."
+            f"played stadium {card.entity_id}."
         )
         await self._send_play_sequence(
             player_id, GameSequence.STADIUM_PRESENT, moves, incoming
         )
+
+        # A Stadium's own `effect` runs once, here: after the card is on the
+        # board (so both viewers see it while the player answers a dialog) and
+        # before the bench shrink, which a come-into-play effect may change
+        # (Parallel City picks which side gets the 3-Bench half). Fires for the
+        # card the player actually played -- a dual Stadium is one play, not
+        # two, and `incoming` is collector-number sorted, not click order.
+        # resolve_trainer_effect returns None for the 79 Stadiums that script
+        # no effect, so this is inert for all of them. Unlike a Trainer, the
+        # card stays in play afterwards; nothing discards it here.
+        ctx = await resolve_trainer_effect(self, player_id, card)
+        if ctx is not None:
+            await self._flush_effect_runs(ctx)
+            await self.resolve_knockouts(ctx)
+            for hook in ctx.deferred_actions:
+                await hook()
+
         # A capacity-reducing Stadium (Collapsed Stadium) shrinks benches now.
         await self.enforce_bench_capacity()
 
