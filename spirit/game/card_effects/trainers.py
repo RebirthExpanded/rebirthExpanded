@@ -500,6 +500,30 @@ async def switch(ctx):
         await ctx.switch_active(ctx.player_id, target)
 
 
+async def catcher_switch_both(ctx):
+    """Drag up one of the opponent's Benched Pokemon, then switch your own.
+
+    Guzma's text as a Supporter, Prime Catcher's as an ACE SPEC Item -- the
+    same two switches, in the same order, with the second gated on the first
+    ("if you do"). Gate playability with opponent_has_bench: with nothing to
+    drag up the card does nothing at all.
+    """
+    target = await ctx.choose_pokemon(
+        ctx.opponent_bench(), "Choose the opponent's new Active Pokémon"
+    )
+    if target is None:
+        return
+    await ctx.switch_active(ctx.opponent_id, target)
+    my_bench = ctx.my_bench()
+    if not my_bench:
+        return
+    mine = await ctx.choose_pokemon(
+        my_bench, "Choose your new Active Pokémon"
+    )
+    if mine is not None:
+        await ctx.switch_active(ctx.player_id, mine)
+
+
 async def quick_ball(ctx):
     """Discard 1 other card, then search the deck for a Basic Pokemon."""
     if not await ctx.discard_from_hand(1, prompt="Discard a card for Quick Ball"):
