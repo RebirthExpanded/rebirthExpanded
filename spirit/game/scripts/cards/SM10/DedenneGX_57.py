@@ -1,8 +1,7 @@
 """Dedenne-GX (SM - Unbroken Bonds 57/214).
 
-Basic Lightning Pokemon-GX. HP 160, weakness Fighting x2, retreat cost 1.
-(The printed Metal -20 resistance is dropped -- see the note on the card
-definition below.)
+Basic Lightning Pokemon-GX. HP 160, weakness Fighting x2, resistance
+Metal -20, retreat cost 1.
 
   Dedechange (Ability)  When you play this Pokemon from your hand onto
                         your Bench during your turn, you may discard your
@@ -70,13 +69,17 @@ card = PokemonCardDef(
     stage=PokemonStage.BASIC,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
-    # The printed card resists Metal -20, but this client cannot render it:
-    # across all 3713 cards the only resistances that ever occur are Fighting
-    # (430) and Grass (196), always -30. A Metal -20 resistance was unique to
-    # this card, and saving a deck holding it threw KeyNotFoundException in
-    # EvolutionsRenderUtil.GetEvolutions. Dropping the resistance is the
-    # smallest deviation that keeps the card playable -- it takes 20 more
-    # damage from Metal attacks than the paper card would.
+    # NOT YET VERIFIED AGAINST THE CLIENT. This is the only Metal resistance
+    # and the only non-30 amount in the whole pool (the rest are
+    # Fighting/Grass at -30), and a deck holding this card in exactly this
+    # configuration once threw KeyNotFoundException in the client's
+    # EvolutionsRenderUtil.GetEvolutions on save. Whether the type or the
+    # amount caused that was never isolated -- the run that appeared to
+    # clear it also had the card's resistance removed entirely. If the deck
+    # builder crashes on save again, try resistance_amount=30 first (keeps
+    # the Metal type); if it still crashes, drop both lines.
+    resistance_type=PokemonTypes.METAL,
+    resistance_amount=20,
     family_id=702,
     abilities=[
         Ability(
