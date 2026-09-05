@@ -1026,6 +1026,15 @@ class AirBalloonPassive(Passive):
         return cost
 
 
+class FloatStonePassive(Passive):
+    """The holder has no Retreat Cost."""
+
+    def modify_retreat_cost(self, cost, pokemon, carrier, board):
+        if carrier_pokemon(carrier) is pokemon:
+            return 0
+        return cost
+
+
 # --- Memory Capsule (SWSH4) ------------------------------------------------
 
 class MemoryCapsulePassive(Passive):
