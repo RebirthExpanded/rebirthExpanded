@@ -502,6 +502,33 @@ def _carrier_in_play(entity: BoardEntity) -> bool:
         and parent.get_attribute(AttrID.NAME) in _IN_PLAY_AREAS
 
 
+def _locks_abilities_of(
+    triples: List[Tuple[Passive, BoardEntity, bool]], pokemon: PokemonEntity
+) -> bool:
+    """Whether any collected passive turns `pokemon`'s Abilities off.
+
+    Stealthy Hood is honoured here: it prevents the effects of the OPPONENT's
+    Abilities on its holder, and Garbotoxin turning an Ability off is such an
+    effect. A lock from a Stadium (Path to the Peak, Silent Lab) or from the
+    holder's own side is not an opponent's Ability and still applies.
+
+    Only a shield that is not itself an Ability can defeat a lock. An Ability
+    cannot keep itself switched on -- Hide 'n' Sneak goes quiet under
+    Garbotoxin like everything else, and shields its Pokemon from Ability
+    effects again only once the lock is gone. Stealthy Hood works because it
+    is a Tool.
+    """
+    shielded = any(p.blocks_ability_effects(pokemon, c)
+                   for p, c, from_ability in triples if not from_ability)
+    for passive, carrier, is_ability in triples:
+        if not passive.blocks_abilities(pokemon, carrier):
+            continue
+        if shielded and is_ability                 and carrier.owning_player_id != pokemon.owning_player_id:
+            continue
+        return True
+    return False
+
+
 def ability_locked(board: BoardState, pokemon: PokemonEntity) -> bool:
     """Whether a passive (Path to the Peak) is disabling `pokemon`'s Abilities.
 
@@ -509,7 +536,7 @@ def ability_locked(board: BoardState, pokemon: PokemonEntity) -> bool:
     is never itself disabled by another lock (Garbotoxin-style recursion is
     out of scope -- Path to the Peak rides a Stadium so this is safe).
     """
-    return any(p.blocks_abilities(pokemon, c) for p, c, _ in _collect_passives(board))
+    return _locks_abilities_of(_collect_passives(board), pokemon)
 
 
 def out_of_play_ability_locked(board: BoardState, card: BoardEntity) -> bool:
@@ -555,7 +582,7 @@ def active_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity]]:
     triples = _collect_passives(board)
 
     def blocked(pokemon: PokemonEntity) -> bool:
-        return any(p.blocks_abilities(pokemon, c) for p, c, _ in triples)
+        return _locks_abilities_of(triples, pokemon)
 
     return [(p, c) for p, c, is_ability in triples
             if not (is_ability and blocked(c))

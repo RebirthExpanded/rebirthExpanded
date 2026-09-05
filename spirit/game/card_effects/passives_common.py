@@ -525,6 +525,19 @@ class FullEffectShieldPassive(Passive):
         return carrier_pokemon(carrier) is target
 
 
+class AbilityEffectShieldPassive(Passive):
+    """Prevent all effects of the OPPONENT's Abilities done to the carrier
+    (Stealthy Hood). FullEffectShieldPassive without the attack half."""
+
+    def blocks_ability_effects(self, target, carrier):
+        return carrier_pokemon(carrier) is target
+
+
+def ability_effect_shield_passive() -> Passive:
+    """Stealthy Hood: shields the holder from opposing Ability effects."""
+    return AbilityEffectShieldPassive()
+
+
 def full_effect_shield_passive() -> Passive:
     """Hide 'n' Sneak: shields the carrier from attack and Ability effects."""
     return FullEffectShieldPassive()
