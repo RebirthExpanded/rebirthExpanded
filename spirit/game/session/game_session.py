@@ -73,6 +73,7 @@ from .constants import (
     TEXT_ATTACH_TAX_DISCARD,
 )
 from spirit.network.message_names import OutboundMsg
+from spirit.game.game_sequence_packets import NestedSequence
 from spirit.game.attributes import (
     AttrID,
     CLIENT_SPECIAL_CONDITION_NAMES,
@@ -148,22 +149,6 @@ AI_PROMPT_GRACE_SECONDS = 15.0
 
 class GameOver(Exception):
     """Raised once the game has been decided; unwinds the gameplay sequence."""
-
-
-class NestedSequence:
-    """A child Start/Stop bracket embedded inside a parent game sequence.
-
-    The client's SequenceParser keeps a stack of in-progress sequences: a
-    StartSequence (exempt from the envelope sequence-ID check) pushes a child,
-    its inner messages must ride the CHILD's sequenceID, and its StopSequence
-    folds the child into the parent as a single sequence command. This is how
-    GroupedMove batches EntityMoved commands so they animate together instead
-    of one-by-one (e.g. a mulliganed hand returning to the deck at once).
-    """
-
-    def __init__(self, name, messages: List[Dict[str, Any]]):
-        self.name: str = getattr(name, "value", name)
-        self.messages: List[Dict[str, Any]] = messages
 
 
 class GameOptions:

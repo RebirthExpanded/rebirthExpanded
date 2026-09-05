@@ -34,6 +34,7 @@ from spirit.game.data_utils import (
 )
 from spirit.game.models.board import BoardEntity, CardEntity, EnergyEntity, PokemonEntity
 from spirit.network.message_names import OutboundMsg
+from spirit.game.game_sequence_packets import NestedSequence
 from .constants import PROMPT_NO, PROMPT_YES
 from .passives import (
     TempPassive,
@@ -1203,7 +1204,6 @@ class EffectContext:
         # bare "Draw" stack, which misses the path table (default linear
         # curve); nested moves animate FromDeck|ToHand with k.z's stagger --
         # the same top-of-deck arc as the initial deal.
-        from .game_session import NestedSequence  # circular-import guard
         for move in moved:
             self._queue(self.session._entity_introduced_msg(move["card"]),
                         viewer_id=pid, bracket=GameSequence.DRAW.value)
@@ -1609,14 +1609,22 @@ class EffectContext:
         ), bracket=bracket)
         return len(cards)
 
+    def _queue_pile_reordered(self, pile: BoardEntity):
+        """Synchronizes the complete pile order without revealing card attributes."""
+        self._queue(self.session._build_msg(
+            OutboundMsg.PILE_REORDERED.value,
+            {"gameID": self.game_id, "entityID": pile.entity_id,
+             "children": [card.entity_id for card in pile.children]},
+        ), bracket=GameSequence.GROUPED_MOVE.value)
+
     async def reorder_deck_top(self, count: int,
                                player_id: Optional[str] = None,
                                prompt: str = "Rearrange the cards on top of your deck",
                                ) -> List[CardEntity]:
-        """Looks at the top `count` deck cards and puts them back in any
-        order (ordered browser, owner-only; the opponent learns nothing --
-        hidden-zone browser cards re-hide on close and no moves are sent).
-        Returns the new top order (topmost first)."""
+        """Privately chooses the top cards' order and synchronizes the pile.
+
+        Returns the new top order (topmost first); card faces stay hidden.
+        """
         pid = player_id or self.player_id
         top = self.deck_top(count, pid)
         if len(top) <= 1:
@@ -1626,7 +1634,7 @@ class EffectContext:
             prompt=prompt, ordered=True,
         )
         by_id = {c.entity_id: c for c in top}
-        order = [by_id[i] for i in picked_ids if i in by_id]
+        order = [by_id[i] for i in dict.fromkeys(picked_ids) if i in by_id]
         for card in top:
             if card not in order:
                 order.append(card)
@@ -1636,7 +1644,36 @@ class EffectContext:
         # First pick = new top; top of the deck is the LAST child.
         for card in reversed(order):
             deck.children.append(card)
+        self._queue_pile_reordered(deck)
         return order
+
+    async def shuffle_deck_below(self, card: CardEntity) -> bool:
+        """Shuffles the other deck cards and animates the chosen card onto the top."""
+        owner = card.owning_player_id or self.player_id
+        deck = self.board.find_player_area(owner, "deck")
+        if not deck or card not in deck.children:
+            return False
+        position = deck.children.index(card)
+        if position == len(deck.children) - 1:
+            movement = GameSequence.MOVE_FROM_TOP_OF_DECK
+        elif position == 0:
+            movement = GameSequence.MOVE_FROM_BOTTOM_OF_DECK
+        else:
+            movement = GameSequence.MOVE_FROM_MIDDLE_OF_DECK
+        remaining = [child for child in deck.children if child is not card]
+        random.shuffle(remaining)
+        deck.children[:] = remaining + [card]
+        # The stock deck-motion paths require TrainerCard in the sequence stack.
+        self._queue(self.session._build_msg(
+            OutboundMsg.SHUFFLED.value,
+            {"gameID": self.game_id, "entityID": deck.entity_id},
+        ), bracket=GameSequence.TRAINER_CARD.value)
+        # r.h consumes exactly one EntityMoved, then animates a sleeved card.
+        self._queue(NestedSequence(movement, [self.session._entity_moved_msg(
+            card.entity_id, deck.entity_id, len(deck.children) - 1,
+        )]), bracket=GameSequence.TRAINER_CARD.value)
+        self._queue_pile_reordered(deck)
+        return True
 
     async def put_on_top_of_deck(self, card: CardEntity) -> bool:
         """Puts a card on top of its owner's deck."""
@@ -1644,9 +1681,13 @@ class EffectContext:
         deck = self.board.find_player_area(owner, "deck")
         if not deck or self._energy_removal_blocked(card):
             return False
+        same_pile = card.parent_id == deck.entity_id
         position = len(deck.children)
         if not self.board.move_card(card.entity_id, deck.entity_id):
             return False
+        if same_pile:
+            self._queue_pile_reordered(deck)
+            return True
         self._queue(
             self.session._entity_moved_msg(card.entity_id, deck.entity_id, position),
             bracket=GameSequence.GROUPED_MOVE.value,
@@ -1659,8 +1700,12 @@ class EffectContext:
         deck = self.board.find_player_area(owner, "deck")
         if not deck or self._energy_removal_blocked(card):
             return False
+        same_pile = card.parent_id == deck.entity_id
         if not self.board.move_card(card.entity_id, deck.entity_id, 0):
             return False
+        if same_pile:
+            self._queue_pile_reordered(deck)
+            return True
         self._queue(
             self.session._entity_moved_msg(card.entity_id, deck.entity_id, 0),
             bracket=GameSequence.GROUPED_MOVE.value,

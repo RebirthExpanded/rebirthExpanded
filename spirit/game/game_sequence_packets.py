@@ -2,6 +2,15 @@ from typing import Any, Dict, List, Optional
 from spirit.game.attributes import GameSequence
 from spirit.network.message_names import OutboundMsg
 
+
+class NestedSequence:
+    """A child Start/Stop bracket embedded inside a parent game sequence."""
+
+    def __init__(self, name, messages: List[Dict[str, Any]]):
+        self.name: str = getattr(name, "value", name)
+        self.messages: List[Dict[str, Any]] = messages
+
+
 def _build_msg(name: str, value: Dict[str, Any]) -> Dict[str, Any]:
     """Helper to build standard Warg Protocol polymorphic JSON envelopes."""
     return {
