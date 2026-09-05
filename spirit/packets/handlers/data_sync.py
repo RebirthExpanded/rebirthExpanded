@@ -298,6 +298,25 @@ def _cached_card_archetypes_bytes(key):
     return _cached_payload(f"archproto:{key}", build)
 
 
+def _archetypes_checksum(key):
+    """Content checksum for `key`'s archetype payload.
+
+    The client caches archetypes per key and only refetches when this value
+    changes, so it has to move whenever the cards do. It used to be an hourly
+    time bucket, which meant an edited card could stay stale in the client for
+    up to an hour (and forced a needless reload every hour otherwise). Hashing
+    the serialized card bytes makes an edit visible on the client's next
+    connect and changes nothing when the data is unchanged. PRODUCTS_DB is
+    folded in by length because products are appended per-request, outside the
+    cached card bytes."""
+    def build():
+        digest = hashlib.md5(_cached_card_archetypes_bytes(key))
+        digest.update(str(len(PRODUCTS_DB)).encode())
+        return digest.hexdigest()[:16]
+
+    return _cached_payload(f"archsum:{key}", build)
+
+
 class DataSyncHandler(BaseHandler):
     @handle(InboundMsg.ACKNOWLEDGE_NOTIFICATION)
     async def handle_acknowledge_notification(self, message, request_id, flags):
@@ -590,8 +609,9 @@ class DataSyncHandler(BaseHandler):
         key = message.get("key", "unknown")
         proto = collection_pb2.ArchetypesFound()
         proto.key = key
-        # Industry Hack: Use a dynamic checksum to force the client to reload archetypes
-        proto.checksum = f"spirit_{key}_{int(time.time() / 3600)}"
+        # Content checksum: the client refetches this key exactly when its
+        # card data changes (see _archetypes_checksum).
+        proto.checksum = f"spirit_{key}_{_archetypes_checksum(key)}"
         count = 0
 
         # Cards never span keys, so per-KEY dedup is equivalent to per-guid dedup for
