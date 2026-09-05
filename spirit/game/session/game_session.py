@@ -3903,8 +3903,16 @@ class GameSession:
             [card],
         )
         await self.fire_pokemon_benched_triggers(player_id, card)
-        return await self._fire_triggered_abilities(
+        ends_turn = await self._fire_triggered_abilities(
             player_id, card, Triggers.ON_PLAY)
+        # A Pokemon that lowers a Bench cap the moment it arrives (Sudowoodo's
+        # Roadblock caps the opponent at 4) has to shrink that Bench now. Every
+        # other path that can change capacity settles through
+        # enforce_bench_capacity already; benching a Pokemon did not, so the
+        # discard was deferred until some unrelated later action happened to
+        # trigger it.
+        await self.enforce_bench_capacity()
+        return ends_turn
 
     async def _fire_triggered_abilities(self, player_id: str, card, trigger: str,
                                         ctx_setup=None) -> bool:
