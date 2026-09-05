@@ -82,7 +82,11 @@
         "XY4",
         "XY1",
         "SM10",
-        "XY8"
+        "XY8",
+        "SM1",
+        "SM6",
+        "SM3",
+        "SV2"
       ],
       "allSets": false,
       "bannedCards": [],
