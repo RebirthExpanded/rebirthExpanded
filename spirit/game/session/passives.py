@@ -21,6 +21,8 @@ from spirit.game.models.board import (
 )
 
 WEAKNESS_MULTIPLIER = 2
+# Fallback only: a card's own RESISTANCE_AMOUNT wins when it has one.
+# Every printing in the pool today is -30, but SM-era cards print -20.
 RESISTANCE_REDUCTION = 30
 
 # Areas whose top-level cards keep a temporary passive alive.
@@ -608,7 +610,9 @@ def compute_damage(
         resist_type = target.get_attribute(AttrID.RESISTANCE_TYPES)
         if calc.resistance_applies and resist_type in attacker_types:
             calc.resistance_hit = True
-            calc.amount = max(0, calc.amount - RESISTANCE_REDUCTION)
+            reduction = (target.get_attribute(AttrID.RESISTANCE_AMOUNT)
+                         or RESISTANCE_REDUCTION)
+            calc.amount = max(0, calc.amount - reduction)
 
     for passive, carrier in passives:
         if calc.ignore_target_effects and carrier_pokemon(carrier) is calc.target:
