@@ -19,6 +19,7 @@ from spirit.game.attributes import (
     CLIENT_POKEMON_TYPE_NAMES,
     CLIENT_SPECIAL_CONDITION_NAMES,
     GameSequence,
+    PlayerAttrID,
     PokemonStage,
     PokemonTypes,
     SpecialConditions,
@@ -850,8 +851,10 @@ class EffectContext:
             await ability.effect(self)
         if getattr(ability, "gx", False):
             self.session.turn_state.gx_used.add(self.player_id)
+            self.session._mark_token_spent(self.player_id, PlayerAttrID.HAS_GX_TOKEN)
         if getattr(ability, "vstar", False):
             self.session.turn_state.vstar_used.add(self.player_id)
+            self.session._mark_token_spent(self.player_id, PlayerAttrID.HAS_VSTAR_TOKEN)
         if getattr(ability, "locks_next_turn", False):
             self.session.turn_state.lock_attack(self.attacker.entity_id, ability.ability_id)
         return True

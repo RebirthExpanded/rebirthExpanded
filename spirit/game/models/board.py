@@ -280,6 +280,10 @@ class BoardState:
         }
         # player_id -> prize cards dealt at setup; prizes taken = dealt - remaining.
         self.prizes_dealt: Dict[str, int] = {}
+        # player_id -> {"GX": bool, "VSTAR": bool}: which playmat markers the
+        # deck earns. Drives gameOptions["tokens"]; the PlayerEntity attributes
+        # of the same name mean "spent", which is a different question.
+        self.token_kinds: Dict[str, Dict[str, bool]] = {}
         # Set by GameSession once both exist; damage/condition lookups read it
         # defensively (getattr(board, "turn_state", None)) for bare test boards.
         self.turn_state = None
@@ -649,12 +653,20 @@ class BoardState:
                 else:
                     logging.warning(f"[BoardState] Failed to find card object for GUID: {guid}")
 
-        # Dynamically attach playmat token visibility attributes to the PlayerEntity if present on the board
+        # Which markers this deck earns a place on the playmat for. The token
+        # is spawned from gameOptions["tokens"], NOT from the player attribute
+        # below, so the two are tracked separately.
+        self.token_kinds[player_id] = {"GX": has_gx, "VSTAR": has_vstar}
+
+        # PieGXToken.setupAnimator reads these attributes as "this player's
+        # marker is already SPENT" and rebuilds the token on its used face
+        # when they are true -- it is the reconnect state, not a has-a-token
+        # flag. Both start false and are raised when the power is used.
         player_entity = self.find_player_entity(player_id)
         if player_entity:
-            player_entity.set_attribute(PlayerAttrID.HAS_GX_TOKEN, has_gx)
-            player_entity.set_attribute(PlayerAttrID.HAS_VSTAR_TOKEN, has_vstar)
-            logging.info(f"[BoardState] Set token flags for {player_id}: GX={has_gx}, VSTAR={has_vstar}")
+            player_entity.set_attribute(PlayerAttrID.HAS_GX_TOKEN, False)
+            player_entity.set_attribute(PlayerAttrID.HAS_VSTAR_TOKEN, False)
+            logging.info(f"[BoardState] Token markers for {player_id}: GX={has_gx}, VSTAR={has_vstar} (both unspent)")
 
     def _refresh_bench_gaps(self):
         """Syncs each bench's slot-order and AREA_EMPTY_SLOTS for SGS loads.

@@ -495,14 +495,15 @@ class GameSession:
 
         game_options_dict = options.to_dict()
 
+        # A marker is on the playmat because someone's deck earns it. Whether
+        # it has been spent is the PlayerEntity attribute, which the client
+        # reads separately when it builds the token (PieGXToken.setupAnimator).
         tokens = []
         for player_id in self.players:
-            player_entity = self.board_state.find_player_entity(player_id)
-            if not player_entity:
-                continue
-            if player_entity.get_attribute(PlayerAttrID.HAS_GX_TOKEN) and TOKEN_GX not in tokens:
+            kinds = self.board_state.token_kinds.get(player_id) or {}
+            if kinds.get("GX") and TOKEN_GX not in tokens:
                 tokens.append(TOKEN_GX)
-            if player_entity.get_attribute(PlayerAttrID.HAS_VSTAR_TOKEN) and TOKEN_VSTAR not in tokens:
+            if kinds.get("VSTAR") and TOKEN_VSTAR not in tokens:
                 tokens.append(TOKEN_VSTAR)
         if tokens:
             game_options_dict[GAME_OPTION_TOKENS_KEY] = ",".join(tokens)
@@ -520,6 +521,17 @@ class GameSession:
             game_options_dict["TournamentID"] = str(legacy_ctx["tournament_id"])
 
         return game_options_dict
+
+    def _mark_token_spent(self, player_id: str, attr) -> None:
+        """Raise the playmat marker's spent flag.
+
+        PieGXToken.setupAnimator reads it when it builds the token, so this is
+        what restores the used face after a reconnect or a scene rebuild. The
+        in-game flip rides the attack's own sequence.
+        """
+        player_entity = self.board_state.find_player_entity(player_id)
+        if player_entity is not None:
+            player_entity.set_attribute(attr, True)
 
     def _build_match_found_payload(self, reconnecting: bool = False) -> Dict[str, Any]:
         """Builds the MatchFound payload; shared by initial start and reconnect.
@@ -4490,6 +4502,7 @@ class GameSession:
             self.turn_state.used_named_abilities.add(ability.shared_once_per_turn)
         if ability.vstar:
             self.turn_state.vstar_used.add(player_id)
+            self._mark_token_spent(player_id, PlayerAttrID.HAS_VSTAR_TOKEN)
         logging.info(
             f"[Session {self.game_id}] {self.players[player_id].screen_name} "
             f"uses ability '{ability.title}'."
@@ -5144,8 +5157,10 @@ class GameSession:
                 self.turn_state.lock_attack(card.entity_id, action_id)
             if ability.vstar:
                 self.turn_state.vstar_used.add(player_id)
+                self._mark_token_spent(player_id, PlayerAttrID.HAS_VSTAR_TOKEN)
             if ability.gx:
                 self.turn_state.gx_used.add(player_id)
+                self._mark_token_spent(player_id, PlayerAttrID.HAS_GX_TOKEN)
 
         ctx = await resolve_attack(self, player_id, card, ability, action_id)
         # Effects like Aqua Return can remove the attacker itself from play.
