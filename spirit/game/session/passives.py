@@ -183,6 +183,18 @@ class Passive:
         """True to turn off `pokemon`'s Abilities (Path to the Peak style)."""
         return False
 
+    def blocks_out_of_play_abilities(
+        self, card: BoardEntity, carrier: BoardEntity
+    ) -> bool:
+        """True to turn off the Abilities of `card` while it sits in a hand or
+        a discard pile (Garbotoxin).
+
+        Separate from blocks_abilities because almost every lock is worded
+        "Pokemon in play" and must NOT reach these zones; only a lock that
+        names them implements this.
+        """
+        return False
+
     def blocks_retreat(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
         """True to forbid `pokemon` from retreating (Octolock, Flygon)."""
         return False
@@ -498,6 +510,17 @@ def ability_locked(board: BoardState, pokemon: PokemonEntity) -> bool:
     out of scope -- Path to the Peak rides a Stadium so this is safe).
     """
     return any(p.blocks_abilities(pokemon, c) for p, c, _ in _collect_passives(board))
+
+
+def out_of_play_ability_locked(board: BoardState, card: BoardEntity) -> bool:
+    """Whether a passive is disabling the Abilities of a card in a hand or a
+    discard pile (Garbotoxin).
+
+    Evaluated on the UNFILTERED set for the same reason ability_locked is: a
+    lock is never switched off by another lock.
+    """
+    return any(p.blocks_out_of_play_abilities(card, c)
+               for p, c, _ in _collect_passives(board))
 
 
 def _suppressed_special_energy(

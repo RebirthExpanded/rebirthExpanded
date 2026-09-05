@@ -32,6 +32,7 @@ from .constants import (
 )
 from .passives import (
     ability_locked,
+    out_of_play_ability_locked,
     can_attack_despite_conditions,
     can_evolve_early,
     can_evolve_onto,
@@ -612,13 +613,17 @@ def _out_of_zone_ability_entries(
     Hand sources are offered as AbilitySelection (click → ability panel) plus
     OutOfPlay (playmat drag). Discard sources keep OutOfPlay only (b.h).
 
-    Ruling: ability locks (Path to the Peak) read "Pokemon in play", so they
-    do NOT gate hand/discard sources.
+    Ruling: the usual ability locks (Path to the Peak) read "Pokemon in play",
+    so they do NOT gate hand/discard sources. A lock that names these zones
+    (Garbotoxin) answers blocks_out_of_play_abilities instead, and that one
+    does gate them.
     """
     entries = []
     for zone in ("hand", "discard"):
         area = board.find_player_area(player_id, zone)
         for card in (area.children if area else []):
+            if out_of_play_ability_locked(board, card):
+                continue
             for entry in card.get_attribute(AttrID.PIE_ABILITIES) or []:
                 if not isinstance(entry, dict):
                     continue
