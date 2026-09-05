@@ -2187,9 +2187,14 @@ def is_evolution_pokemon(card: CardEntity) -> bool:
     )
 
 
-def is_water_pokemon(card: CardEntity) -> bool:
+def is_pokemon_of_type(card: CardEntity, pokemon_type) -> bool:
+    """Whether `card` is a Pokemon carrying the given type."""
     types = card.get_attribute(AttrID.POKEMON_TYPES) or []
-    return is_pokemon_card(card) and PokemonTypes.WATER.value in types
+    return is_pokemon_card(card) and         getattr(pokemon_type, "value", pokemon_type) in types
+
+
+def is_water_pokemon(card: CardEntity) -> bool:
+    return is_pokemon_of_type(card, PokemonTypes.WATER)
 
 
 def is_trainer_card(card: CardEntity) -> bool:

@@ -15,6 +15,7 @@ from spirit.game.session.effects import (
     is_evolution_pokemon,
     is_item_card,
     is_pokemon_card,
+    is_pokemon_of_type,
     is_pokemon_tool,
     is_special_energy,
     is_supporter_card,
@@ -137,8 +138,7 @@ def is_grass_energy_card(card) -> bool:
 
 
 def is_darkness_pokemon(card) -> bool:
-    types = card.get_attribute(AttrID.POKEMON_TYPES) or []
-    return is_pokemon_card(card) and PokemonTypes.DARKNESS.value in types
+    return is_pokemon_of_type(card, PokemonTypes.DARKNESS)
 
 
 def is_pokemon_vmax(archetype_id) -> bool:
