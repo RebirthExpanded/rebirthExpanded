@@ -2317,6 +2317,14 @@ def is_special_energy(card: CardEntity) -> bool:
     return bool(card.get_attribute(AttrID.IS_SPECIAL_ENERGY))
 
 
+def is_energy_card(card: CardEntity) -> bool:
+    return card.get_attribute(AttrID.CARD_TYPE) == CardType.ENERGY.value
+
+
+def is_basic_energy(card: CardEntity) -> bool:
+    return is_energy_card(card) and not is_special_energy(card)
+
+
 def full_stack(pokemon: PokemonEntity) -> List[CardEntity]:
     """A Pokemon plus every card attached under it, depth-first."""
     out: List[CardEntity] = [pokemon]

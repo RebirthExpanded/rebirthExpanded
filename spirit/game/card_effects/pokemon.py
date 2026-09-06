@@ -16,6 +16,7 @@ from spirit.game.session.constants import BENCH_CAPACITY
 from spirit.game.card_effects.passives_common import prevent_damage_when
 from spirit.game.session.effects import (
     full_stack,
+    is_basic_energy,
     is_basic_pokemon,
     is_colorless_no_rule_box,
     is_pokemon_card,
@@ -240,18 +241,40 @@ async def pumpkin_pit(ctx):
         await ctx.discard_stadium()
 
 
-# --- Lumineon V (BRS) ------------------------------------------------------
+# --- "When you play this Pokemon onto your Bench, search your deck" --------
 
-async def luminous_sign(ctx):
-    """On play from hand: you may search the deck for a Supporter card."""
-    if not await ctx.ask_yes_no("Search your deck for a Supporter card?"):
-        return
-    picks = await ctx.search_deck(
-        is_supporter_card, count=1, minimum=0,
-        prompt="Choose a Supporter card to put into your hand.",
-    )
-    await ctx.put_in_hand(picks, reveal=True)
-    await ctx.shuffle_deck()
+def search_to_hand_on_play(predicate, count: int, question: str, prompt: str):
+    """ON_PLAY trigger: ask, search the deck, reveal into hand, shuffle.
+
+    Lumineon V's Luminous Sign, Tapu Lele-GX's Wonder Tag and Oricorio's
+    Vital Dance print the same sentence with a different filter and count.
+    """
+    async def effect(ctx):
+        if not await ctx.ask_yes_no(question):
+            return
+        picks = await ctx.search_deck(
+            predicate, count=count, minimum=0, prompt=prompt,
+        )
+        await ctx.put_in_hand(picks, reveal=True)
+        await ctx.shuffle_deck()
+    return effect
+
+
+# --- Lumineon V (BRS) / Tapu Lele-GX (GRI) ---------------------------------
+
+luminous_sign = search_to_hand_on_play(
+    is_supporter_card, 1,
+    "Search your deck for a Supporter card?",
+    "Choose a Supporter card to put into your hand.",
+)
+
+# --- Oricorio (GRI): Vital Dance -------------------------------------------
+
+vital_dance = search_to_hand_on_play(
+    is_basic_energy, 2,
+    "Search your deck for up to 2 basic Energy cards?",
+    "Choose up to 2 basic Energy cards to put into your hand.",
+)
 
 
 async def aqua_return(ctx):

@@ -14,6 +14,8 @@ from spirit.game.session.effects import (
     is_basic_pokemon,
     is_evolution_pokemon,
     is_item_card,
+    is_basic_energy,
+    is_energy_card,
     is_pokemon_card,
     is_pokemon_of_type,
     is_pokemon_tool,
@@ -119,12 +121,8 @@ def _discard(board, player_id):
     return list(area.children) if area else []
 
 
-def is_energy_card(card) -> bool:
-    return card.get_attribute(AttrID.CARD_TYPE) == CardType.ENERGY.value
-
-
 def is_basic_energy_card(card) -> bool:
-    return is_energy_card(card) and not is_special_energy(card)
+    return is_basic_energy(card)
 
 
 def is_metal_energy_card(card) -> bool:
