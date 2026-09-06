@@ -1016,10 +1016,13 @@ def trainer_condition_met(condition, board: BoardState, player_id: str, card) ->
 
 
 def _same_stadium_in_play(board: BoardState, card: TrainerEntity) -> bool:
-    """A Stadium is unplayable if one with the same archetype is in play."""
+    """A Stadium cannot replace one of the same name, another printing
+    included (Spirit-PTCGO 1e1ae598)."""
     stadium_area = board.find_global_area("activeStadium")
+    name = card.get_attribute(AttrID.NAME)
     return any(
         getattr(existing, "archetype_id", None) == card.archetype_id
+        or (bool(name) and existing.get_attribute(AttrID.NAME) == name)
         for existing in (stadium_area.children if stadium_area else [])
     )
 
