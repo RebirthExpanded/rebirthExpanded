@@ -24,8 +24,14 @@ Chaotic Swell still discards it: Chaotic Swell is a Stadium, not an Item or
 a Supporter, so the shield does not apply -- and being a Prism Star, this
 card lands in the Lost Zone rather than the discard.
 
-The deck-building half of the Prism Star rule (max 1 per deck) is a
-deck-validation matter, not a game-engine one, and is not enforced here.
+The deck-building half of the rule lives in game/rules.py beside the ACE
+SPEC limit, which is the same shape: at most 1 Prism Star card with a given
+NAME, where ACE SPEC allows 1 in the whole deck.
+
+The display name carries "{*}", not a literal diamond. That is the client's
+own placeholder for the Prism Star glyph -- its shipped cards read "Cyrus
+{*}" -- and the server serves each display_name to the client as a
+localization override, so this is the string the renderer actually sees.
 """
 
 from spirit.game.data_utils import StadiumCardDef
@@ -37,7 +43,7 @@ card = StadiumCardDef(
     guid="1485ad3a-47aa-5606-bf5c-8f4df4389ca2",
     key="SM8",
     name="com.direwolfdigital.cake.data.archetypes.trainer.ThunderMountain.Name",
-    display_name="Thunder Mountain ◇",
+    display_name="Thunder Mountain {*}",
     searchable_by=["Thunder Mountain", "Stadium", "Prism Star", "ThunderMountain"],
     subtypes=["Stadium", "Prism Star"],
     collector_number=191,

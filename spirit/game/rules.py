@@ -100,6 +100,23 @@ class DeckValidator:
                 "A deck can contain only 1 ACE SPEC card.",
                 sorted({c.guid.lower() for c in ace_spec})))
 
+        # Prism Star rule: "You can't have more than 1 Prism Star card with
+        # the same name in your deck." Unlike ACE SPEC, which allows one in
+        # the whole deck, this is per name -- two different Prism Star cards
+        # are fine together.
+        prism_by_name: Dict[str, List[str]] = {}
+        for card in self.cards:
+            if "Prism Star" in (card.subtypes or []):
+                prism_by_name.setdefault(
+                    card_display_name(card), []).append(card.guid.lower())
+        prism_over = {n: g for n, g in prism_by_name.items() if len(g) > 1}
+        if prism_over:
+            names = ", ".join(sorted(prism_over))
+            details.append(_detail(
+                "MaxDuplicates",
+                f"A deck can contain only 1 Prism Star card named: {names}.",
+                sorted({g for guids in prism_over.values() for g in guids})))
+
         if not any(_is_basic_pokemon_card(c) for c in self.cards):
             details.append(_detail(
                 "MustContain",
