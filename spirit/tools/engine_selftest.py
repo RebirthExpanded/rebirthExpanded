@@ -877,8 +877,10 @@ async def test_usable_from_offers():
         }
         assert all(a["entityID"] == hand_card.entity_id for a in hand_offers)
         assert disc_offers[0]["entityID"] == disc_card.entity_id
+        # Upstream 5c7d682: OutOfPlay disables clicks in the discard,
+        # which soft-locked the ability, so it gets the panel instead.
         assert disc_offers[0]["selectableAction"]["selectionType"] == \
-            SelectionKind.OUT_OF_PLAY.value
+            SelectionKind.ABILITY_SELECTION.value
         # Once-per-turn bookkeeping applies to out-of-zone uses too.
         ts.used_abilities.add((hand_card.entity_id, h_id))
         actions = compute_legal_actions(board, ts, P1, game_id)

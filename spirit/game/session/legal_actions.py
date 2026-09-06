@@ -634,10 +634,11 @@ def _out_of_zone_ability_entries(
     board: BoardState, state: TurnState, player_id: str, game_id: str
 ) -> List[Dict[str, Any]]:
     """Abilities flagged usable_from='hand'/'discard' on the player's cards in
-    those zones.
+    those zones, each offered with its own client selection flow.
 
-    Hand sources are offered as AbilitySelection (click → ability panel) plus
-    OutOfPlay (playmat drag). Discard sources keep OutOfPlay only (b.h).
+    Hand sources get AbilitySelection (click -> ability panel) plus OutOfPlay
+    (playmat drag). Discard sources get the panel alone: OutOfPlay disables
+    clicks there, which soft-locked the ability.
 
     Ruling: the usual ability locks (Path to the Peak) read "Pokemon in play",
     so they do NOT gate hand/discard sources. A lock that names these zones
@@ -673,8 +674,8 @@ def _out_of_zone_ability_entries(
                 if ability.condition and not ability.condition(board, player_id, card):
                     continue
                 # Hand: AbilitySelection opens the ability panel so Pitch can
-                # coexist with a Basic's drag-to-bench play. OutOfPlay keeps
-                # the playmat-drop activation path. Discard is OutOfPlay only.
+                # coexist with a Basic's drag-to-bench play, and the second
+                # entry below keeps the playmat-drop path.
                 if zone == "hand":
                     entries.append(_target_map_entry(
                         game_id, card.entity_id, ability_id, ACTION_USE_ABILITY,
@@ -682,7 +683,9 @@ def _out_of_zone_ability_entries(
                     ))
                 entries.append(_target_map_entry(
                     game_id, card.entity_id, ability_id, ACTION_USE_ABILITY,
-                    selection_type=SelectionKind.OUT_OF_PLAY.value,
+                    # OutOfPlay disables clicks; discard cards need the ability panel.
+                    selection_type=(SELECTION_TYPE_PANEL if zone == "discard"
+                                    else SelectionKind.OUT_OF_PLAY.value),
                 ))
     return entries
 
