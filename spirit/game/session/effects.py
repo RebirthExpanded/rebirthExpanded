@@ -1221,12 +1221,23 @@ class EffectContext:
             return 0
         return await self.draw_cards(missing, player_id)
 
+    def _queue_reveal_batch(self, entries, viewer_id: str):
+        """Introduces every card before one automatic grouped reveal and move."""
+        for card, _ in entries:
+            self._queue(self.session._entity_introduced_msg(card), viewer_id=viewer_id,
+                        bracket=GameSequence.SERIAL_SEQUENCE.value)
+        for card, move in entries:
+            self._queue(self.session._reveal_card_msg(card.entity_id, True),
+                        viewer_id=viewer_id, bracket=GameSequence.GROUPED_MOVE.value)
+            self._queue(move, viewer_id=viewer_id, bracket=GameSequence.GROUPED_MOVE.value)
+
     async def put_in_hand(self, cards: List[CardEntity], reveal: bool = True):
         """Moves cards (from deck/discard/etc.) into their owner's hand.
 
         reveal=True presents each card large to the opponent on the way
         ("...reveal it, and put it into your hand").
         """
+        reveal_batches = {}
         for card in cards:
             owner = card.owning_player_id or self.player_id
             hand = self.board.find_player_area(owner, "hand")
@@ -1247,23 +1258,16 @@ class EffectContext:
                 self.session.reset_pokemon_damage(card)
                 self.session.reset_ability_usage(card)
             move = self.session._entity_moved_msg(card.entity_id, hand.entity_id, position)
-            intro = self.session._entity_introduced_msg(card)
             opponent = self.session._opponent_id(owner)
             if reveal:
-                # Both viewers get the k.z reveal delegation: the card
-                # presents large-center, then flies into the hand
-                # (AcceptRevealOf passes for the owner too on deck cards).
                 for vid in (owner, opponent):
-                    self._queue(intro, viewer_id=vid,
-                                bracket=GameSequence.SERIAL_SEQUENCE.value)
-                    self._queue(self.session._reveal_card_msg(card.entity_id, True),
-                                viewer_id=vid, bracket=GameSequence.GROUPED_MOVE.value)
-                    self._queue(move, viewer_id=vid,
-                                bracket=GameSequence.GROUPED_MOVE.value)
+                    reveal_batches.setdefault(vid, []).append((card, move))
             else:
-                self._queue(intro, viewer_id=owner)
+                self._queue(self.session._entity_introduced_msg(card), viewer_id=owner)
                 self._queue(move, viewer_id=owner)
                 self._queue(move, viewer_id=opponent)
+        for vid, entries in reveal_batches.items():
+            self._queue_reveal_batch(entries, vid)
 
     async def reveal_cards(self, cards: Sequence[CardEntity],
                            to_player: Optional[str] = None) -> None:
@@ -1275,6 +1279,7 @@ class EffectContext:
         to_player=None reveals to every viewer the card is currently hidden
         from (own-hand reveals reach the opponent; deck cards reach both).
         """
+        reveal_batches = {}
         for card in cards:
             parent = getattr(card, "parent", None)
             if parent is None:
@@ -1290,15 +1295,11 @@ class EffectContext:
                            if card.is_hidden_from(pid)]
             if not viewers:
                 continue
-            intro = self.session._entity_introduced_msg(card)
             move = self.session._entity_moved_msg(card.entity_id, parent.entity_id, position)
             for vid in viewers:
-                self._queue(intro, viewer_id=vid,
-                            bracket=GameSequence.SERIAL_SEQUENCE.value)
-                self._queue(self.session._reveal_card_msg(card.entity_id, True),
-                            viewer_id=vid, bracket=GameSequence.GROUPED_MOVE.value)
-                self._queue(move, viewer_id=vid,
-                            bracket=GameSequence.GROUPED_MOVE.value)
+                reveal_batches.setdefault(vid, []).append((card, move))
+        for vid, entries in reveal_batches.items():
+            self._queue_reveal_batch(entries, vid)
 
     async def reveal_hand(self, of_player: Optional[str] = None,
                           to_player: Optional[str] = None) -> List[CardEntity]:
