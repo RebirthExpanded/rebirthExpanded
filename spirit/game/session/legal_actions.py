@@ -584,12 +584,7 @@ def _ability_entries(
 def _out_of_zone_ability_entries(
     board: BoardState, state: TurnState, player_id: str, game_id: str
 ) -> List[Dict[str, Any]]:
-    """Abilities flagged usable_from='hand'/'discard' on the player's cards in
-    those zones, offered with the OutOfPlay selection flow (b.h).
-
-    Ruling: ability locks (Path to the Peak) read "Pokemon in play", so they
-    do NOT gate hand/discard sources.
-    """
+    """Offer hand/discard abilities using each zone's client selection flow."""
     entries = []
     for zone in ("hand", "discard"):
         area = board.find_player_area(player_id, zone)
@@ -618,7 +613,9 @@ def _out_of_zone_ability_entries(
                     continue
                 entries.append(_target_map_entry(
                     game_id, card.entity_id, ability_id, ACTION_USE_ABILITY,
-                    selection_type=SelectionKind.OUT_OF_PLAY.value,
+                    # OutOfPlay disables clicks; discard cards need the ability panel.
+                    selection_type=(SELECTION_TYPE_PANEL if zone == "discard"
+                                    else SelectionKind.OUT_OF_PLAY.value),
                 ))
     return entries
 
