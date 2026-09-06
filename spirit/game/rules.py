@@ -9,6 +9,16 @@ from spirit.game.scripts.cards import loader as card_loader
 DECK_SIZE = 60
 MAX_COPIES = 4
 
+# Cards the format treats as one card even though they were printed under
+# two different names. A deck may run up to MAX_COPIES of ONE name from a
+# group; any mix is illegal, so 2 + 2 fails just as 4 + 4 does. Kept as
+# names rather than GUIDs so every printing on both sides is covered, and
+# kept out of the display names themselves so each card still shows and
+# searches under the name it was printed with.
+EXCLUSIVE_NAME_GROUPS: List[frozenset] = [
+    frozenset({"Boss's Orders", "Lysandre"}),
+]
+
 
 def _detail(failure_type: str, text: str, offenders: Optional[List[str]] = None) -> Dict[str, Any]:
     # failureType coerces by enum member name; explanation renders verbatim for unknown loc keys
@@ -116,6 +126,19 @@ class DeckValidator:
                 "MaxDuplicates",
                 f"A deck can contain only 1 Prism Star card named: {names}.",
                 sorted({g for guids in prism_over.values() for g in guids})))
+
+        for group in EXCLUSIVE_NAME_GROUPS:
+            present: Dict[str, List[str]] = {}
+            for card in self.cards:
+                name = card_display_name(card)
+                if name in group:
+                    present.setdefault(name, []).append(card.guid.lower())
+            if len(present) > 1:
+                names = ", ".join(sorted(present))
+                details.append(_detail(
+                    "MustNotContain",
+                    f"A deck can't mix these cards, only one of them: {names}.",
+                    sorted({g for guids in present.values() for g in guids})))
 
         if not any(_is_basic_pokemon_card(c) for c in self.cards):
             details.append(_detail(

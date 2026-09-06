@@ -105,6 +105,38 @@ def main():
     row = rules.validate_deck(energy_heavy, [std])[0]
     check("MaxDuplicates" not in failure_types(row), "56 Water Energy allowed")
 
+    print("[4b] exclusive name groups: one name from a group, never a mix")
+    for group in rules.EXCLUSIVE_NAME_GROUPS:
+        by_name = {}
+        for c in card_loader.cards:
+            name = rules.card_display_name(c)
+            if name in group:
+                by_name.setdefault(name, []).append(c.guid)
+        label = " / ".join(sorted(group))
+        if len(by_name) < 2:
+            check(False, f"{label}: both names must exist in the pool to test")
+            continue
+        (n_a, guids_a), (n_b, guids_b) = sorted(by_name.items())
+        for name, guids in ((n_a, guids_a), (n_b, guids_b)):
+            solo = deck(guids[:1] * 4 + [swsh_basic.guid] * 4 + [water.guid] * 52)
+            row = rules.validate_deck(solo, [unl])[0]
+            check("MustNotContain" not in failure_types(row),
+                  f"{label}: 4 {name} alone is legal")
+        for n_a_count, n_b_count in ((1, 1), (2, 2), (4, 4)):
+            mixed = guids_a[:1] * n_a_count + guids_b[:1] * n_b_count
+            mix = deck(mixed + [swsh_basic.guid] * 4
+                       + [water.guid] * (56 - len(mixed)))
+            row = rules.validate_deck(mix, [unl])[0]
+            check(not row["valid"] and "MustNotContain" in failure_types(row),
+                  f"{label}: {n_a_count} + {n_b_count} is illegal")
+        mixed = guids_a[:1] * 2 + guids_b[:1] * 2
+        mix = deck(mixed + [swsh_basic.guid] * 4 + [water.guid] * 52)
+        row = rules.validate_deck(mix, [unl])[0]
+        detail = next(d for d in row["results"] if d["failureType"] == "MustNotContain")
+        check(all(g.lower() in detail["offendingArchetypeIDs"]
+                  for g in (guids_a[0], guids_b[0])),
+              f"{label}: both offenders listed")
+
     print("[5] at least one Basic Pokemon")
     no_basic = deck([water.guid] * 60)
     row = rules.validate_deck(no_basic, [std])[0]
