@@ -793,15 +793,19 @@ class StadiumCardDef(TrainerCardDef):
     passives.Passive). `ability` is an Ability offered once during EACH
     player's turn while the stadium is in play (Training Court).
     `companion(board, player_id, card)` returns a second hand card that
-    must be played into the stadium slot together (Legendary Ocean Trench)."""
+    must be played into the stadium slot together (Legendary Ocean Trench).
+    `discards_replacement` is Chaotic Swell: the Stadium played over this one
+    is discarded straight after it and never gets its effect."""
     def __init__(self, passive: Optional[Any] = None,
                  ability: Optional["Ability"] = None,
-                 companion: Optional[Callable] = None, **kwargs):
+                 companion: Optional[Callable] = None,
+                 discards_replacement: bool = False, **kwargs):
         kwargs['trainer_type'] = TrainerType.STADIUM
         super().__init__(**kwargs)
         self.passive = passive
         self.ability = ability
         self.companion = companion
+        self.discards_replacement = discards_replacement
         if ability is not None:
             if not ability.ability_id:
                 ability.ability_id = ability_id_for(self.guid, 0)

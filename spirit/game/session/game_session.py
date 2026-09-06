@@ -4972,6 +4972,13 @@ class GameSession:
         incoming.sort(
             key=lambda c: getattr(def_for(c.archetype_id), "collector_number", 0) or 0
         )
+        # Chaotic Swell: the Stadium replacing it is discarded right after it
+        # and never gets its effect. Read before the swap, while it is still
+        # the one in play.
+        swept_away = any(
+            getattr(def_for(existing.archetype_id), "discards_replacement", False)
+            for existing in stadium_area.children
+        )
         moves = []
         for existing in list(stadium_area.children):
             owner_id = existing.owning_player_id or player_id
@@ -5000,6 +5007,26 @@ class GameSession:
         await self._send_play_sequence(
             player_id, GameSequence.STADIUM_PRESENT, moves, incoming
         )
+
+        if swept_away:
+            # It came into play and is discarded straight away, which is what
+            # the card says and what the animation shows; skipping the effect
+            # below is the "(The new Stadium card has no effect.)" half.
+            sweep = []
+            for stadium_card in incoming:
+                discard = self.board_state.find_player_area(player_id, "discard")
+                if not discard:
+                    continue
+                position = len(discard.children)
+                self.board_state.move_card(stadium_card.entity_id, discard.entity_id)
+                sweep.append(self._entity_moved_msg(
+                    stadium_card.entity_id, discard.entity_id, position))
+            if sweep:
+                await self.send_game_sequence(
+                    list(self.players.values()),
+                    GameSequence.SERIAL_SEQUENCE, sweep)
+            await self.enforce_bench_capacity()
+            return
 
         # A Stadium's own `effect` runs once, here: after the card is on the
         # board (so both viewers see it while the player answers a dialog) and
