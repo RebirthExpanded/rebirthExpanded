@@ -229,6 +229,9 @@ original_game_cache/
 *.db-wal
 
 # Spirit Assets
+# The whole cache is generated, foil masks (upstream's foil_mask_gen.py)
+# included; upstream narrowed this to en_US_*/ plus foil_masks/, we keep the
+# broader rule.
 spirit/assets/bundleCache/
 # The Logos bundle (top-nav Home button logo) is tiny + essential UI; ship it so a
 # fresh clone has a working Home button without needing a local game install.

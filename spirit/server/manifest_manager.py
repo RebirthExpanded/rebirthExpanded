@@ -223,10 +223,6 @@ class ManifestManager:
                                 set_code = part
                                 break
 
-                    foil_match = re.search(r'_(wp_[a-zA-Z0-9_]+?)(?:_\d+)?$', bundle_name_raw)
-
-                    foil_prefix = foil_match.group(1) if foil_match else None
-                    
                     for asset_key in exact_assets:
                         asset_names.append({"name": asset_key})
 
@@ -280,7 +276,7 @@ class ManifestManager:
                 # so the client can resolve things like "SWSH12_water" to this same physical bundle file.
                 if set_code and exact_assets and not any(
                     pat in lower_entry
-                    for pat in ["cardsleeves", "coins", "deckboxes", "packs", "pcdboxes", "avatar", "landingpage"]
+                    for pat in ["cardsleeves", "coins", "deckboxes", "packs", "pcdboxes", "avatar", "landingpage", "_wp_"]
                 ):
                     card_types = [
                         "grass", "fire", "water", "lightning", "psychic", "fighting",

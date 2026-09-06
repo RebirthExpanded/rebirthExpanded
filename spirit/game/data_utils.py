@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from typing import Any, Callable, Optional, List, Dict
-from spirit.game.attributes import AttrID, CardType, TrainerType, PokemonStage, PokemonTypes, ProductType, AbilityTypes, Rarities, CLIENT_POKEMON_TYPE_NAMES
+from spirit.game.attributes import AttrID, CardType, TrainerType, PokemonStage, PokemonTypes, ProductType, AbilityTypes, Rarities, CLIENT_POKEMON_TYPE_NAMES, FoilMasks, FoilEffects
 from spirit.game.text_encoding import fix_mojibake, fix_mojibake_list, with_ascii_aliases
 
 _ABILITY_ID_NAMESPACE = uuid.UUID("a3f2c6e8-9d41-4d7a-8b5f-2e7c90d13a64")
@@ -525,6 +525,75 @@ class Attack(Ability):
         })
         return d
 
+# Rarities whose print covers the whole card face in foil (full arts, rule-box
+# ultras, secrets); everything else foils only the art window.
+_FULL_FOIL_RARITIES = {
+    Rarities.RareHoloEX, Rarities.RareHoloGX, Rarities.RareHoloV,
+    Rarities.RareHoloVMAX, Rarities.RareHoloVSTAR, Rarities.ChrRareHolo,
+    Rarities.ChrRareHoloV, Rarities.ChrRareSecret, Rarities.ChrRareUltra,
+    Rarities.RareUltra, Rarities.RareSecret, Rarities.RareRainbow,
+    Rarities.Legendary, Rarities.ExtraRare,
+}
+
+
+class Foil:
+    """Holo/foil treatment for a card archetype.
+
+    mask picks the foil texture family (Reverse rides wp_ph bundles, everything
+    else wp_std); effects[0] picks the client's Resources foil material, extra
+    effects render on the second foil layer (wp_secondary bundle).
+
+    style shapes GENERATED masks only ('auto'/'full'/'window'/'reverse', see
+    foil_mask_gen) -- an extracted/hand-authored _foil PNG always wins.
+    """
+    def __init__(
+        self,
+        mask: FoilMasks = FoilMasks.HOLO,
+        effects: Optional[List[FoilEffects]] = None,
+        intensity: Optional[int] = None,
+        style: str = "auto",
+    ):
+        self.mask = mask
+        self.effects = effects or [FoilEffects.SWHOLO]
+        self.intensity = intensity
+        self.style = style
+
+    def resolve_style(self, rarity: Optional[int] = None, subtypes: Optional[List[str]] = None) -> str:
+        if self.style != "auto":
+            return self.style
+        if self.mask == FoilMasks.REVERSE:
+            return "reverse"
+        if rarity in _FULL_FOIL_RARITIES or any(
+            s in ("V", "VMAX", "VSTAR", "V-UNION", "Radiant") for s in (subtypes or [])
+        ):
+            return "full"
+        return "window"
+
+    def mask_kind(self) -> str:
+        """wp_ bundle kind the client requests this card's primary mask from
+        (CardImageRenderer.SetupFoilTexture precedence)."""
+        if self.effects[0] == FoilEffects.CRACKED_ICE:
+            return "pcd"
+        if self.mask == FoilMasks.REVERSE:
+            return "ph"
+        return "std"
+
+    def to_attributes(self) -> dict:
+        # Primary effect rides 200610 (client puts the single attr at index 0,
+        # then appends the 200611 array); IsFoil derives client-side.
+        attrs = {
+            str(AttrID.FOIL_MASK.value): {"type": "int", "value": self.mask.value},
+            str(AttrID.FOIL_EFFECT.value): {"type": "int", "value": self.effects[0].value},
+            str(AttrID.FOIL_EFFECTS.value): {
+                "type": "json",
+                "value": json.dumps([e.value for e in self.effects[1:]]),
+            },
+        }
+        if self.intensity is not None:
+            attrs[str(AttrID.FOIL_INTENSITY.value)] = {"type": "int", "value": self.intensity}
+        return attrs
+
+
 class CardDefinition:
     """Base class for all card definitions."""
     def __init__(
@@ -540,6 +609,7 @@ class CardDefinition:
         subtypes: Optional[List[str]] = None,
         attributes: Optional[dict] = None,
         regulation_mark: Optional[str] = None,
+        foil: Optional[Foil] = None,
     ):
         self.guid = guid
         self.key = key
@@ -558,6 +628,9 @@ class CardDefinition:
         # Dictionary attribute, and a string like "H" fails EntityIntroduced
         # deserialization (Char -> KeyValuePair), which breaks opening hands.
         self.regulation_mark = regulation_mark
+        self.foil = foil
+        if foil is not None:
+            self.extra_attributes.update(foil.to_attributes())
         # Continuous effect while in play/attached (tools, special energies).
         self.passive: Optional[Any] = None
         CARD_DEFS_BY_GUID[guid.lower()] = self
@@ -622,12 +695,14 @@ class PokemonCardDef(CardDefinition):
         regulation_mark: Optional[str] = None,
         passive: Optional[Any] = None,
         unplayable_from_hand: bool = False,
-        setup_as_active: bool = False
+        setup_as_active: bool = False,
+        foil: Optional[Foil] = None
     ):
         super().__init__(
             guid, key, name, collector_number, set_code, rarity,
             display_name, searchable_by, subtypes, attributes,
             regulation_mark=regulation_mark,
+            foil=foil,
         )
         # Card-level continuous effect while this Pokemon is top-level in play
         # (attack-rules passives, e.g. Swanna); distinct from Ability(passive=).
@@ -727,11 +802,13 @@ class TrainerCardDef(CardDefinition):
         attributes: Optional[dict] = None,
         regulation_mark: Optional[str] = None,
         usable_first_turn: bool = False,
+        foil: Optional[Foil] = None,
     ):
         super().__init__(
             guid, key, name, collector_number, set_code, rarity,
             display_name, searchable_by, subtypes, attributes,
             regulation_mark=regulation_mark,
+            foil=foil,
         )
         self.effect = effect
         self.condition = condition
@@ -889,11 +966,13 @@ class EnergyCardDef(CardDefinition):
         subtypes: Optional[List[str]] = None,
         attributes: Optional[dict] = None,
         regulation_mark: Optional[str] = None,
+        foil: Optional[Foil] = None,
     ):
         super().__init__(
             guid, key, name, collector_number, set_code, rarity,
             display_name, searchable_by, subtypes, attributes,
             regulation_mark=regulation_mark,
+            foil=foil,
         )
         self.energy_type = energy_type
         self.attach_to = attach_to

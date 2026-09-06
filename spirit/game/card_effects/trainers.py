@@ -738,8 +738,7 @@ async def rotom_phone(ctx):
     )
     if not picks:
         return
-    await ctx.shuffle_deck()
-    await ctx.put_on_top_of_deck(picks[0])
+    await ctx.shuffle_deck_below(picks[0])
 
 
 async def fan_of_waves(ctx):
