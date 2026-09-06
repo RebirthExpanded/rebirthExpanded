@@ -24,6 +24,7 @@ from spirit.game.session.effects import (
     is_supporter_card,
     is_water_pokemon,
 )
+from spirit.game.card_effects.pokemon import energy_provides_type
 from spirit.game.session.passives import (
     Passive,
     trainer_targeting_blocked,
@@ -789,9 +790,20 @@ class PathToThePeakPassive(Passive):
         return has_rule_box(pokemon.archetype_id)
 
 
-class ThunderMountainPassive(Passive):
-    """Lightning Pokemon's attacks (both sides) cost [L] less, and Item or
-    Supporter effects cannot touch this Stadium."""
+class ShieldedStadiumPassive(Passive):
+    """"Whenever any player plays an Item or Supporter card from their hand,
+    prevent all effects of that card done to this Stadium card."
+
+    The Prism Star Stadiums (Thunder Mountain, Black Market) print this
+    sentence identically, so they share it.
+    """
+
+    def blocks_trainer_targeting(self, target, carrier):
+        return target is carrier
+
+
+class ThunderMountainPassive(ShieldedStadiumPassive):
+    """Lightning Pokemon's attacks (both sides) cost [L] less."""
 
     def modify_attack_cost(self, cost, pokemon, carrier, board):
         if not is_pokemon_of_type(pokemon, PokemonTypes.LIGHTNING):
@@ -803,8 +815,22 @@ class ThunderMountainPassive(Passive):
             cost.pop("Lightning", None)
         return cost
 
-    def blocks_trainer_targeting(self, target, carrier):
-        return target is carrier
+
+class BlackMarketPassive(ShieldedStadiumPassive):
+    """A Darkness Pokemon with any Darkness Energy attached is worth one
+    Prize less when an opponent's attack knocks it out -- either side's."""
+
+    def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
+        # "by damage from an opponent's attack", as Lillie's Pearl reads it.
+        if not ctx.is_attack_effect() or ctx.player_id == pokemon.owning_player_id:
+            return count
+        if not is_pokemon_of_type(pokemon, PokemonTypes.DARKNESS):
+            return count
+        attached = ctx.board.attached_energies(pokemon)
+        if not any(energy_provides_type(e, PokemonTypes.DARKNESS.value)
+                   for e in attached):
+            return count
+        return max(0, count - 1)
 
 
 class SilentLabPassive(Passive):
