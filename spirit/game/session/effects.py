@@ -2329,6 +2329,12 @@ def is_basic_energy(card: CardEntity) -> bool:
     return is_energy_card(card) and not is_special_energy(card)
 
 
+def is_energy_of_type(card: CardEntity, energy_type) -> bool:
+    """"a {L} Energy card": an Energy card carrying that type."""
+    types = card.get_attribute(AttrID.POKEMON_TYPES) or []
+    return is_energy_card(card) and         getattr(energy_type, "value", energy_type) in types
+
+
 def full_stack(pokemon: PokemonEntity) -> List[CardEntity]:
     """A Pokemon plus every card attached under it, depth-first."""
     out: List[CardEntity] = [pokemon]

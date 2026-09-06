@@ -16,6 +16,7 @@ from spirit.game.session.effects import (
     is_item_card,
     is_basic_energy,
     is_energy_card,
+    is_energy_of_type,
     is_pokemon_card,
     is_pokemon_of_type,
     is_pokemon_tool,
@@ -127,13 +128,11 @@ def is_basic_energy_card(card) -> bool:
 
 
 def is_metal_energy_card(card) -> bool:
-    types = card.get_attribute(AttrID.POKEMON_TYPES) or []
-    return is_energy_card(card) and PokemonTypes.METAL.value in types
+    return is_energy_of_type(card, PokemonTypes.METAL)
 
 
 def is_grass_energy_card(card) -> bool:
-    types = card.get_attribute(AttrID.POKEMON_TYPES) or []
-    return is_energy_card(card) and PokemonTypes.GRASS.value in types
+    return is_energy_of_type(card, PokemonTypes.GRASS)
 
 
 def is_darkness_pokemon(card) -> bool:
