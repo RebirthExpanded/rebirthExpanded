@@ -212,6 +212,31 @@ def attach_from_discard(predicate=is_energy, count=1, target="self",
     return effect
 
 
+def lost_zone_from_opponent_discard(count, prompt: str = ""):
+    """"Put N cards from your opponent's discard pile in the Lost Zone."
+
+    `count` is a number, or a callable(ctx) -> number for the ones that read
+    the board (Lysandre {*} counts your Fire Pokemon). Takes the whole pile
+    when it holds fewer than that. move_to_lost_zone sends each card to its
+    OWNER's Lost Zone, which is the opponent's."""
+    async def effect(ctx):
+        await _deal_printed(ctx)
+        n = count(ctx) if callable(count) else count
+        if n <= 0:
+            return
+        discard = ctx.discard_pile(ctx.opponent_id)
+        if not discard:
+            return
+        picks = await ctx.choose_cards(
+            discard, min(n, len(discard)),
+            prompt=prompt or "Choose cards in your opponent's discard pile "
+                             "to put in the Lost Zone",
+        )
+        if picks:
+            await ctx.move_to_lost_zone(picks)
+    return effect
+
+
 def recover_from_discard(predicate=None, count=1, minimum=1, reveal=False,
                          to="hand", prompt=""):
     """Move up to `count` matching discard-pile cards to 'hand',
@@ -510,15 +535,22 @@ _REMOVAL_PROMPTS = {
     "hand": "Put this Pokémon and all attached cards into your hand?",
     "deck": "Shuffle this Pokémon and all attached cards into your deck?",
     "lost_zone": "Put this Pokémon in the Lost Zone?",
+    "discard": "Discard this Pokémon and all cards attached to it?",
 }
 
 
 def remove_self_from_play(destination="hand", with_attachments="same",
                           optional=False, prompt=""):
-    """Remove the acting Pokémon from play to 'hand', 'deck' (shuffled) or
-    'lost_zone'; with_attachments 'same' takes the whole stack along ("this
-    Pokémon and all attached cards"), 'discard' discards the attachments
-    (Scoop Up Net). Vacating the Active defers promotion (psychic_leap)."""
+    """Remove the acting Pokémon from play to 'hand', 'deck' (shuffled),
+    'lost_zone' or 'discard'; with_attachments 'same' takes the whole stack
+    along ("this Pokémon and all attached cards"), 'discard' discards the
+    attachments (Scoop Up Net). Vacating the Active defers promotion
+    (psychic_leap).
+
+    Note the destination 'discard' is a self-removal, never a Knock Out, so
+    no prize is taken and no knockout trigger fires -- which is what cards
+    saying "this does not count as a Knock Out" (Unown's Farewell Letter)
+    need."""
     async def effect(ctx):
         pokemon = ctx.source
         await _deal_printed(ctx)
@@ -537,6 +569,8 @@ def remove_self_from_play(destination="hand", with_attachments="same",
             await ctx.shuffle_into_deck(stack, ctx.player_id)
         elif destination == "lost_zone":
             await ctx.move_to_lost_zone(stack)
+        elif destination == "discard":
+            await ctx.discard_cards(stack)
         if was_active:
             # Promotion must wait for the attack bracket to flush, or the client
             # sees the new Active land while the old one still stands there.
@@ -561,6 +595,14 @@ def requires_discard(predicate=None, n=1):
         area = board.find_player_area(player_id, "discard")
         cards = list(area.children) if area else []
         return sum(1 for c in cards if predicate is None or predicate(c)) >= n
+    return check
+
+
+def requires_benched():
+    """"if this Pokemon is on your Bench" -- the ability's own Pokemon is
+    anywhere in play except the Active Spot."""
+    def check(board, player_id, pokemon=None):
+        return pokemon is not None and pokemon is not board.active_pokemon(player_id)
     return check
 
 

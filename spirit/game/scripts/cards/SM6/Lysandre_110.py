@@ -12,10 +12,9 @@ convention -- keeps it clear of the plain "Lysandre" that group names. A
 deck may hold this alongside 4 Boss's Orders, or alongside 4 Lysandre.
 
 The count is my Fire Pokemon in play, including the Active and anything
-evolved; the cards are picked from the opponent's discard, and
-move_to_lost_zone sends each to its OWNER's Lost Zone, which is the
-opponent's. It takes as many as it counted, or the whole discard pile if
-that is smaller.
+evolved. Girafarig (SM8 94) does the same thing for a flat 2, so the move
+itself lives in lost_zone_from_opponent_discard, which takes either a
+number or a callable.
 
 The Prism Star rules themselves need nothing here: is_prism_star reads
 the subtype, discard_area_name already routes this card to the Lost Zone
@@ -24,6 +23,7 @@ when it is played, and rules.py already caps it at 1 per name in a deck.
 
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import Rarities, PokemonTypes
+from spirit.game.card_effects.support_common import lost_zone_from_opponent_discard
 from spirit.game.session.effects import is_pokemon_of_type
 
 
@@ -45,21 +45,7 @@ def _lysandre_condition(board, player_id) -> bool:
     return bool(discard and discard.children)
 
 
-async def lysandre_prism_star(ctx):
-    """Lost Zone one card from the opponent's discard per Fire Pokemon of
-    mine in play."""
-    count = _my_fire_count(ctx)
-    if count <= 0:
-        return
-    discard = ctx.discard_pile(ctx.opponent_id)
-    if not discard:
-        return
-    picks = await ctx.choose_cards(
-        discard, min(count, len(discard)),
-        prompt="Choose cards in your opponent's discard pile to put in the Lost Zone",
-    )
-    if picks:
-        await ctx.move_to_lost_zone(picks)
+lysandre_prism_star = lost_zone_from_opponent_discard(_my_fire_count)
 
 
 card = SupporterCardDef(
