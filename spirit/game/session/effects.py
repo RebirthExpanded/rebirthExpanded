@@ -31,6 +31,7 @@ from spirit.game.data_utils import (
     Ability,
     Triggers,
     def_for,
+    discard_area_name,
     has_rule_box,
     unimplemented,
 )
@@ -1500,7 +1501,10 @@ class EffectContext:
     async def _move_to_public_pile(self, cards: List[CardEntity], area_name: str):
         for card in cards:
             owner = card.owning_player_id or self.player_id
-            pile = self.board.find_player_area(owner, area_name)
+            # Prism Star: a discard becomes a Lost Zone move.
+            target_area = (discard_area_name(card.archetype_id)
+                           if area_name == "discard" else area_name)
+            pile = self.board.find_player_area(owner, target_area)
             if not pile:
                 continue
             if self._trainer_blocked(card):

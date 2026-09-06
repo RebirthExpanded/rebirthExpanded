@@ -25,6 +25,7 @@ from spirit.game.session.effects import (
 )
 from spirit.game.session.passives import (
     Passive,
+    trainer_targeting_blocked,
     TurnDamageModifier,
     carrier_pokemon,
     effective_bench_capacity,
@@ -180,13 +181,20 @@ def has_two_metal_energy_in_hand(board, player_id) -> bool:
 
 
 def _tools_and_stadium(board):
-    """Every attached Pokemon Tool plus the Stadium in play, both sides."""
+    """Every attached Pokemon Tool plus the Stadium in play, both sides.
+
+    Field Blower and Lost Vacuum are Items, so a Stadium that shields itself
+    from Item and Supporter effects (Thunder Mountain) is not a target.
+    """
     targets = []
     for pid in board.player_ids:
         for pokemon in board.pokemon_in_play(pid):
             targets.extend(c for c in pokemon.children if is_pokemon_tool(c))
     stadium_area = board.find_global_area("activeStadium")
-    targets.extend(stadium_area.children if stadium_area else [])
+    targets.extend(
+        c for c in (stadium_area.children if stadium_area else [])
+        if not trainer_targeting_blocked(board, c)
+    )
     return targets
 
 
@@ -780,6 +788,24 @@ class PathToThePeakPassive(Passive):
 
     def blocks_abilities(self, pokemon, carrier):
         return has_rule_box(pokemon.archetype_id)
+
+
+class ThunderMountainPassive(Passive):
+    """Lightning Pokemon's attacks (both sides) cost [L] less, and Item or
+    Supporter effects cannot touch this Stadium."""
+
+    def modify_attack_cost(self, cost, pokemon, carrier, board):
+        if not is_pokemon_of_type(pokemon, PokemonTypes.LIGHTNING):
+            return cost
+        remaining = cost.get("Lightning", 0) - 1
+        if remaining > 0:
+            cost["Lightning"] = remaining
+        else:
+            cost.pop("Lightning", None)
+        return cost
+
+    def blocks_trainer_targeting(self, target, carrier):
+        return target is carrier
 
 
 class SilentLabPassive(Passive):

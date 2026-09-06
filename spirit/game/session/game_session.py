@@ -89,8 +89,8 @@ from spirit.game.attributes import (
     TrainerType,
 )
 from spirit.game.data_utils import (
-    ABILITIES_BY_ID, Ability, Activations, Triggers, def_for, prize_value,
-    subtypes_for, unimplemented,
+    ABILITIES_BY_ID, Ability, Activations, Triggers, def_for,
+    discard_area_name, prize_value, subtypes_for, unimplemented,
 )
 from spirit.database.player_data import COINS_PER_WIN, COINS_PER_LOSS, grant_coins
 from spirit.database.versus_data import award_match_points, get_progress
@@ -4967,12 +4967,15 @@ class GameSession:
         moves = []
         for existing in list(stadium_area.children):
             owner_id = existing.owning_player_id or player_id
-            owner_discard = self.board_state.find_player_area(owner_id, "discard")
-            if owner_discard:
-                position = len(owner_discard.children)
-                self.board_state.move_card(existing.entity_id, owner_discard.entity_id)
+            # Prism Star Stadiums (Thunder Mountain) are Lost-Zoned, not
+            # discarded, when the next Stadium replaces them.
+            owner_pile = self.board_state.find_player_area(
+                owner_id, discard_area_name(existing.archetype_id))
+            if owner_pile:
+                position = len(owner_pile.children)
+                self.board_state.move_card(existing.entity_id, owner_pile.entity_id)
                 moves.append(self._entity_moved_msg(
-                    existing.entity_id, owner_discard.entity_id, position
+                    existing.entity_id, owner_pile.entity_id, position
                 ))
         for stadium_card in incoming:
             position = len(stadium_area.children)
@@ -4999,13 +5002,14 @@ class GameSession:
             # below is the "(The new Stadium card has no effect.)" half.
             sweep = []
             for stadium_card in incoming:
-                discard = self.board_state.find_player_area(player_id, "discard")
-                if not discard:
+                pile = self.board_state.find_player_area(
+                    player_id, discard_area_name(stadium_card.archetype_id))
+                if not pile:
                     continue
-                position = len(discard.children)
-                self.board_state.move_card(stadium_card.entity_id, discard.entity_id)
+                position = len(pile.children)
+                self.board_state.move_card(stadium_card.entity_id, pile.entity_id)
                 sweep.append(self._entity_moved_msg(
-                    stadium_card.entity_id, discard.entity_id, position))
+                    stadium_card.entity_id, pile.entity_id, position))
             if sweep:
                 await self.send_game_sequence(
                     list(self.players.values()),

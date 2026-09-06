@@ -263,6 +263,21 @@ def subtypes_for(archetype_id: Optional[str]) -> List[str]:
     return definition.subtypes if definition else []
 
 
+def is_prism_star(archetype_id) -> bool:
+    return "Prism Star" in subtypes_for(archetype_id)
+
+
+def discard_area_name(archetype_id) -> str:
+    """Where a card goes when it would be discarded.
+
+    Prism Star rule: "If a Prism Star card would go to the discard pile, put
+    it in the Lost Zone instead." Every path that discards has to ask, not
+    just the scripted effects -- a Stadium replaced by the next one is moved
+    by the executor directly.
+    """
+    return "lostZone" if is_prism_star(archetype_id) else "discard"
+
+
 # Rule-box subtypes and the prizes an attacker takes for knocking one out.
 # "EX" is the XY-era uppercase rule box; "ex" is the SV-era lowercase rule box.
 # "MEGA" is XY Mega Evolution; "SV_Mega" is Mega Evolution Pokémon ex (3 prizes).

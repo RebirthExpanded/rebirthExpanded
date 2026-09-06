@@ -183,6 +183,15 @@ class Passive:
         """True to turn off `pokemon`'s Abilities (Path to the Peak style)."""
         return False
 
+    def blocks_trainer_targeting(self, target: BoardEntity, carrier: BoardEntity) -> bool:
+        """True to shield `target` from being touched by Item and Supporter
+        cards at all (Thunder Mountain shields itself from Field Blower).
+
+        Distinct from blocks_trainer_effects, which is Dew Guard's
+        player-scoped shield against a specific Trainer's effects.
+        """
+        return False
+
     def blocks_out_of_play_abilities(
         self, card: BoardEntity, carrier: BoardEntity
     ) -> bool:
@@ -792,6 +801,14 @@ def effective_heal_amount(board: BoardState, target: PokemonEntity, amount: int)
                 seen_keys.add(key)
             multiplier *= gained
     return amount * multiplier
+
+
+def trainer_targeting_blocked(board: BoardState, target: BoardEntity) -> bool:
+    """Whether Item and Supporter cards cannot touch `target` at all."""
+    return any(
+        passive.blocks_trainer_targeting(target, carrier)
+        for passive, carrier in active_passives(board)
+    )
 
 
 def ability_effects_blocked(board: BoardState, target: PokemonEntity) -> bool:
