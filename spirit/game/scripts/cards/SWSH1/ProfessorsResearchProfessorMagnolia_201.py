@@ -5,9 +5,9 @@ from spirit.game.attributes import Rarities
 card = SupporterCardDef(
     guid="1ac4130a-464a-5eb2-99d8-2884b9afb1ac",
     key="SWSH1",
-    name="com.direwolfdigital.cake.data.archetypes.trainer.ProfessorsResearchProfessorMagnolia.Name",
-    display_name="Professor's Research (Professor Magnolia)",
-    searchable_by=["Professor's Research (Professor Magnolia)", "Supporter"],
+    name="com.direwolfdigital.cake.data.archetypes.trainer.ProfessorsResearch.Name",
+    display_name="Professor's Research",
+    searchable_by=["Professor's Research", "Supporter"],
     subtypes=["Supporter"],
     collector_number=201,
     set_code="SWSH1",
