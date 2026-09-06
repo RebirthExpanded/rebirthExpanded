@@ -2295,6 +2295,12 @@ class GameSession:
             moves = []
             for entity in stack:
                 area = dest_area if isinstance(entity, PokemonEntity) else discard
+                # Prism Star: anything in the stack that would hit a discard
+                # pile goes to the Lost Zone instead, the Pokemon included.
+                if area is discard or dest_name == "discard":
+                    if discard_area_name(entity.archetype_id) == "lostZone":
+                        area = self.board_state.find_player_area(
+                            owner_id, "lostZone") or area
                 position = len(area.children)
                 if self.board_state.move_card(entity.entity_id, area.entity_id):
                     moves.append(self._entity_moved_msg(
