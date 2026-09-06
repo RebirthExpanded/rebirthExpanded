@@ -616,24 +616,35 @@ async def lost_vacuum(ctx):
     await ctx.move_to_lost_zone(picks)
 
 
-async def super_rod(ctx):
-    """Shuffle up to 3 Pokemon and/or basic Energy cards from the discard into
-    the deck.
+def shuffle_from_discard(predicate, count: int, prompt: str, up_to: bool = False):
+    """"Shuffle N <cards> from your discard pile into your deck."
 
-    "Up to" is the errata'd wording, matching the SV reprint: the player may
-    take fewer than 3 even when more are available, so minimum=0 as on Max
-    Rod rather than the "exactly 3" the BW-era card first printed.
+    up_to passes minimum=0, letting the player stop short of N with more
+    still available -- Super Rod's errata'd wording. Without it choose_cards
+    takes exactly N, or the whole pile when it cannot supply N, which is what
+    a flat "Shuffle N" asks for (Special Charge).
     """
-    candidates = pokemon_or_basic_energy(ctx.discard_pile())
-    if not candidates:
-        return
-    picks = await ctx.choose_cards(
-        candidates, 3, minimum=0,
-        prompt="Choose up to 3 Pokémon and/or basic Energy cards to shuffle "
-               "into your deck.",
-    )
-    if picks:
-        await ctx.shuffle_into_deck(picks)
+    async def effect(ctx):
+        candidates = [c for c in ctx.discard_pile() if predicate(c)]
+        if not candidates:
+            return
+        picks = await ctx.choose_cards(
+            candidates, count, minimum=0 if up_to else None, prompt=prompt)
+        if picks:
+            await ctx.shuffle_into_deck(picks)
+    return effect
+
+
+super_rod = shuffle_from_discard(
+    lambda c: bool(pokemon_or_basic_energy([c])), 3,
+    "Choose up to 3 Pokémon and/or basic Energy cards to shuffle into your deck.",
+    up_to=True,
+)
+
+special_charge = shuffle_from_discard(
+    is_special_energy, 2,
+    "Choose 2 Special Energy cards to shuffle into your deck.",
+)
 
 
 async def field_blower(ctx):
@@ -897,6 +908,13 @@ def pokemon_or_basic_energy(cards):
     """The "in any combination of Pokemon and basic Energy cards" filter
     (Super Rod, Max Rod)."""
     return [c for c in cards if is_pokemon_card(c) or is_basic_energy_card(c)]
+
+
+def discard_has(predicate):
+    """Condition: the player's discard pile holds a matching card."""
+    def check(board, player_id):
+        return any(predicate(c) for c in _discard(board, player_id))
+    return check
 
 
 def has_pokemon_or_basic_energy_in_discard(board, player_id) -> bool:
