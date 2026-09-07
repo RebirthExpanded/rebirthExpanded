@@ -48,6 +48,7 @@ TURN_OFFER_LENGTH_MS = 90000
 ACTION_INACTIVITY_DURATION_MS = 15_000
 ACTION_COUNTDOWN_DURATION_MS = 15_000
 ACTION_TIMEOUT_MS = ACTION_INACTIVITY_DURATION_MS + ACTION_COUNTDOWN_DURATION_MS
+FOLLOW_UP_TIMEOUT_MS = 60_000
 
 # Estimated client playback time per top-level GameSequence. The action timer
 # starts as soon as SetIdleTimer is sent, but the offer itself rides the

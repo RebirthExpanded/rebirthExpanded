@@ -27,6 +27,7 @@ from .constants import (
     MAX_CLIENT_CATCHUP_SECONDS,
     CLIENT_CATCHUP_BUFFER_SECONDS,
     SEQUENCE_DURATION_SECONDS,
+    FOLLOW_UP_TIMEOUT_MS,
     TURN_OFFER_LENGTH_MS,
     TARGET_TYPE_MAIN_TURN,
     EMPTY_SEQUENCE_ID,
@@ -733,7 +734,14 @@ class GameSession:
         if self.game_phase == GamePhase.GAME_OVER:
             raise GameOver()
         await self._wait_for_connection_resume()
-        timed = idle_timeout_ms is not None and isinstance(player, NetworkPlayer)
+        # Every offer to a human runs a timer (Spirit-PTCGO 1f8ab0c1): the
+        # main turn offer the action timeout, a follow-up selection (a pick,
+        # a dialog) FOLLOW_UP_TIMEOUT_MS -- an untimed follow-up left the
+        # inactivity timer stalled for good.
+        main_offer = msg_name == OutboundMsg.SELECTION_WITH_TARGETS_AND_ACTIONS_REQUIRED.value
+        if idle_timeout_ms is None:
+            idle_timeout_ms = ACTION_TIMEOUT_MS if main_offer else FOLLOW_UP_TIMEOUT_MS
+        timed = isinstance(player, NetworkPlayer)
         if timed:
             # SetIdleTimer is processed immediately, while the offer waits on
             # the sequence pump. Hold both until animations should have landed
@@ -742,8 +750,9 @@ class GameSession:
             await self._wait_for_connection_resume()
             if self.game_phase == GamePhase.GAME_OVER:
                 raise GameOver()
-            if isinstance(value, dict) and "startingTimestamp" in value:
-                value["startingTimestamp"] = int(time.time() * 1000)
+            if isinstance(value, dict):
+                value = dict(value, offerLength=idle_timeout_ms,
+                             startingTimestamp=int(time.time() * 1000))
         envelope = self._sequence_envelope(
             EMPTY_SEQUENCE_ID, self._build_msg(msg_name, value)
         )
@@ -847,8 +856,12 @@ class GameSession:
                     await self.choreo_pause(FORCE_SELECTION_SETTLE_SECONDS)
                     logging.info(
                         f"[Session {self.game_id}] {player.screen_name}'s "
-                        "action timer expired."
+                        f"selection timer expired ({msg_name})."
                     )
+                    # A timed-out follow-up returns a null selection: the
+                    # pick's own retry/fallback resolves it (an optional pick
+                    # is declined, a forced one re-offers and then defaults),
+                    # so the game moves on instead of being forfeited.
                     return {
                         "selection": None,
                         "counter": expected_counter,
