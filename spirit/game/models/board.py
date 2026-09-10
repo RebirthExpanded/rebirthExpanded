@@ -387,6 +387,11 @@ class BoardState:
         if not isinstance(card, CardEntity) or not isinstance(to_area, PlayArea):
             return False
 
+        # "Turned face up where it lies" ends when it stops lying there: a
+        # Prize turned over by Town Map is a private hand card again once it
+        # is taken, and a card put back as a Prize goes back face down.
+        card.face_up = False
+
         if card.parent_id:
             parent = self.get_entity(card.parent_id)
             if parent:
