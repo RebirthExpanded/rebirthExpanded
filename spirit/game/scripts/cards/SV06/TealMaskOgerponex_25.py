@@ -17,17 +17,16 @@ def _teal_dance_condition(board, player_id, pokemon) -> bool:
 
 async def teal_dance(ctx):
     """Attach a Basic Grass Energy from your hand to this Pokemon; if you
-    did, draw a card."""
+    did, draw a card.
+
+    No pick: one Basic Grass Energy is any other, so a hand holding several
+    prints of it would only be asked which artwork to spend. The first one
+    goes on.
+    """
     candidates = [c for c in ctx.hand() if _is_basic_grass_energy(c)]
     if not candidates:
         return
-    picks = await ctx.choose_cards(
-        candidates, 1,
-        prompt="Choose a Basic Grass Energy card to attach to this Pokémon.",
-    )
-    if not picks:
-        return
-    await ctx.attach_energy(picks[0], ctx.source)
+    await ctx.attach_energy(candidates[0], ctx.source)
     await ctx.draw_cards(1)
 
 

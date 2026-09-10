@@ -18,7 +18,8 @@ from spirit.game.session.effects import (
     is_basic_pokemon,
     is_trainer_card,
 )
-from spirit.game.session.passives import effective_max_hp
+from spirit.game.session.passives import (effective_bench_capacity,
+                                          effective_max_hp)
 from spirit.game.card_effects.trainers import is_energy_card
 
 # Spec-friendly aliases used as factory defaults.
@@ -621,10 +622,17 @@ def requires_benched():
 
 
 def requires_bench_space(n=1):
-    """At least `n` free bench slots."""
+    """At least `n` free bench slots.
+
+    Measured against the Bench the player actually has, not the printed 5:
+    under Collapsed Stadium a fourth Benched Pokemon already fills it.
+    """
     def check(board, player_id, pokemon=None):
         bench = board.find_player_area(player_id, "bench")
-        return bench is not None and BENCH_CAPACITY - len(bench.children) >= n
+        if bench is None:
+            return False
+        capacity = effective_bench_capacity(board, player_id)
+        return capacity - len(bench.children) >= n
     return check
 
 
