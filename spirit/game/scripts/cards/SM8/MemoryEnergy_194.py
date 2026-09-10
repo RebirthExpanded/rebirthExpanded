@@ -18,36 +18,23 @@ Only the Pokemon this card is attached to gains them; the pip is a plain
 Colorless one.
 """
 
-from spirit.game.data_utils import EnergyCardDef, Attack, PokemonTypes, def_for
+from spirit.game.data_utils import EnergyCardDef, PokemonTypes
 from spirit.game.attributes import Rarities
-from spirit.game.models.board import PokemonEntity
+from spirit.game.card_effects.pokemon import pre_evolution_attacks
 from spirit.game.session.passives import Passive, carrier_pokemon
 
 
-def _tucked_under(pokemon):
-    """Every Pokemon card in the holder's stack below the top card."""
-    out = []
-    stack = list(pokemon.children)
-    while stack:
-        entity = stack.pop()
-        if isinstance(entity, PokemonEntity):
-            out.append(entity)
-            stack.extend(entity.children)
-    return out
-
-
 class MemoryEnergyPassive(Passive):
-    """The holder may use the attacks printed on what it evolved from."""
+    """The holder may use the attacks printed on what it evolved from.
+
+    Shining Celebi and Relicanth say the same thing for a whole side; the
+    walk of the stack is shared with them (pre_evolution_attacks).
+    """
 
     def granted_attacks(self, board, pokemon, carrier):
         if carrier_pokemon(carrier) is not pokemon:
             return []
-        attacks = []
-        for tucked in _tucked_under(pokemon):
-            definition = def_for(tucked.archetype_id)
-            attacks.extend(a for a in (getattr(definition, "abilities", None) or [])
-                           if isinstance(a, Attack))
-        return attacks
+        return pre_evolution_attacks(pokemon)
 
 
 card = EnergyCardDef(

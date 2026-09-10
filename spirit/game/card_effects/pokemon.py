@@ -1331,3 +1331,52 @@ def ally_ko_last_turn(board, player_id, pokemon=None) -> bool:
         return False
     getter = getattr(turn_state, "pokemon_lost_last_turn", None)
     return bool(getter(player_id)) if getter else False
+
+
+# --- "can use any attack from its previous Evolutions" --------------------
+
+def tucked_under(pokemon) -> list:
+    """Every Pokemon card in `pokemon`'s stack below the top card."""
+    out = []
+    stack = list(pokemon.children)
+    while stack:
+        entity = stack.pop()
+        if isinstance(entity, PokemonEntity):
+            out.append(entity)
+            stack.extend(entity.children)
+    return out
+
+
+def pre_evolution_attacks(pokemon) -> list:
+    """The Attacks printed on what `pokemon` evolved from.
+
+    The Attack objects are the pre-evolution cards' own, so their costs,
+    damage and effects apply exactly as printed -- nothing is copied or
+    rewritten, which is why the reminder text about Energy takes care of
+    itself.
+    """
+    attacks = []
+    for tucked in tucked_under(pokemon):
+        definition = def_for(tucked.archetype_id)
+        attacks.extend(a for a in (getattr(definition, "abilities", None) or [])
+                       if isinstance(a, Attack))
+    return attacks
+
+
+class PreEvolutionAttacksPassive(Passive):
+    """"Each of your evolved Pokemon can use any attack from its previous
+    Evolutions" (Shining Celebi's Time Recall, Relicanth's Memory Dive).
+
+    Memory Energy's granted_attacks widened from one holder to a whole side:
+    the carrier lends the pre-evolution attacks to every Pokemon its owner
+    has in play. Being an Ability rather than an Energy, it also answers to
+    ability locks, which is the practical difference between the two.
+    """
+
+    def granted_attacks(self, board, pokemon, carrier):
+        holder = carrier_pokemon(carrier)
+        if holder is None or pokemon is None:
+            return []
+        if pokemon.owning_player_id != holder.owning_player_id:
+            return []
+        return pre_evolution_attacks(pokemon)
