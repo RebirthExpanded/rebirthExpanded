@@ -6,10 +6,11 @@ retreat 1.
   Pickup [C]     Put an Item card from your discard pile into your hand.
   Bite   [C] 10
 
-"An Item card" is asked through data_utils.counts_as_item, so a Pokemon
-Tool printed in this era answers to it -- which is the whole point of that
-helper. The pick is mandatory once there is something to take, and there
-is simply nothing to do with an Item-less discard pile.
+"An Item card" is asked through data_utils.counts_as_item, which no
+Pokemon Tool answers: Tools are their own category now, whatever their own
+type line says, so Float Stone is not on offer here. The pick is mandatory
+once there is something to take, and there is simply nothing to do with an
+Item-less discard pile.
 """
 
 from spirit.game.data_utils import PokemonCardDef, Attack, counts_as_item

@@ -12,7 +12,8 @@ retreat 1.
 
 An ON_EVOLVE trigger with a "you may", so it asks first and then offers the
 Item cards -- Hariyama's Heave-Ho Catcher shape. "An Item card" goes
-through counts_as_item, the same question Lillipup's Pickup asks.
+through counts_as_item, the same question Lillipup's Pickup asks, and no
+Pokemon Tool answers it.
 """
 
 from spirit.game.data_utils import (PokemonCardDef, Attack, Ability, Triggers,

@@ -11,11 +11,11 @@ The lock is symmetrical -- "each player", its own controller included --
 and it asks only that this Pokemon be in play, Active or Benched, so the
 passive tests nothing about position.
 
-What counts as an Item is era-dependent, which is why this goes through
-data_utils.counts_as_item rather than a bare TRAINER_TYPE check: Tools
-printed through Sword & Shield are Item cards (Float Stone's type line
-says so) and Scarlet & Violet's are not. So Float Stone is locked here and
-Hero's Cape is not.
+What counts as an Item goes through data_utils.counts_as_item. Pokemon
+Tools are their own category and are not Item cards, whatever era they were
+printed in -- the older ones say Item on the card, but the rules now read
+every Tool as a Pokemon Tool -- so Float Stone and Hero's Cape alike are
+still playable under this.
 
 This is an ABILITY lock. The engine keeps it apart from the attack-imposed
 kind by construction: this one is a passive, recomputed from the board
