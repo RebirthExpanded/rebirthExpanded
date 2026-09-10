@@ -199,24 +199,73 @@ class ExcitedHeartPassive(Passive):
         return cost
 
 
-# --- Ditto (PGO): Sudden Transformation ------------------------------------
+# --- "can use the attacks of ..." -------------------------------------------
+# One shape for every card that borrows attacks from elsewhere: Ditto's
+# Sudden Transformation (Basics in your discard), Marshadow-GX's Shadow Hunt
+# (the same without the Rule Box exclusion), Mew ex (your Bench), Mew's
+# Memories of Dawn (your Basics in play) and Mew-EX's Versatile (every
+# Pokemon in play, both sides). The Attack objects handed back are the
+# source cards' own, so costs and effects apply as printed.
 
-class SuddenTransformationPassive(Passive):
-    """May use the attacks of Basic non-Rule-Box Pokemon in the owner's
-    discard pile (energy costs still apply)."""
+def printed_attacks(card) -> list:
+    """The Attacks printed on `card`'s definition."""
+    return [a for a in (getattr(def_for(card.archetype_id), "abilities", None) or [])
+            if isinstance(a, Attack)]
+
+
+def own_discard_cards(board, pokemon) -> list:
+    area = board.find_player_area(pokemon.owning_player_id, "discard")
+    return list(area.children) if area else []
+
+
+def own_bench_pokemon(board, pokemon) -> list:
+    area = board.find_player_area(pokemon.owning_player_id, "bench")
+    return list(area.children) if area else []
+
+
+def own_pokemon_in_play(board, pokemon) -> list:
+    return list(board.pokemon_in_play(pokemon.owning_player_id))
+
+
+def all_pokemon_in_play(board, pokemon) -> list:
+    return [p for pid in board.player_ids for p in board.pokemon_in_play(pid)]
+
+
+class BorrowedAttacksPassive(Passive):
+    """"This Pokemon can use the attacks of <somewhere>."
+
+    `source(board, pokemon)` names the cards to borrow from and `predicate`
+    narrows them. Only the carrier itself gains them, which is what every
+    card with this text says.
+    """
+
+    def __init__(self, source, predicate=None):
+        self.source = source
+        self.predicate = predicate
 
     def granted_attacks(self, board, pokemon, carrier):
         if carrier is not pokemon:
             return []
-        discard = board.find_player_area(pokemon.owning_player_id, "discard")
         attacks = []
-        for card in (discard.children if discard else []):
-            if not is_basic_pokemon(card) or has_rule_box(card.archetype_id):
+        for card in self.source(board, pokemon):
+            if card is pokemon:
                 continue
-            for ability in getattr(def_for(card.archetype_id), "abilities", None) or []:
-                if isinstance(ability, Attack):
-                    attacks.append(ability)
+            if self.predicate is not None and not self.predicate(card):
+                continue
+            attacks.extend(printed_attacks(card))
         return attacks
+
+
+class SuddenTransformationPassive(BorrowedAttacksPassive):
+    """Ditto (PGO): the attacks of Basic non-Rule-Box Pokemon in the owner's
+    discard pile (energy costs still apply)."""
+
+    def __init__(self):
+        super().__init__(
+            own_discard_cards,
+            lambda card: (is_basic_pokemon(card)
+                          and not has_rule_box(card.archetype_id)),
+        )
 
 
 # --- Raikou (VIV): Amazing Shot -------------------------------------------

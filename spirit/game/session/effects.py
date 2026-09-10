@@ -1866,6 +1866,27 @@ class EffectContext:
                 o, p, from_hand=False))
         return True
 
+    async def put_in_active_spot(self, card: CardEntity) -> bool:
+        """Puts a Pokemon from a non-hand zone into its owner's EMPTY Active
+        spot (Ditto's Transformative Start, which discards itself first).
+
+        Not a switch and not a bench play: the spot has to be vacant, which
+        is why the caller clears it. Like bench_pokemon this is an effect
+        putting the Pokemon into play, so on-play triggers do NOT fire.
+        """
+        owner = card.owning_player_id or self.player_id
+        area = self.board.find_player_area(owner, "activePokemonArea")
+        if area is None or area.children:
+            return False
+        self._note_visual_source(card)
+        if not self.board.move_card(card.entity_id, area.entity_id):
+            return False
+        self.session.turn_state.mark_entered_play(card.entity_id)
+        ts = self.session.turn_state
+        ts.became_active_turn[card.entity_id] = ts.turn_number
+        self._queue_intro_and_move(card, area.entity_id, 0)
+        return True
+
     async def evolve_pokemon(self, target: PokemonEntity,
                              evolution_card: CardEntity) -> bool:
         """Effect-driven evolution (Rare Candy): bypasses the may-evolve turn
