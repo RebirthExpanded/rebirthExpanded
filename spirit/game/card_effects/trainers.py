@@ -223,6 +223,27 @@ async def professors_research(ctx):
     await ctx.draw_cards(7)
 
 
+def marnie_playable(board, player_id, card=None):
+    """Marnie needs at least one card between the two hands, this Marnie
+    aside.
+
+    "Each player shuffles their hand and puts it on the bottom of their
+    deck. THEN, you draw 5 cards." A "Then," (or "If you do") clause does
+    not happen when the step before it could not be carried out at all, so
+    with both hands empty nothing goes under a deck and nobody draws --
+    the card would do nothing, and a card that does nothing may not be
+    played. One card in either hand is enough to set the whole thing off.
+    """
+    total = 0
+    for pid in board.player_ids:
+        hand = board.find_player_area(pid, "hand")
+        for c in (hand.children if hand else []):
+            if pid == player_id and card is not None and c is card:
+                continue    # the copy being played is not in hand any more
+            total += 1
+    return total > 0
+
+
 async def marnie(ctx):
     """Both players shuffle their hands under their decks; you draw 5, the
     opponent draws 4. Per player in sequence: shuffle-to-bottom, then draw."""

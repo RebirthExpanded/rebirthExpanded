@@ -1,4 +1,4 @@
-from spirit.game.card_effects.trainers import marnie
+from spirit.game.card_effects.trainers import marnie, marnie_playable
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import Rarities
 
@@ -12,5 +12,6 @@ card = SupporterCardDef(
     collector_number=208,
     set_code="SWSH1",
     rarity=Rarities.RareRainbow,
-    effect=marnie
+    effect=marnie,
+    condition=marnie_playable,
 )
