@@ -37,7 +37,7 @@ from spirit.game.session.passives import Passive
 class DisgustingPollenPassive(Passive):
     """While this is Active, the opponent's Basic Pokemon cannot attack."""
 
-    def blocks_attacking(self, pokemon, carrier):
+    def blocks_attacking(self, pokemon, carrier, board):
         return (
             is_in_active_spot(carrier)
             and pokemon.owning_player_id != carrier.owning_player_id
