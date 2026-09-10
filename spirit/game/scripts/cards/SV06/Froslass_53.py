@@ -2,16 +2,13 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, AttrID
 
 
+from spirit.game.card_effects.pokemon import has_printed_ability
+
+
 def _pokemon_has_any_ability(pokemon) -> bool:
-    """Printed abilities include both Ability(passive) and Attack entries.
-    We only care about non-Attack abilities for 'has an Ability' text."""
-    for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("abilityType") == "Attack":
-            continue
-        return True
-    return False
+    """"has an Ability" -- shared with Chimecho, which asks it of a card in
+    hand rather than one in play."""
+    return has_printed_ability(pokemon)
 
 
 async def freezing_shroud(ctx):

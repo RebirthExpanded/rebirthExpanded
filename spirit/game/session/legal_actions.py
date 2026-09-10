@@ -471,14 +471,21 @@ def compute_legal_actions(
 
     for card in hand_area.children:
         if isinstance(card, PokemonEntity):
+            # A play lock can name Pokemon as well as Trainers ("can't play
+            # any cards from your hand", "can't put Pokemon with an Ability
+            # into play"), so it is asked of every card in hand and not only
+            # of the fossils. Every Item/Supporter/Energy lock in the pool
+            # takes a predicate that says no to a Pokemon, so nothing else
+            # changes.
+            if state.play_locked(player_id, card):
+                continue
             stage = card.get_attribute(AttrID.STAGE)
             if stage == PokemonStage.BASIC.value:
                 if getattr(def_for(card.archetype_id), "unplayable_from_hand", False):
                     continue  # Shedinja: enters play only via an effect
                 # Fossils stay Item cards in hand: Item locks gate the bench play.
-                if card.get_attribute(AttrID.TRAINER_TYPE) is not None \
-                        and (state.play_locked(player_id, card)
-                             or trainer_play_blocked(board, player_id, card)):
+                if (card.get_attribute(AttrID.TRAINER_TYPE) is not None
+                        and trainer_play_blocked(board, player_id, card)):
                     continue
                 if bench_has_space:
                     # The bench area is the drop target; without it the drag

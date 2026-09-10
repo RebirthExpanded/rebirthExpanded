@@ -1397,3 +1397,22 @@ class PreEvolutionAttacksPassive(Passive):
         if pokemon.owning_player_id != holder.owning_player_id:
             return []
         return pre_evolution_attacks(pokemon)
+
+
+# --- "a Pokemon that has an Ability" ----------------------------------------
+
+def has_printed_ability(card) -> bool:
+    """Whether the card prints an Ability (not just attacks).
+
+    Read off PIE_ABILITIES, which every card entity carries wherever it sits,
+    so the same question works on a card in hand (Chimecho's Bell of
+    Silence) as on one in play (Froslass, Cofagrigus). It is the PRINTED
+    Ability: an ability lock switches one off, it does not unprint it.
+    """
+    for entry in card.get_attribute(AttrID.PIE_ABILITIES) or []:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("abilityType") == "Attack":
+            continue
+        return True
+    return False
