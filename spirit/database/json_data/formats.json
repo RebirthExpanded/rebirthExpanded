@@ -23,7 +23,8 @@
         "ME4",
         "ME5",
         "SVP",
-        "ME6"
+        "ME6",
+        "ME6A"
       ],
       "allSets": false,
       "bannedCards": [],
@@ -75,6 +76,7 @@
         "ME5",
         "SVP",
         "ME6",
+        "ME6A",
         "SV1",
         "SM5",
         "XY6",
@@ -161,6 +163,7 @@
         "ME4",
         "ME5",
         "ME6",
+        "ME6A",
         "SVP"
       ],
       "allSets": false,

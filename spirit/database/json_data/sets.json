@@ -1908,6 +1908,21 @@
     "promo": false
   },
   {
+    "name": "ME6A",
+    "externalId": "ME6A",
+    "number": 1345,
+    "count": 1,
+    "filter": true,
+    "block": "NONE",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
+  },
+  {
     "name": "SV3",
     "externalId": "OBF",
     "number": 1140,
