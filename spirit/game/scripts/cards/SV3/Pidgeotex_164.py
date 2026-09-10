@@ -25,13 +25,9 @@ Evolution.
 
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
+from spirit.game.card_effects.support_common import requires_deck
 
 QUICK_SEARCH = "Quick Search"
-
-
-def _deck_not_empty(board, player_id, pokemon):
-    deck = board.find_player_area(player_id, "deck")
-    return bool(deck and deck.children)
 
 
 async def quick_search(ctx):
@@ -81,7 +77,7 @@ card = PokemonCardDef(
             ),
             activation=Activations.ONCE_PER_TURN,
             shared_once_per_turn=QUICK_SEARCH,
-            condition=_deck_not_empty,
+            condition=requires_deck(),
             effect=quick_search,
         ),
         Attack(

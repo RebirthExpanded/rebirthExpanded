@@ -20,6 +20,7 @@ The SM-era resistance is -20, not the -30 the definition defaults to.
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.pokemon import look_at_top_2_keep_1
+from spirit.game.card_effects.support_common import requires_deck
 
 card = PokemonCardDef(
     guid="85ab4205-4f96-5aff-9dbd-63314f081266",
@@ -49,6 +50,8 @@ card = PokemonCardDef(
                 "hand. Put the other card on the bottom of your deck."
             ),
             activation=Activations.ONCE_PER_TURN,
+            # Nothing to look at, nothing to do: not offered on an empty deck.
+            condition=requires_deck(),
             effect=look_at_top_2_keep_1,
         ),
         Attack(

@@ -598,6 +598,20 @@ def requires_discard(predicate=None, n=1):
     return check
 
 
+def requires_deck(n=1):
+    """At least `n` cards left in the player's deck.
+
+    An effect whose whole job is to look at the deck does nothing with an
+    empty one, so it may not be used at all -- the Ability-side counterpart
+    of the empty-deck gate that keeps deck-searching Trainers off the hand
+    offer.
+    """
+    def check(board, player_id, pokemon=None):
+        deck = board.find_player_area(player_id, "deck")
+        return deck is not None and len(deck.children) >= n
+    return check
+
+
 def requires_benched():
     """"if this Pokemon is on your Bench" -- the ability's own Pokemon is
     anywhere in play except the Active Spot."""

@@ -1,6 +1,7 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.pokemon import look_at_top_2_keep_1
+from spirit.game.card_effects.support_common import requires_deck
 
 # Pidgeotto's Air Mail is the same Ability, so the effect is shared.
 recon_directive = look_at_top_2_keep_1
@@ -32,6 +33,8 @@ card = PokemonCardDef(
                 "card on the bottom of your deck."
             ),
             activation=Activations.ONCE_PER_TURN,
+            # Nothing to look at, nothing to do: not offered on an empty deck.
+            condition=requires_deck(),
             effect=recon_directive,
         ),
         Attack(
