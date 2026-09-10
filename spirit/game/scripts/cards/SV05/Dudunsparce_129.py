@@ -2,6 +2,7 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.session.effects import full_stack
 from spirit.game.card_effects.passives_common import is_in_active_spot
+from spirit.game.card_effects.support_common import requires_deck
 
 
 async def run_away_draw(ctx):
@@ -48,6 +49,10 @@ card = PokemonCardDef(
             title="Run Away Draw",
             game_text="Once during your turn, you may draw 3 cards. If you drew any cards in this way, shuffle this Pokémon and all attached cards into your deck.",
             activation=Activations.ONCE_PER_TURN,
+            # Draw nothing and the shuffle never happens either ("if you drew
+            # any cards"), so on an empty deck the Ability does nothing at
+            # all and is not offered.
+            condition=requires_deck(),
             effect=run_away_draw,
         ),
         Attack(
