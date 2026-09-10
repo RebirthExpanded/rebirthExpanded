@@ -1,12 +1,12 @@
-"""Alluring Poffin (JP XY-P 243, Pokemon Card Gym promo).
+"""Captivating Poke Puff (JP XY-P 243, Pokemon Card Gym promo).
 
 Item.
 
   "Look at your opponent's hand, choose as many Basic Pokemon as you like
    from it, and put them onto their Bench."
 
-A Japan-only promo -- there is no English printing, so the name here is
-this pool's rendering of 魅惑のポフレ and the Japanese promo number stands.
+A Japan-only promo, so the Japanese promo number stands; the English
+name is the card's own (Captivating Poke Puff).
 
 It fills THEIR Bench, which is the whole point: a wider Bench is more to
 snipe at, and the Basics it forces down are Basics they no longer hold for
@@ -29,7 +29,7 @@ def _their_basics_in_hand(board, player_id):
     return [c for c in (hand.children if hand else []) if is_basic_pokemon(c)]
 
 
-def _alluring_poffin_playable(board, player_id, card=None):
+def _captivating_poke_puff_playable(board, player_id, card=None):
     """Nothing to move, or nowhere to put it, and the card does nothing."""
     if not _their_basics_in_hand(board, player_id):
         return False
@@ -40,7 +40,7 @@ def _alluring_poffin_playable(board, player_id, card=None):
     return len(bench.children) < effective_bench_capacity(board, opponent)
 
 
-async def alluring_poffin(ctx):
+async def captivating_poke_puff(ctx):
     """Their hand opens; every Basic you pick lands on their Bench."""
     candidates = _their_basics_in_hand(ctx.board, ctx.player_id)
     if not candidates:
@@ -58,13 +58,14 @@ async def alluring_poffin(ctx):
 card = ItemCardDef(
     guid="01ef4c40-956f-516f-b76e-c34233eabf0b",
     key="Promo_XY",
-    name="com.direwolfdigital.cake.data.archetypes.trainer.AlluringPoffin.Name",
-    display_name="Alluring Poffin",
-    searchable_by=["Alluring Poffin", "Item", "AlluringPoffin"],
+    name="com.direwolfdigital.cake.data.archetypes.trainer.CaptivatingPokePuff.Name",
+    display_name="Captivating Poké Puff",
+    searchable_by=["Captivating Poké Puff", "Captivating Poke Puff",
+                   "Item", "CaptivatingPokePuff"],
     subtypes=["Item"],
     collector_number=243,
     set_code="Promo_XY",
     rarity=Rarities.RarePromo,
-    effect=alluring_poffin,
-    condition=_alluring_poffin_playable,
+    effect=captivating_poke_puff,
+    condition=_captivating_poke_puff_playable,
 )
