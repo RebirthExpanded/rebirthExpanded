@@ -712,6 +712,32 @@ async def dream_ball_prize_window(ctx):
     await ctx.session._execute_play_trainer(pid, ctx.source)
 
 
+# --- Greedy Dice (STS, Item) ----------------------------------------------
+
+def greedy_dice_playable(board, player_id):
+    """Like Dream Ball, it never plays from hand: its window is the
+    prize-take prompt."""
+    return False
+
+
+async def greedy_dice(ctx):
+    """Flip a coin. If heads, take 1 more Prize card."""
+    heads = await ctx.flip_coins(1, "Greedy Dice")
+    if heads and heads[0]:
+        await ctx.take_prizes(1)
+
+
+async def greedy_dice_prize_window(ctx):
+    """Taken as a face-down Prize: you may play it before it settles in hand."""
+    ctx.suppress_announce = True
+    if trainer_play_blocked(ctx.board, ctx.player_id, ctx.source):
+        return
+    if not await ctx.ask_yes_no(
+            "Play Greedy Dice? Flip a coin; if heads, take 1 more Prize card."):
+        return
+    await ctx.session._execute_play_trainer(ctx.player_id, ctx.source)
+
+
 async def power_tablet(ctx):
     """This turn, your Fusion Strike Pokemon's attacks do 30 more damage to
     the opponent's Active Pokemon (before Weakness and Resistance)."""
