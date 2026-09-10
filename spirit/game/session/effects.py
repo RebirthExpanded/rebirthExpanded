@@ -1182,7 +1182,15 @@ class EffectContext:
         shuffle -- pair with put_in_hand/bench/attach + shuffle_deck.
 
         The whole deck shows in the browser (a search reveals the deck);
-        only matching cards are selectable and sort to the front."""
+        only matching cards are selectable and sort to the front.
+
+        Flushes the queued choreography first, the way take_prizes does for
+        the prize fan: on the cards that pay a cost before searching (Quick
+        Ball, Ultra Ball, Mysterious Treasure) the discard is queued while
+        this browser is sent immediately, so without the flush the deck opens
+        before the discarded card has visibly left the hand.
+        """
+        await self.flush_choreography()
         pid = player_id or self.player_id
         deck_cards = list(self.deck(pid))
         matches = [c for c in deck_cards if predicate is None or predicate(c)]
@@ -1209,7 +1217,10 @@ class EffectContext:
         picked cards per group; pair with put_in_hand + shuffle_deck.
 
         any_of carousels misrender on the client (slot labels/pick slots) --
-        prefer a one-representative-per-group choose_cards instead."""
+        prefer a one-representative-per-group choose_cards instead.
+
+        Flushes queued choreography first, like search_deck."""
+        await self.flush_choreography()
         pid = player_id or self.player_id
         deck_cards = list(self.deck(pid))
         specs = []
