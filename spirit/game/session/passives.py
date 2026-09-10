@@ -10,7 +10,8 @@ or max HP, so effects switch on/off purely by board position.
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-from spirit.game.attributes import AttrID, PokemonTypes, TrainerType
+from spirit.game.attributes import (AbilityTypes, AttrID, PokemonTypes,
+                                    TrainerType)
 from spirit.game.data_utils import ABILITIES_BY_ID, def_for, subtypes_for
 from spirit.game.models.board import (
     BENCH_SLOT_COUNT,
@@ -491,8 +492,12 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
                 ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
                 if ability is not None and ability.passive is not None:
                     # A Tool-granted ability's passive rides the tool, not the
-                    # Pokemon, so Path to the Peak can't switch it off.
-                    triples.append((ability.passive, pokemon, not ability.is_granted))
+                    # Pokemon, so Path to the Peak can't switch it off; an
+                    # Ancient Trait is not an Ability at all, and Garbotoxin,
+                    # Silent Lab and Path to the Peak each name Abilities.
+                    lockable = (not ability.is_granted
+                                and ability.ability_type != AbilityTypes.ANCIENT_TRAIT)
+                    triples.append((ability.passive, pokemon, lockable))
             for attachment in _descendants(pokemon):
                 if isinstance(attachment, PokemonEntity):
                     continue  # tucked pre-evolutions contribute nothing

@@ -1023,12 +1023,16 @@ async def yoga_loop(ctx):
         ctx.take_extra_turn()
 
 
-# --- Jumpluff (EVS): Fluffy Barrage ---------------------------------------
+# --- "may attack twice" (Jumpluff's Fluffy Barrage, Bunnelby's O Barrage) --
 
-class FluffyBarragePassive(Passive):
+class AttackTwicePassive(Passive):
     """May attack twice each turn (the printed KO sentence is timing reminder
     text, not a condition): the first attack keeps the turn; the session then
-    asks whether to attack again and, on Yes, auto-selects this Pokemon."""
+    asks whether to attack again and, on Yes, auto-selects this Pokemon.
+
+    Plain "may attack twice", with no clause about whose attack it is, so
+    unlike Festival Lead this repeats an attack lent by a Tool or an Energy
+    too -- see FestivalLeadPassive for the other wording."""
 
     def attack_keeps_turn(self, attacker, ability, ctx, carrier):
         if attacker is not carrier:
@@ -1036,6 +1040,10 @@ class FluffyBarragePassive(Passive):
         uses = [e for e in ctx.session.turn_state.attacks_used
                 if e[0] == carrier.entity_id]
         return len(uses) == 1
+
+
+# Jumpluff's name for it, kept for the card that had it first.
+FluffyBarragePassive = AttackTwicePassive
 
 
 # --- Festival Lead (TWM Dipplin / Goldeen) --------------------------------
