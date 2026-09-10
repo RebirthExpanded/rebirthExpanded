@@ -1220,16 +1220,27 @@ def devolvable(pokemon) -> bool:
 
 
 def devolve_depth(pokemon) -> int:
-    """How many evolution cards can be peeled off the stack."""
+    """How many evolution cards can be peeled off the stack.
+
+    An evolution stack is FLAT: the stage a Pokemon evolved from AND every
+    older stage sit as direct children of the top card, not nested under
+    one another. Walking children-of-children therefore stops after one
+    step and reports 1 for a Stage 2 -- so the chain is followed by name
+    through that single pool of cards instead.
+
+    (perform_devolution rebuilds the same flat shape at each step, handing
+    the remaining stages to whichever card is left on top, so this stays
+    right between steps as well.)
+    """
+    stages = {}
+    for card in pokemon.children:
+        if isinstance(card, PokemonEntity):
+            stages.setdefault(
+                card.get_attribute(AttrID.EVOLUTION_LOGIC_NAME), card)
     depth, current = 0, pokemon
     while True:
         evolves_from = current.get_attribute(AttrID.EVOLUTION_LOGIC_FROM)
-        nxt = next(
-            (c for c in current.children
-             if isinstance(c, PokemonEntity)
-             and c.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == evolves_from),
-            None,
-        ) if evolves_from else None
+        nxt = stages.pop(evolves_from, None) if evolves_from else None
         if nxt is None:
             return depth
         depth, current = depth + 1, nxt

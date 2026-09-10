@@ -161,6 +161,11 @@ class TurnState:
     attach_restrictions: Dict[str, int] = field(default_factory=dict)
     # Entities whose ON_MOVE_TO_ACTIVE trigger already fired this turn.
     on_move_to_active_fired: Set[str] = field(default_factory=set)
+    # Pokemon that were devolved this turn: "(That Pokemon can't evolve this
+    # turn.)" Kept apart from entered_play_turn, which means "came into play
+    # this turn" and is read by cards asking whether this Pokemon EVOLVED
+    # this turn -- a devolved one did not.
+    devolved_this_turn: Set[str] = field(default_factory=set)
     # Whether the turn player used their once-per-turn attack-coin re-flip
     # (Glimwood Tangle); only actually re-flipping consumes it.
     attack_coin_reroll_used: bool = False
@@ -244,6 +249,7 @@ class TurnState:
         self.turn_draw_entity_ids_last_turn = self.turn_draw_entity_ids
         self.turn_draw_entity_ids = set()
         self.on_move_to_active_fired = set()
+        self.devolved_this_turn = set()
         self.attack_coin_reroll_used = False
         self.play_locks = {
             pid: kept for pid, locks in self.play_locks.items()
@@ -331,6 +337,8 @@ class TurnState:
         """A Pokemon may evolve only if it has been in play since a previous
         turn, and never during either player's first turn (turns 1 and 2)."""
         if self.turn_number <= 2:
+            return False
+        if entity_id in self.devolved_this_turn:
             return False
         return self.entered_play_turn.get(entity_id, 0) < self.turn_number
 

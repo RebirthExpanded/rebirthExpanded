@@ -4727,6 +4727,9 @@ class GameSession:
         self.board_state.move_card(pokemon.entity_id, dest.entity_id)
         moves.append(self._entity_moved_msg(pokemon.entity_id, dest.entity_id, position))
 
+        # "(That Pokemon can't evolve this turn.)" -- every card that
+        # devolves prints it, so it belongs here rather than on each of them.
+        self.turn_state.devolved_this_turn.add(prev.entity_id)
         # Devolving removes Special Conditions (not damage); the removed card
         # leaves play as a fresh card.
         self.clear_pokemon_effects(pokemon)
