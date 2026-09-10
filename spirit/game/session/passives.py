@@ -213,6 +213,12 @@ class Passive:
         """
         return False
 
+    def blocks_attacking(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
+        """True to stop `pokemon` using any attack at all (Vileplume's
+        Disgusting Pollen). Per-attack refusals belong on the Attack's own
+        condition, and a turn-scoped one on TurnState.lock_attack."""
+        return False
+
     def blocks_retreat(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
         """True to forbid `pokemon` from retreating (Octolock, Flygon)."""
         return False
@@ -802,6 +808,14 @@ def retreat_blocked(board: BoardState, pokemon: PokemonEntity) -> bool:
     """Whether a passive forbids `pokemon` from retreating."""
     return any(
         passive.blocks_retreat(pokemon, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def attacking_blocked(board: BoardState, pokemon: PokemonEntity) -> bool:
+    """Whether a continuous passive stops this Pokemon attacking at all."""
+    return any(
+        passive.blocks_attacking(pokemon, carrier)
         for passive, carrier in active_passives(board)
     )
 

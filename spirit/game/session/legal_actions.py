@@ -33,6 +33,7 @@ from .constants import (
 )
 from .passives import (
     ability_locked,
+    attacking_blocked,
     out_of_play_ability_locked,
     can_attack_despite_conditions,
     can_evolve_early,
@@ -812,6 +813,9 @@ def _attack_entries(
     """Usable attacks of the Active Pokemon (energy requirement met)."""
     active = board.active_pokemon(player_id)
     if not active:
+        return []
+    # A passive can stop this Pokemon attacking at all (Disgusting Pollen).
+    if attacking_blocked(board, active):
         return []
     # A passive (Windup Arm) can exempt the whole Pokemon from the gate.
     if immobilized and can_attack_despite_conditions(board, active):
