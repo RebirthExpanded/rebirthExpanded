@@ -481,10 +481,27 @@ def condition_attack(*conditions, flip=False, self_conditions=(), counters=1):
 
 # --- Drizzile / Inteleon (SWSH1): Shady Dealings ----------------------------
 
-def shady_dealings(count):
-    """On evolve: search the deck for up to `count` Trainer card(s), reveal
-    them, and put them into hand. Then shuffle."""
+def shady_dealings(count, ask=True):
+    """On evolve: "you may search your deck for up to `count` Trainer
+    card(s)", reveal them, put them into hand, then shuffle.
+
+    The Yes/No is the printed "you may" and belongs here rather than on each
+    card -- Noctowl's Jewel Seeker asked it, Drizzile and Inteleon did not
+    and opened the deck browser whether the player wanted it or not. With an
+    empty deck there is nothing to find and nothing to shuffle, so the
+    Ability does not interrupt the evolution at all.
+
+    `ask=False` is for the cards that have already put their own question to
+    the player (Jewel Seeker gates on Tera Pokemon first).
+    """
     async def effect(ctx):
+        if not ctx.deck():
+            return
+        if ask and not await ctx.ask_yes_no(
+            f"Search your deck for up to {count} Trainer card"
+            f"{'s' if count > 1 else ''}?"
+        ):
+            return
         picks = await ctx.search_deck(
             is_trainer_card, count=count, minimum=0,
             prompt=f"Choose up to {count} Trainer card(s) to put into your hand.",

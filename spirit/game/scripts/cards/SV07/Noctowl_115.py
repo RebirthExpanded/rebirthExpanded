@@ -15,10 +15,8 @@ async def jewel_seeker(ctx):
     to 2 Trainer cards."""
     if not _has_tera_in_play(ctx.board, ctx.player_id):
         return
-    if not await ctx.ask_yes_no(
-        "Search your deck for up to 2 Trainer cards?"
-    ):
-        return
+    # The "you may" prompt now lives in shady_dealings, which Drizzile and
+    # Inteleon share; the Tera check is the only part that is Noctowl's own.
     await shady_dealings(2)(ctx)
 
 
