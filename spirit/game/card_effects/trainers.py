@@ -26,6 +26,7 @@ from spirit.game.session.effects import (
     is_water_pokemon,
 )
 from spirit.game.card_effects.pokemon import energy_provides_type
+from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.session.passives import (
     Passive,
     trainer_targeting_blocked,
@@ -1375,6 +1376,56 @@ def fossil_discard_ability() -> Ability:
         "At any time during your turn, you may discard this card from play.",
         activation=Activations.ONCE_PER_TURN,
         effect=fossil_discard,
+    )
+
+
+class DollBodyPassive(FossilBodyPassive):
+    """The doll rules text: this card can't retreat, and knocking it out is
+    worth no Prize at all (Robo Substitute, Lillie's Poke Doll).
+
+    The no-Prize half returns 0 rather than subtracting, because the card
+    says the opponent takes NO Prize card for it -- an effect that would
+    otherwise add one (Greed Crush, Sky Seal Stone) is adding to zero.
+    """
+
+    def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
+        return 0 if pokemon is carrier else count
+
+
+async def doll_to_bottom_of_deck(ctx):
+    """Lillie's Poke Doll: from the Active spot, shed everything attached and
+    go to the bottom of the deck; a new Active is promoted after."""
+    doll = ctx.source
+    if doll is None or not is_in_active_spot(doll):
+        return
+    attached = [c for c in full_stack(doll) if c is not doll]
+    if attached:
+        await ctx.discard_cards(attached)
+    if not await ctx.put_on_bottom_of_deck(doll):
+        return
+
+    async def _promote():
+        if not await ctx.session._promote_new_active(ctx.player_id):
+            screen_name = ctx.session.players[ctx.player_id].screen_name
+            await ctx.session.end_game(
+                ctx.opponent_id, f"{screen_name} has no Pokemon left"
+            )
+    ctx.deferred_actions.append(_promote)
+
+
+def doll_bottom_of_deck_ability() -> Ability:
+    """"if this Pokemon is your Active Pokemon, you may discard all cards
+    from it and put it on the bottom of your deck." Fresh instance per print:
+    ability_id derives from the owning card GUID."""
+    return Ability(
+        "Return to Deck",
+        "At any time during your turn (before your attack), if this Pokemon is "
+        "your Active Pokemon, you may discard all cards from it and put it on "
+        "the bottom of your deck.",
+        activation=Activations.ONCE_PER_TURN,
+        condition=lambda board, player_id, pokemon=None: (
+            pokemon is not None and board.active_pokemon(player_id) is pokemon),
+        effect=doll_to_bottom_of_deck,
     )
 
 
