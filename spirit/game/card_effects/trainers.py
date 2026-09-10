@@ -714,6 +714,30 @@ async def dream_ball_prize_window(ctx):
     await ctx.session._execute_play_trainer(pid, ctx.source)
 
 
+def discard_self_tool_at_end_of_turn(card_name: str):
+    """"At the end of your turn, discard this card." for a Pokemon Tool
+    (the Technical Machines). The Energy version lives in energies.py; this
+    one walks the holder's stack instead of its attached Energy.
+
+    The trigger fires on the HOLDER, so the effect has to find its own card
+    back among the attachments; matching on the printed name takes every
+    copy on that Pokemon and leaves other Tools alone.
+    """
+    async def effect(ctx):
+        holder = ctx.source
+        if holder is None:
+            return
+        to_discard = [
+            card for card in full_stack(holder)
+            if card is not holder and is_pokemon_tool(card)
+            and getattr(def_for(card.archetype_id), "display_name", None)
+            == card_name
+        ]
+        if to_discard:
+            await ctx.discard_cards(to_discard)
+    return effect
+
+
 # --- Greedy Dice (STS, Item) ----------------------------------------------
 
 def greedy_dice_playable(board, player_id):
