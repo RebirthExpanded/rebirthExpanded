@@ -184,8 +184,14 @@ class Passive:
         `board` lets stadium-gated hooks read global state (Thwackey)."""
         return cost
 
-    def blocks_attack_effects(self, target: PokemonEntity, carrier: BoardEntity) -> bool:
-        """True to shield `target` from opponents' attack EFFECTS (not damage)."""
+    def blocks_attack_effects(self, target: PokemonEntity, carrier: BoardEntity,
+                              source: Optional[PokemonEntity] = None) -> bool:
+        """True to shield `target` from opponents' attack EFFECTS (not damage).
+
+        `source` is the attacking Pokemon when the caller knows it, for the
+        shields that only answer to certain attackers (Alolan Persian-GX);
+        shields that do not care ignore it.
+        """
         return False
 
     def blocks_abilities(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
@@ -805,10 +811,16 @@ def effective_max_hp(board: BoardState, pokemon: PokemonEntity) -> int:
     return printed + bonus
 
 
-def attack_effects_blocked(board: BoardState, target: PokemonEntity) -> bool:
-    """Whether a passive shields `target` from opposing attack effects."""
+def attack_effects_blocked(board: BoardState, target: PokemonEntity,
+                           source: Optional[PokemonEntity] = None) -> bool:
+    """Whether a passive shields `target` from opposing attack effects.
+
+    `source` is the attacking Pokemon where the caller knows it; a shield
+    that reads the attacker (Alolan Persian-GX's Smug Face) needs it, and
+    the rest ignore it.
+    """
     return any(
-        passive.blocks_attack_effects(target, carrier)
+        passive.blocks_attack_effects(target, carrier, source)
         for passive, carrier in active_passives(board)
     )
 

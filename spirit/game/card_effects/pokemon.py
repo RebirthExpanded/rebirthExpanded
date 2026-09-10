@@ -117,7 +117,7 @@ async def primate_wisdom(ctx):
 class UnfazedFatPassive(Passive):
     """Prevent all effects of opposing attacks (damage is not an effect)."""
 
-    def blocks_attack_effects(self, target, carrier):
+    def blocks_attack_effects(self, target, carrier, source=None):
         return target is carrier
 
 

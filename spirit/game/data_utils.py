@@ -1085,6 +1085,7 @@ class EnergyCardDef(CardDefinition):
         attributes: Optional[dict] = None,
         regulation_mark: Optional[str] = None,
         foil: Optional[Foil] = None,
+        pip_wide: bool = False,
     ):
         super().__init__(
             guid, key, name, collector_number, set_code, rarity,
@@ -1093,6 +1094,12 @@ class EnergyCardDef(CardDefinition):
             foil=foil,
         )
         self.energy_type = energy_type
+        # The attachment pip is normally cropped tight around the card's
+        # emblem. Cards whose art prints the TYPES they provide around that
+        # emblem (Unit Energy, Blend Energy) set pip_wide so the crop opens
+        # out far enough to include them -- otherwise the pip is a plain
+        # star and says nothing about what the Energy is worth.
+        self.pip_wide = pip_wide
         self.attach_to = attach_to
         self.discard_if_invalid = discard_if_invalid
         self.attach_condition = attach_condition

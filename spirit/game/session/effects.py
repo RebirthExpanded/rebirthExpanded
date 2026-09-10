@@ -271,7 +271,7 @@ class EffectContext:
         if target.owning_player_id == self.player_id:
             return False
         if self.is_attack_effect():
-            return attack_effects_blocked(self.board, target)
+            return attack_effects_blocked(self.board, target, self.attacker)
         if self.is_ability_effect():
             return ability_effects_blocked(self.board, target)
         return False

@@ -17,6 +17,26 @@ ALL_TYPES_ONE_AT_A_TIME = [
 ]
 
 
+class MultiTypeEnergyPassive(Passive):
+    """"Provides <these types> but only 1 Energy at a time" while attached
+    (Unit Energy, Blend Energy). Off a Pokemon the printed Colorless stands,
+    which is what the hook leaves alone by only answering for its holder.
+    """
+
+    def __init__(self, *types: PokemonTypes):
+        self.types = [t.value for t in types]
+
+    def modify_energy_provided(self, options, energy, holder, board):
+        if holder is None or carrier_pokemon(energy) is not holder:
+            return options
+        return [[value] for value in self.types]
+
+
+def multi_type_energy_passive(*types: PokemonTypes) -> Passive:
+    """Unit / Blend Energy: a fixed short list of types, one at a time."""
+    return MultiTypeEnergyPassive(*types)
+
+
 def discard_self_at_end_of_turn(card_name: str):
     """"At the end of your turn, discard this card." -- for an Energy that
     burns itself off (Ignition, Triple Acceleration).

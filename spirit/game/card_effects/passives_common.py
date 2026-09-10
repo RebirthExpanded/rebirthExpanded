@@ -497,7 +497,7 @@ class AttackEffectShieldPassive(Passive):
         self.protects = _protects_pred(protects)
         self.pokemon_type = pokemon_type
 
-    def blocks_attack_effects(self, target, carrier):
+    def blocks_attack_effects(self, target, carrier, source=None):
         if not self.protects(target, carrier):
             return False
         if self.pokemon_type is None:
@@ -518,7 +518,7 @@ class FullEffectShieldPassive(Passive):
     """Prevent all effects of opposing attacks AND Abilities done to the
     carrier (damage is not an effect). Hide 'n' Sneak shape."""
 
-    def blocks_attack_effects(self, target, carrier):
+    def blocks_attack_effects(self, target, carrier, source=None):
         return carrier_pokemon(carrier) is target
 
     def blocks_ability_effects(self, target, carrier):
@@ -721,7 +721,7 @@ class TempShieldPassive(Passive):
         return bool(self.prevent and calc.is_attack and calc.is_opposing
                     and carrier_pokemon(carrier) is calc.target)
 
-    def blocks_attack_effects(self, target, carrier):
+    def blocks_attack_effects(self, target, carrier, source=None):
         return bool(self.effects_too and carrier_pokemon(carrier) is target)
 
 

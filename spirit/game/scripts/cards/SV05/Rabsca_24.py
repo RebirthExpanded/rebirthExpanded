@@ -17,7 +17,7 @@ class SphericalShieldPassive(Passive):
             and not is_in_active_spot(calc.target)
         )
 
-    def blocks_attack_effects(self, target, carrier):
+    def blocks_attack_effects(self, target, carrier, source=None):
         return (
             target.owning_player_id == carrier.owning_player_id
             and not is_in_active_spot(target)

@@ -25,7 +25,7 @@ class AcerolaShieldPassive(Passive):
             return False
         return calc.attacker is not None and is_pokemon_ex(calc.attacker.archetype_id)
 
-    def blocks_attack_effects(self, target, carrier):
+    def blocks_attack_effects(self, target, carrier, source=None):
         return carrier_pokemon(carrier) is target
 
 

@@ -239,6 +239,15 @@ def _detect_emblem_circles(img, limit=1):
     return [(rx0 + cx * inv, ry0 + cy * inv, r * inv) for cx, cy, r in picked]
 
 
+# For an Energy whose art rings the emblem with the types it provides
+# (pip_wide): how far the crop opens out, and the band it stays inside.
+# 2.0 around the ball reaches the symbols at the corners; the tighter window
+# keeps the ENERGY header off the top and, on the BW frames, the card name
+# off the bottom.
+WIDE_PIP_MARGIN = 2.0
+WIDE_PIP_WINDOW = (0.14, 0.60)
+
+
 def _energy_units(card_def) -> int:
     """The most Energy one copy can ever provide at once. Drives how many
     emblems the pip crop has to hold.
@@ -266,8 +275,11 @@ def _energy_units(card_def) -> int:
 
 
 def _generate_pip_png(png_path, set_code, asset_name, suffix, detect,
-                      art_window=(0.12, 0.68), out_dir=None, units=1):
+                      art_window=(0.12, 0.68), out_dir=None, units=1,
+                      wide=False):
     out_dir = out_dir or PIP_CACHE_DIR
+    if wide:
+        art_window = WIDE_PIP_WINDOW
     out_path = os.path.join(out_dir, f"{set_code}_{asset_name}_{suffix}.png")
     # Regenerate when the source art OR this module (the crop logic) changes.
     stale_after = max(os.path.getmtime(png_path), os.path.getmtime(__file__))
@@ -284,7 +296,11 @@ def _generate_pip_png(png_path, set_code, asset_name, suffix, detect,
         # pair for a two-unit Energy whose art prints two. A pair already
         # fills the frame, so it gets a thinner margin than a lone emblem;
         # 1.16 around two balls reaches the title bar and the name plate.
-        margin = 1.16 if len(circles) == 1 else 1.02
+        # Unit / Blend Energy print the types they provide AROUND the
+        # emblem, so their pip opens out until those symbols are in frame
+        # rather than hugging the ball.
+        margin = (WIDE_PIP_MARGIN if wide
+                  else (1.16 if len(circles) == 1 else 1.02))
         # A pair spans most of the art, so its square lands hard against the
         # window edges. Pull the bottom up for that case only: the name plate
         # sits just under 0.68h on the older frames (Double Dragon Energy) and
@@ -292,6 +308,8 @@ def _generate_pip_png(png_path, set_code, asset_name, suffix, detect,
         # they have always used.
         lo = art_top
         hi = art_bottom if len(circles) == 1 else int(h * 0.64)
+        if wide:
+            hi = art_bottom
         left_edge = min(cx - r for cx, _, r in circles)
         right_edge = max(cx + r for cx, _, r in circles)
         top_edge = max(min(cy - r for _, cy, r in circles), lo)
@@ -306,7 +324,8 @@ def _generate_pip_png(png_path, set_code, asset_name, suffix, detect,
     # window height the square is pinned to art_top and picks up the bottom
     # edge of the title bar.
     room = art_bottom - art_top
-    side = min(side, w, room if len(circles) <= 1 else int(room * 0.94))
+    side = min(side, w, room if (wide or len(circles) <= 1)
+               else int(room * 0.94))
     left = int(min(max(cx - side / 2, 0), w - side))
     top = int(min(max(cy - side / 2, art_top), art_bottom - side))
     img.crop((left, top, left + side, top + side)).save(out_path)
@@ -314,7 +333,7 @@ def _generate_pip_png(png_path, set_code, asset_name, suffix, detect,
 
 
 def generate_energy_pip_png(png_path, set_code, asset_name, out_dir=None,
-                            units=1):
+                            units=1, wide=False):
     """Square crop around the card's circular emblem for the attachment pip.
 
     The in-match pip requests bundle asset "{set}/{num}_energypip" for special
@@ -328,7 +347,8 @@ def generate_energy_pip_png(png_path, set_code, asset_name, out_dir=None,
     to tell them apart, since the pip count is the client's to decide.
     """
     return _generate_pip_png(png_path, set_code, asset_name, "energypip",
-                             detect=True, out_dir=out_dir, units=units)
+                             detect=True, out_dir=out_dir, units=units,
+                             wide=wide)
 
 
 def generate_tool_pip_png(png_path, set_code, asset_name, out_dir=None):
@@ -436,7 +456,8 @@ def check_and_generate_bundles() -> int:
                     if _is_special_energy(card_def) and os.path.exists(png_path):
                         pip_path = generate_energy_pip_png(
                             png_path, set_code, asset_name,
-                            units=_energy_units(card_def))
+                            units=_energy_units(card_def),
+                            wide=bool(getattr(card_def, "pip_wide", False)))
                         if pip_path:
                             card_assets[f"{asset_name}_energypip"] = pip_path
                     elif _is_pokemon_tool(card_def) and os.path.exists(png_path):

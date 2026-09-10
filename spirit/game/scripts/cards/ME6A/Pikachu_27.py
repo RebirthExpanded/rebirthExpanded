@@ -38,7 +38,7 @@ class HidePassive(Passive):
         return bool(calc.is_attack and calc.is_opposing
                     and calc.target is holder and _on_bench(holder))
 
-    def blocks_attack_effects(self, target, carrier):
+    def blocks_attack_effects(self, target, carrier, source=None):
         holder = carrier_pokemon(carrier)
         return target is holder and _on_bench(holder)
 

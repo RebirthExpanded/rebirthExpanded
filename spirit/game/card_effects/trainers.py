@@ -862,7 +862,7 @@ class BigParasolPassive(Passive):
     """While the holder is in the Active Spot, shields the owner's whole
     side from the opponent's attack EFFECTS (not damage)."""
 
-    def blocks_attack_effects(self, target, carrier):
+    def blocks_attack_effects(self, target, carrier, source=None):
         holder = carrier_pokemon(carrier)
         if holder is None or target.owning_player_id != holder.owning_player_id:
             return False
