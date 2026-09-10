@@ -2648,10 +2648,33 @@ class GameSession:
             picked = await self._prompt_prize_pick(player_id, prize_ids, count,
                                                    minimum=minimum)
         cards = [self.board_state.get_entity(i) for i in picked]
+        # Both prize-window triggers read "if you took it as a FACE-DOWN
+        # Prize card", so remember which ones were before move_card clears
+        # the flag on the way to hand.
+        was_face_down = {c.entity_id for c in cards
+                         if c is not None and not c.face_up}
+        # Prize-take provenance window (Dream Ball, Jirachi {*}), opened while
+        # the card is still a Prize -- both cards say "before you put it into
+        # your hand", and where it sits decides which ability lock applies:
+        # in hand Garbotoxin would silence it, among the Prizes nothing does.
+        # A Prize already turned face up (Town Map) was not taken face down,
+        # so it opens no window.
+        if destination == "hand":
+            for card in cards:
+                if card is not None and card.parent is prize_area                         and card.entity_id in was_face_down:
+                    await self._fire_triggered_abilities(
+                        player_id, card, Triggers.ON_TAKEN_AS_PRIZE)
         intros = []
         moves = []
+        relocated = 0
         for card in cards:
             if card is None:
+                continue
+            if card.parent is not prize_area:
+                # The window moved it somewhere else (Jirachi onto the Bench,
+                # Dream Ball onto the trainer slot). Its Prize slot is still
+                # vacated, so it counts as taken.
+                relocated += 1
                 continue
             position = len(hand_area.children)
             if not self.board_state.move_card(card.entity_id, hand_area.entity_id):
@@ -2660,17 +2683,19 @@ class GameSession:
             moves.append(self._entity_moved_msg(
                 card.entity_id, hand_area.entity_id, position
             ))
-        if not moves:
+        if not moves and not relocated:
             return []
-        taken = [c for c in cards if c is not None and c.parent is hand_area]
+        taken = [c for c in cards
+                 if c is not None and c.parent is not prize_area]
         gap_msg = self._refresh_prize_gaps(player_id, prize_area)
+        count_taken = len(moves) + relocated
         self.turn_state.prizes_taken[player_id] = (
-            self.turn_state.prizes_taken.get(player_id, 0) + len(moves)
+            self.turn_state.prizes_taken.get(player_id, 0) + count_taken
         )
-        self.stat_add(player_id, "prizecardstaken", len(moves))
+        self.stat_add(player_id, "prizecardstaken", count_taken)
         logging.info(
             f"[Session {self.game_id}] {player.screen_name} takes "
-            f"{len(moves)} Prize card(s)."
+            f"{count_taken} Prize card(s)."
         )
         # Prize faces are the taker's knowledge only; the opponent sees the
         # face-down cards fly to hand.
@@ -2680,12 +2705,6 @@ class GameSession:
                 GameSequence.WITH_OPEN_PRIZE_CARDS,
                 ((intros + moves) if pid == player_id else list(moves)) + [gap_msg],
             )
-        if destination == "hand":
-            # Prize-take provenance window (Dream Ball's ON_TAKEN_AS_PRIZE).
-            for card in cards:
-                if card is not None and card.parent is hand_area:
-                    await self._fire_triggered_abilities(
-                        player_id, card, Triggers.ON_TAKEN_AS_PRIZE)
         if destination != "hand":
             # Reroute the taken prizes: a plain GroupedMove after the reveal
             # flow, with intros to the opponent (public-pile arrival reveals).

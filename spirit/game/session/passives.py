@@ -556,15 +556,42 @@ def ability_locked(board: BoardState, pokemon: PokemonEntity) -> bool:
     return _locks_abilities_of(_collect_passives(board), pokemon)
 
 
+# The only out-of-play zones any lock names. Garbotoxin and the XY5 Silent
+# Lab both read "in play, in each player's hand, and in each player's discard
+# pile" -- neither reaches the Prize cards, the deck or the Lost Zone.
+LOCKABLE_OUT_OF_PLAY_AREAS = ("hand", "discard")
+
+
 def out_of_play_ability_locked(board: BoardState, card: BoardEntity) -> bool:
     """Whether a passive is disabling the Abilities of a card in a hand or a
     discard pile (Garbotoxin).
 
+    The zone check is the card text, not an optimisation: a Jirachi {*} sitting
+    in the Prize cards keeps its Ability under Garbotoxin because Garbotoxin
+    never mentions the Prizes.
+
     Evaluated on the UNFILTERED set for the same reason ability_locked is: a
     lock is never switched off by another lock.
     """
+    area = card._containing_area_name() if isinstance(card, CardEntity) else None
+    if area not in LOCKABLE_OUT_OF_PLAY_AREAS:
+        return False
     return any(p.blocks_out_of_play_abilities(card, c)
                for p, c, _ in _collect_passives(board))
+
+
+def abilities_disabled(board: BoardState, card: BoardEntity) -> bool:
+    """Whether `card`'s Abilities are switched off, wherever it is sitting.
+
+    In play, that is the ordinary lock (Path to the Peak). In a hand or a
+    discard pile it is the wider one (Garbotoxin). Anywhere else -- the Prize
+    cards, the deck, the Lost Zone -- no printed lock reaches it, so nothing
+    does.
+    """
+    area = card._containing_area_name() if isinstance(card, CardEntity) else None
+    if area in ("activePokemonArea", "bench"):
+        return ability_locked(board, card)
+    return out_of_play_ability_locked(board, card)
 
 
 def _suppressed_special_energy(

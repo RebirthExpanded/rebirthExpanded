@@ -42,6 +42,7 @@ from .constants import PROMPT_NO, PROMPT_YES
 from .passives import (
     TempPassive,
     ability_effects_blocked,
+    abilities_disabled,
     ability_locked,
     active_passives,
     active_to_bench_counters,
@@ -2496,7 +2497,10 @@ async def resolve_triggered_ability(
     """Runs a triggered ability (on-play/on-evolve/on-knocked-out/between-turns)
     with the full activation choreography; returns its ctx, or None when the
     ability didn't run (locked, or no scripted effect)."""
-    if ability_locked(session.board_state, pokemon) and not ability.is_granted:
+    # A triggered ability can fire from anywhere -- in play, from hand
+    # (Dream Ball), from the Prize cards (Jirachi {*}) -- so ask the lock
+    # question that belongs to the zone the card is actually in.
+    if abilities_disabled(session.board_state, pokemon) and not ability.is_granted:
         return None
     if ability.effect is None or ability.effect is unimplemented:
         if ability.effect is unimplemented:
