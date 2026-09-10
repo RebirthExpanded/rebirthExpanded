@@ -8,7 +8,7 @@ from spirit.game.data_utils import (
     Ability, Activations, Attack, def_for, has_rule_box, is_pokemon_v,
     subtypes_for,
 )
-from spirit.game.session.constants import BENCH_CAPACITY
+from spirit.game.session.constants import BENCH_CAPACITY, PROMPT_CHOOSE_A_PRIZE
 from spirit.game.session.effects import (
     full_stack,
     is_basic_pokemon,
@@ -1111,13 +1111,28 @@ async def trekking_shoes(ctx):
 # --- Hisuian Heavy Ball (ASR, Item) --------------------------------------
 
 async def hisuian_heavy_ball(ctx):
-    """Look at your Prize cards; you may reveal a Basic Pokemon there, put it
-    into your hand, and put this card in its place as a face-down Prize. Then
-    shuffle your face-down Prize cards. (No Basic revealed -> discard normally.)
+    """Look at your face-down Prize cards; you MAY reveal a Basic Pokemon
+    there, put it into your hand, and put this card in its place as a
+    face-down Prize. Then shuffle your face-down Prize cards. (No Basic
+    revealed -> discard normally.)
 
     The prize-fan node keeps the client's peek-your-prizes click handler
     suppressed; the reveal browser did not, which crashed on prize clicks."""
-    await ctx.look_at_prizes_take_basic()
+    await ctx.look_at_prizes_take(predicate=is_basic_pokemon)
+
+
+async def gladion(ctx):
+    """Look at your face-down Prize cards and put 1 of them into your hand.
+    Then shuffle this card into the remaining face-down Prizes.
+
+    Hisuian Heavy Ball with the two knobs turned: any Prize card rather than
+    only a Basic, and mandatory rather than "you may". The swap and shuffle
+    are identical, which is why both go through look_at_prizes_take.
+
+    "If you didn't play this Gladion from your hand, it does nothing" is the
+    anti-copy clause; a Supporter effect only ever runs from a hand play
+    here, so there is nothing to gate."""
+    await ctx.look_at_prizes_take(minimum=1, prompt=PROMPT_CHOOSE_A_PRIZE)
 
 
 # --- Peonia (CRE, Supporter) ----------------------------------------------

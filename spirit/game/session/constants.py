@@ -230,6 +230,8 @@ TEXT_MULLIGAN_REVEAL_PROMPT = "Hands revealed: {0}"
 PROMPT_TAKE_PRIZE = "Choose a Prize card to take"
 PROMPT_CHOOSE_NEW_ACTIVE = "Choose a Pokémon to be your new Active Pokémon"
 PROMPT_REVEAL_BASIC_FROM_PRIZE = "You may reveal a Basic Pokémon from your Prize cards."
+# The client ships this one; Gladion has no card-specific string of its own.
+PROMPT_CHOOSE_A_PRIZE = "playmat.prompt.selectaprizecard"
 
 # Bench-shrink ruling (Collapsed Stadium): the owner picks the excess to discard.
 PROMPT_DISCARD_BENCH = "Choose a Benched Pokémon to discard"

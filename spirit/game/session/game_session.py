@@ -2806,16 +2806,22 @@ class GameSession:
     async def prompt_prize_reveal_pick(
         self, player_id: str, source_id: str,
         prize_ids: List[str], selectable_ids: List[str],
+        minimum: int = 0, prompt: Optional[str] = None,
     ) -> Optional[str]:
         """"Look at your Prize cards": reveals every Prize face-up to the picker,
-        then offers the standard prize fan restricted to `selectable_ids` (up to
-        1, may decline). Returns the picked entityID or None.
+        then offers the standard prize fan restricted to `selectable_ids` (1 of
+        them). Returns the picked entityID or None.
+
+        minimum=0 lets the player decline (Hisuian Heavy Ball's "you may");
+        minimum=1 forces the pick (Gladion's "put 1 of them into your hand")
+        and the fan cannot be dismissed empty.
 
         The prize node (PrizeCardTargetInformation) satisfies the client's
         IsInPrizeSelectionNode() so the peek-your-prizes click handler stays
         suppressed -- the reveal browser does NOT, which is why it crashed."""
         player = self.players[player_id]
         prize_area = self.board_state.find_player_area(player_id, "prizePile")
+        prompt_id = prompt or PROMPT_REVEAL_BASIC_FROM_PRIZE
         if isinstance(player, AIPlayer):
             return selectable_ids[0] if selectable_ids else None
         # Reveal every Prize face-up to the picker only (the fan renders faces
@@ -2827,11 +2833,11 @@ class GameSession:
         info = {
             "name": SelectionKind.PRIZE_CARD.value,
             "selected": True,
-            "targetPrompt": {"id": PROMPT_REVEAL_BASIC_FROM_PRIZE},
+            "targetPrompt": {"id": prompt_id},
             "validTargets": selectable_ids,
             "numberToSelect": 1,
-            "minimumToSelect": 0,
-            "forced": False,
+            "minimumToSelect": minimum,
+            "forced": bool(minimum),
             "presentPrizesAllowed": True,
             "horizontalLayout": False,
         }
@@ -2840,10 +2846,10 @@ class GameSession:
             offer = {
                 "gameID": self.game_id,
                 "counter": counter,
-                "prompt": {"id": PROMPT_REVEAL_BASIC_FROM_PRIZE},
+                "prompt": {"id": prompt_id},
                 "offerLength": 60000,
                 "startingTimestamp": int(time.time() * 1000),
-                "forced": False,
+                "forced": bool(minimum),
                 "targetType": SelectionKind.PRIZE_CARD.value,
                 "ignoreFirst": True,
                 "selectionParams": {},

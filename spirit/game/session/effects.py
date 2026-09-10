@@ -1557,12 +1557,18 @@ class EffectContext:
                         owner, card, Triggers.ON_DISCARDED_FROM_HAND)
                 self.deferred_actions.append(_fire_hand_discard)
 
-    async def look_at_prizes_take_basic(self) -> bool:
-        """Hisuian Heavy Ball: look at your face-down Prizes; you may reveal a
-        Basic Pokemon to your hand and put the source card in its place as a
-        face-down Prize. Always shuffles the Prizes (re-hiding them).
+    async def look_at_prizes_take(self, predicate=None, minimum: int = 0,
+                                  prompt: Optional[str] = None) -> bool:
+        """"Look at your face-down Prize cards and take one" -- Hisuian Heavy
+        Ball and Gladion. The taken card goes to hand and the SOURCE card
+        drops into the slot it vacated, face down; the face-down Prizes are
+        then shuffled either way.
 
-        Returns True when a Basic was taken (the source now sits in the Prize
+        predicate narrows what may be taken (Heavy Ball: a Basic; Gladion:
+        anything). minimum=1 makes the pick mandatory, which is Gladion's
+        "put 1 of them into your hand" against Heavy Ball's "you may".
+
+        Returns True when a card was taken (the source now sits in the Prize
         pile, so the caller must NOT discard it); False when declined.
 
         Sends immediately (not via the deferred bracket runs) so the reveal,
@@ -1572,16 +1578,17 @@ class EffectContext:
         prize_area = self.board.find_player_area(self.player_id, "prizePile")
         if not prize_area or not prize_area.children:
             return False
-        # Every clause of this card says "face-down Prize cards", so a Prize
+        # Both cards say "face-down Prize cards" throughout, so a Prize
         # already turned face up (Town Map) is not looked at, not takeable,
         # not a slot the source can drop into, and not shuffled.
         prizes = [c for c in prize_area.children if not c.face_up]
         if not prizes:
             return False
-        basics = [c for c in prizes if is_basic_pokemon(c)]
+        takeable = [c for c in prizes if predicate is None or predicate(c)]
         picked_id = await session.prompt_prize_reveal_pick(
             self.player_id, self.source.entity_id,
-            [c.entity_id for c in prizes], [c.entity_id for c in basics],
+            [c.entity_id for c in prizes], [c.entity_id for c in takeable],
+            minimum=minimum, prompt=prompt,
         )
         picked = self.board.get_entity(picked_id) if picked_id else None
         opponent = self.opponent_id
