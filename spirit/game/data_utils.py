@@ -315,6 +315,31 @@ def searches_deck(definition: Optional["CardDefinition"]) -> bool:
     return cached
 
 
+# Pokemon Tools were Item cards through Sword & Shield -- Float Stone's own
+# type line reads Item and carries the Item reminder text -- and stopped being
+# Items in Scarlet & Violet, whose Tools are headed "Pokemon Tool" and whose
+# cards that mean both say so ("Item cards or Pokemon Tool cards", Jellicent
+# ex). Regulation mark G is the cut, and the marks this pool records line up
+# with it exactly: every pre-SV Tool here carries no mark at all.
+_TOOL_TYPES = (TrainerType.POKEMON_TOOL.value, TrainerType.POKEMON_TOOL_F.value)
+_FIRST_NON_ITEM_TOOL_MARK = "G"
+
+
+def counts_as_item(archetype_id: Optional[str]) -> bool:
+    """Whether this printing is an Item card -- the question an Item lock
+    ("can't play any Item cards") actually asks."""
+    definition = def_for(archetype_id)
+    if definition is None:
+        return False
+    trainer_type = _attr_value(definition, AttrID.TRAINER_TYPE)
+    if trainer_type == TrainerType.ITEM.value:
+        return True
+    if trainer_type not in _TOOL_TYPES:
+        return False
+    mark = (getattr(definition, "regulation_mark", None) or "").strip().upper()
+    return not mark or mark < _FIRST_NON_ITEM_TOOL_MARK
+
+
 def subtypes_for(archetype_id: Optional[str]) -> List[str]:
     definition = def_for(archetype_id)
     return definition.subtypes if definition else []
