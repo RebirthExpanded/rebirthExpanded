@@ -166,6 +166,10 @@ class EffectContext:
         # ON_POKEMON_BENCHED trigger inputs (set via ctx_setup).
         self.benching_player_id: Optional[str] = None
         self.benched_pokemon: Optional[PokemonEntity] = None
+        # False when an effect put the Pokemon there rather than the player
+        # playing it from hand: Gapejaw Bog reads only from-hand plays,
+        # Risky Ruins reads every benching during that player's turn.
+        self.benched_from_hand: bool = True
 
     # ------------------------------------------------------------------
     # Game state accessors
@@ -1854,6 +1858,12 @@ class EffectContext:
         self.session.turn_state.mark_entered_play(card.entity_id)
         # Entering play from any zone is public knowledge.
         self._queue_intro_and_move(card, bench.entity_id, position)
+        # Stadiums that watch the Bench fill (Risky Ruins) see this too, after
+        # the arrival choreography flushes; from_hand=False keeps Gapejaw Bog,
+        # whose text says "from their hand", out of it.
+        self.deferred_actions.append(
+            lambda p=card, o=owner: self.session.fire_pokemon_benched_triggers(
+                o, p, from_hand=False))
         return True
 
     async def evolve_pokemon(self, target: PokemonEntity,

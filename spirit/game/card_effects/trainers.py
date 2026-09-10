@@ -955,7 +955,9 @@ class CollapsedStadiumPassive(Passive):
 async def gapejaw_bog_watch(ctx):
     """Gapejaw Bog: 2 damage counters on any Basic just benched from hand."""
     pokemon = ctx.benched_pokemon
-    if pokemon is None:
+    # "from their hand" -- an effect putting a Basic onto the Bench (Nest
+    # Ball) is not a hand play, and the same trigger now carries both.
+    if pokemon is None or not getattr(ctx, "benched_from_hand", True):
         return
     await ctx.deal_damage(20, target=pokemon, apply_modifiers=False,
                           as_counters=True)

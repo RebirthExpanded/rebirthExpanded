@@ -1,18 +1,48 @@
+"""Risky Ruins (Mega Evolution 127/132 -- JP M1L 063/063).
+
+Stadium.
+
+  "Whenever any player puts a Basic non-Darkness Pokemon onto their Bench
+   during their turn, place 2 damage counters on that Pokemon."
+
+Already in the pool; what changed is when it fires.
+
+Gapejaw Bog says "from their hand", so it watches the bench PLAY. This one
+says only "puts onto their Bench during their turn", which is every route
+-- a hand play, a Nest Ball out of the deck, Ordinary Rod's partner back
+out of the discard. ON_POKEMON_BENCHED used to fire on the hand play
+alone, so the deck routes walked past this Stadium untouched. It now fires
+on the effect-driven path too and carries ctx.benched_from_hand to tell
+the two apart, which leaves Gapejaw Bog a hand-play watcher.
+
+"During their turn" is the other half: an effect that benches a Pokemon
+during the OPPONENT's turn is not covered, so this bites only when the
+benching player is the turn player.
+
+And "Basic": an evolution card put onto the Bench by an effect (Miltank's
+partner, Rare Candy's target never leaves it) is not a Basic and takes
+nothing. Darkness Pokemon walk in free, which is the printed exception.
+"""
+
+from spirit.game.attributes import Rarities
+from spirit.game.card_effects.trainers import is_darkness_pokemon
 from spirit.game.data_utils import StadiumCardDef, Ability, Triggers
-from spirit.game.attributes import AttrID, PokemonTypes, Rarities
+from spirit.game.session.effects import is_basic_pokemon
+
+COUNTERS = 2
 
 
 async def risky_ruins_watch(ctx):
-    """Whenever any player puts a Basic non-Darkness Pokémon onto their Bench
-    during their turn, place 2 damage counters on that Pokémon."""
+    """2 damage counters on a Basic non-Darkness Pokémon just benched."""
     pokemon = ctx.benched_pokemon
-    if pokemon is None:
+    if pokemon is None or not is_basic_pokemon(pokemon):
         return
-    types = pokemon.get_attribute(AttrID.POKEMON_TYPES) or []
-    if PokemonTypes.DARKNESS.value in types:
+    if is_darkness_pokemon(pokemon):
         return
-    await ctx.deal_damage(20, target=pokemon, apply_modifiers=False,
-                          as_counters=True)
+    if ctx.benching_player_id != ctx.session.turn_state.active_player_id:
+        return
+    await ctx.deal_damage(COUNTERS * 10, target=pokemon,
+                          apply_modifiers=False, as_counters=True)
 
 
 card = StadiumCardDef(
@@ -20,7 +50,7 @@ card = StadiumCardDef(
     key="ME1",
     name="com.direwolfdigital.cake.data.archetypes.trainer.RiskyRuins.Name",
     display_name="Risky Ruins",
-    searchable_by=["Risky Ruins","Stadium","RiskyRuins"],
+    searchable_by=["Risky Ruins", "Stadium", "RiskyRuins"],
     subtypes=["Stadium"],
     collector_number=127,
     set_code="ME1",

@@ -717,6 +717,19 @@ def requires_damaged_active_with_energy(n=3):
     return check
 
 
+def prizes_remaining(board, player_id) -> int:
+    """Prize cards still face down in front of `player_id`."""
+    area = board.find_player_area(player_id, "prizePile")
+    return len(area.children) if area else 0
+
+
+def opponent_on_last_prize(board, player_id, pokemon=None):
+    """"only if your opponent has exactly 1 Prize card remaining"
+    (Technical Machine: Crisis Punch)."""
+    opponent = _opponent_of(board, player_id)
+    return opponent is not None and prizes_remaining(board, opponent) == 1
+
+
 def more_prizes_remaining_than_opponent(board, player_id, pokemon=None):
     """True when this player has more Prize cards remaining than the opponent."""
     opponent = _opponent_of(board, player_id)

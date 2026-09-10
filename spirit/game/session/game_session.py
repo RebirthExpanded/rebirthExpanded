@@ -4070,12 +4070,16 @@ class GameSession:
             await self._fire_triggered_abilities(
                 acting_player_id, stadium, trigger, ctx_setup=ctx_setup)
 
-    async def fire_pokemon_benched_triggers(self, benching_player_id: str, pokemon):
-        """ON_POKEMON_BENCHED for a manual from-hand bench play only (Gapejaw
-        Bog does not observe effect-driven benching from the deck)."""
+    async def fire_pokemon_benched_triggers(self, benching_player_id: str,
+                                            pokemon, from_hand: bool = True):
+        """ON_POKEMON_BENCHED: a manual from-hand bench play, or (from_hand
+        False) an effect putting a Pokemon onto the Bench. The watcher decides
+        which it cares about -- Gapejaw Bog only the from-hand play, Risky
+        Ruins every benching during that player's turn."""
         def _setup(c):
             c.benching_player_id = benching_player_id
             c.benched_pokemon = pokemon
+            c.benched_from_hand = from_hand
         await self._fire_stadium_triggers(
             benching_player_id, Triggers.ON_POKEMON_BENCHED, _setup)
 
