@@ -1023,6 +1023,32 @@ async def yoga_loop(ctx):
         ctx.take_extra_turn()
 
 
+# --- "look at the top 2, keep 1" (Recon Directive / Air Mail) -------------
+
+async def look_at_top_2_keep_1(ctx):
+    """"Look at the top 2 cards of your deck and put 1 of them into your
+    hand. Put the other card on the bottom of your deck."
+
+    The same Ability under two names: Drakloak's Recon Directive and
+    Pidgeotto's Air Mail. Nothing is revealed -- neither card says to.
+    """
+    top = ctx.deck_top(2)
+    if not top:
+        return
+    picks = await ctx.choose_cards(
+        top, 1,
+        prompt="Choose 1 of the top 2 cards to put into your hand.",
+        display_cards=top,
+    )
+    if not picks:
+        return
+    chosen = picks[0]
+    await ctx.put_in_hand([chosen], reveal=False)
+    remaining = [c for c in top if c is not chosen]
+    if remaining:
+        await ctx.put_on_bottom_of_deck(remaining[0])
+
+
 # --- "may attack twice" (Jumpluff's Fluffy Barrage, Bunnelby's O Barrage) --
 
 class AttackTwicePassive(Passive):
