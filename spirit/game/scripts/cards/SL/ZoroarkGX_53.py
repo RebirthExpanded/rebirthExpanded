@@ -23,7 +23,9 @@ re-entry guard (a copied Trickster-GX fizzles rather than looping) and the
 GX-once-per-game check that the copied attack would otherwise dodge. Its
 own Energy cost is what was paid; the copied attack's is not required.
 
-The pool's first Shining Legends card, so SM35 is registered here.
+The pool's first Shining Legends card. The set was already in
+sets.json as "SL" (externalId SLG), so nothing is registered here -- it
+only joins the Expanded set list.
 """
 
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
@@ -63,14 +65,14 @@ async def trickster_gx(ctx):
 
 
 card = PokemonCardDef(
-    guid="48c9db7c-898d-5d4e-aad5-2aa81a0fb4fc",
-    key="SM35",
+    guid="2c0d6d29-a3cc-59a1-9175-723968ca6223",
+    key="SL",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.ZoroarkGX.Name",
     display_name="Zoroark-GX",
     searchable_by=["Zoroark-GX", "Stage 1", "GX", "ZoroarkGX"],
     subtypes=["Stage 1", "GX"],
     collector_number=53,
-    set_code="SM35",
+    set_code="SL",
     rarity=Rarities.RareHoloGX,
     hp=210,
     elements=[PokemonTypes.DARKNESS],

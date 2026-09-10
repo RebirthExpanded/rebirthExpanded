@@ -800,6 +800,41 @@ async def test_on_energy_attached():
         ABILITIES_BY_ID.pop(a2, None)
 
 
+async def test_set_registry_is_unique():
+    """sets.json keys the client's own dictionaries; a duplicate crashes it.
+
+    The client builds a Dictionary over the set list it is sent
+    (SetDataList) keyed by externalId, so two entries sharing one -- as
+    happened when Shining Legends was registered a second time as "SM35"
+    beside the "SL" it already had -- throws
+    "An item with the same key has already been added" at login, before any
+    game starts. Name and sort number are checked with it: both are looked
+    up the same way, and a set that is registered twice is a data bug
+    whichever field collides.
+    """
+    import json
+    import os
+    from collections import Counter
+
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "database", "json_data", "sets.json")
+    with open(path, encoding="utf-8") as handle:
+        sets = json.load(handle)
+    for field in ("name", "externalId", "number"):
+        counts = Counter(entry[field] for entry in sets)
+        duplicates = sorted(k for k, n in counts.items() if n > 1)
+        assert not duplicates,             f"sets.json has duplicate {field}: {duplicates}"
+
+    # Every set a format lists has to exist, or the format silently drops it.
+    formats_path = os.path.join(os.path.dirname(path), "formats.json")
+    with open(formats_path, encoding="utf-8") as handle:
+        formats = json.load(handle)["formats"]
+    known = {entry["name"] for entry in sets}
+    for fmt in formats:
+        unknown = sorted(set(fmt.get("sets") or []) - known)
+        assert not unknown,             f"format {fmt['key']} lists sets missing from sets.json: {unknown}"
+
+
 async def test_play_locks():
     rig, e = new_rig()
     board, ts = rig.board, rig.session.turn_state  # turn 3
@@ -2237,6 +2272,7 @@ TESTS = [
     test_ability_usable_the_turn_you_evolve,
     test_on_energy_attached,
     test_play_locks,
+    test_set_registry_is_unique,
     test_usable_from_offers,
     test_prize_hooks,
     test_move_damage_counters,

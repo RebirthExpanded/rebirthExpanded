@@ -664,20 +664,6 @@
     "promo": false
   },
   {
-    "name": "SM35",
-    "externalId": "SLG",
-    "number": 790,
-    "count": 1,
-    "filter": true,
-    "block": "SM",
-    "legalFormats": [
-      "98c83df9-ec82-4193-84a8-104115ce4e25"
-    ],
-    "featuredArchetypes": [],
-    "visibleUnfilterable": false,
-    "promo": false
-  },
-  {
     "name": "Promo_SV",
     "externalId": "SVP",
     "number": 1110,
