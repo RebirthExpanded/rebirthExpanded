@@ -1,4 +1,5 @@
 from spirit.game.data_utils import SupporterCardDef
+from spirit.game.card_effects.support_common import requires_deck
 from spirit.game.attributes import Rarities
 
 
@@ -23,5 +24,7 @@ card = SupporterCardDef(
     collector_number=146,
     set_code="SWSH4",
     rarity=Rarities.Uncommon,
-    effect=allister
+    effect=allister,
+    # Draw nothing and the clause after it never happens either.
+    condition=requires_deck(),
 )

@@ -1,4 +1,5 @@
 from spirit.game.card_effects.trainers import gardenias_vigor
+from spirit.game.card_effects.support_common import requires_deck
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import Rarities
 
@@ -12,5 +13,7 @@ card = SupporterCardDef(
     collector_number=143,
     set_code="SWSH10",
     rarity=Rarities.Uncommon,
-    effect=gardenias_vigor
+    effect=gardenias_vigor,
+    # Draw nothing and the clause after it never happens either.
+    condition=requires_deck(),
 )

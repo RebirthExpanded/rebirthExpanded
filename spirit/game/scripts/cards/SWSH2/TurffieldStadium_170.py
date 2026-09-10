@@ -1,6 +1,7 @@
 from spirit.game.data_utils import StadiumCardDef, Ability, Activations
 from spirit.game.attributes import Rarities, PokemonTypes, AttrID
 from spirit.game.session.effects import is_evolution_pokemon
+from spirit.game.card_effects.support_common import requires_deck
 
 
 def _is_evolution_grass(card):
@@ -23,6 +24,8 @@ TURFFIELD_STADIUM_ABILITY = Ability(
     title="Turffield Stadium",
     game_text="Once during each player's turn, that player may search their deck for an Evolution Grass Pokémon, reveal it, and put it into their hand. Then, that player shuffles their deck.",
     activation=Activations.ONCE_PER_TURN,
+    # Nothing to search, so the "Then" shuffle never happens either.
+    condition=requires_deck(),
     effect=turffield_stadium,
 )
 

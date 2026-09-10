@@ -1,6 +1,21 @@
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import AttrID, Rarities
 from spirit.game.session.effects import is_evolution_pokemon
+from spirit.game.session.passives import effective_max_hp
+
+
+def _cheryl_playable(board, player_id, card=None):
+    """A damaged Evolution Pokemon of yours.
+
+    "Heal all damage from each of your Evolution Pokemon. IF YOU DO, discard
+    all Energy from the Pokemon that were healed in this way." With nothing
+    to heal the discard never happens either, so the card does nothing.
+    """
+    return any(
+        is_evolution_pokemon(p)
+        and p.get_attribute(AttrID.HP, 0) < effective_max_hp(board, p)
+        for p in board.pokemon_in_play(player_id)
+    )
 
 
 async def cheryl(ctx):
@@ -29,4 +44,5 @@ card = SupporterCardDef(
     set_code="SWSH5",
     rarity=Rarities.Uncommon,
     effect=cheryl,
+    condition=_cheryl_playable,
 )

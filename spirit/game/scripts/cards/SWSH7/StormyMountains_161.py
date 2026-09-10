@@ -1,6 +1,8 @@
 from spirit.game.data_utils import StadiumCardDef, Ability, Activations
 from spirit.game.attributes import Rarities, PokemonTypes, AttrID
-from spirit.game.card_effects.support_common import search_to_bench, requires_bench_space
+from spirit.game.card_effects.support_common import (search_to_bench,
+                                                     requires_bench_space,
+                                                     requires_deck)
 from spirit.game.session.effects import is_basic_pokemon
 
 
@@ -11,6 +13,16 @@ def _is_basic_lightning_or_dragon(card):
     return PokemonTypes.LIGHTNING.value in types or PokemonTypes.DRAGON.value in types
 
 
+def _stormy_mountains_usable(board, player_id, pokemon=None):
+    """Room on the Bench and a deck to search.
+
+    Both halves are needed: with no deck nothing is found, and the "Then"
+    shuffle never happens either.
+    """
+    return (requires_deck()(board, player_id)
+            and requires_bench_space(1)(board, player_id))
+
+
 STORMY_MOUNTAINS_ABILITY = Ability(
     title="Stormy Mountains",
     game_text="Once during each player's turn, that player may search their deck for a Basic Lightning Pokémon or Basic Dragon Pokémon and put it onto their Bench. Then, that player shuffles their deck.",
@@ -19,7 +31,7 @@ STORMY_MOUNTAINS_ABILITY = Ability(
         predicate=_is_basic_lightning_or_dragon,
         prompt="Choose a Basic Lightning or Dragon Pokémon to put onto your Bench.",
     ),
-    condition=requires_bench_space(1),
+    condition=_stormy_mountains_usable,
 )
 
 card = StadiumCardDef(

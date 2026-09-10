@@ -2,6 +2,19 @@ from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import Rarities
 
 
+def _caitlin_playable(board, player_id, card=None):
+    """A card in hand besides this Caitlin.
+
+    "Put any number of cards from your hand on the bottom of your deck in
+    any order. THEN, draw that many cards." Cards go under the deck without
+    a shuffle, so with an empty hand there is nothing to put, nothing to
+    draw, and nothing at all -- unlike Bruno or Kabu, which shuffle the deck
+    on the way and so keep their "Then" alive.
+    """
+    hand = board.find_player_area(player_id, "hand")
+    return any(c is not card for c in (hand.children if hand else []))
+
+
 async def caitlin(ctx):
     """Put any number of hand cards on the bottom of the deck in any order,
     then draw that many cards."""
@@ -29,5 +42,6 @@ card = SupporterCardDef(
     collector_number=132,
     set_code="SWSH6",
     rarity=Rarities.Uncommon,
-    effect=caitlin
+    effect=caitlin,
+    condition=_caitlin_playable,
 )

@@ -1,4 +1,5 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations, def_for
+from spirit.game.card_effects.support_common import requires_deck
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, AttrID
 from spirit.game.session.effects import is_pokemon_card
 
@@ -85,6 +86,9 @@ card = PokemonCardDef(
             game_text="During your turn, you may discard the top 7 cards of your deck. Then, put up to 2 cards from your discard pile into your hand. (You can't use more than 1 VSTAR Power in a game.)",
             activation=Activations.ONCE_PER_TURN,
             vstar=True,
+            # Discard nothing off an empty deck and the "Then" recovery never
+            # happens -- and a VSTAR Power spent on nothing is gone for good.
+            condition=requires_deck(),
             effect=legacy_star,
         ),
         Attack(
