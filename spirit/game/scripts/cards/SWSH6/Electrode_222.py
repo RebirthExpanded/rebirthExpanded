@@ -47,7 +47,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Voltorb.Name",
-    family_id=101,
+    family_id=100,
     abilities=[
         Ability(
             title="Buzzap Generator",

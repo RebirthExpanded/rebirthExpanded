@@ -18,7 +18,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.GRASS,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Sandile.Name",
-    family_id=552,
+    family_id=551,
     abilities=[
         Attack(
             title="Bite",

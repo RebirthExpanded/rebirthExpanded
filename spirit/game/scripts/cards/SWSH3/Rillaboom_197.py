@@ -19,7 +19,7 @@ card = PokemonCardDef(
     retreat_cost=3,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Thwackey.Name",
-    family_id=812,
+    family_id=810,
     abilities=[
         Ability(
             title="Voltage Beat",

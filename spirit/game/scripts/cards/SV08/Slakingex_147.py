@@ -64,7 +64,7 @@ card = PokemonCardDef(
     retreat_cost=4,
     weakness_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Vigoroth.Name",
-    family_id=289,
+    family_id=287,
     abilities=[
         Ability(
             title="Born to Slack",

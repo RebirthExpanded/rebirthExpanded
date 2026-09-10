@@ -14,6 +14,6 @@ card = PokemonCardDef(
     stage=PokemonStage.STAGE1,
     retreat_cost=1,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Patrat.Name",
-    family_id=505 # Patrat/Watchog family ID
+    family_id=504 # Patrat/Watchog family ID
 )
 

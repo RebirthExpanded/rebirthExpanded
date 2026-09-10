@@ -27,7 +27,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.PSYCHIC,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.GalarianFarfetchd.Name",
-    family_id=865,
+    family_id=83,
     abilities=[
         Attack(
             title="Pierce",

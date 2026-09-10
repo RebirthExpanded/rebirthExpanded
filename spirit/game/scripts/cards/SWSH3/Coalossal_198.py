@@ -56,7 +56,7 @@ card = PokemonCardDef(
     retreat_cost=4,
     weakness_type=PokemonTypes.GRASS,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Carkol.Name",
-    family_id=839,
+    family_id=837,
     abilities=[
         Ability(
             title="Tar Generator",

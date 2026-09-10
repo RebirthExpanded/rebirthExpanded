@@ -45,7 +45,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.METAL,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Snom.Name",
-    family_id=873,
+    family_id=872,
     abilities=[
         Ability(
             title="Ice Dance",

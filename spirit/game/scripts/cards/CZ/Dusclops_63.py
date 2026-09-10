@@ -19,7 +19,7 @@ card = PokemonCardDef(
     weakness_type=PokemonTypes.DARKNESS,
     resistance_type=PokemonTypes.FIGHTING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Duskull.Name",
-    family_id=356,
+    family_id=355,
     abilities=[
         Attack(
             title="Fade to Black",

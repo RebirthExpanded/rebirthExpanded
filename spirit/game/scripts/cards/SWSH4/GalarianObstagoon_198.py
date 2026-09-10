@@ -43,7 +43,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.GRASS,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.GalarianLinoone.Name",
-    family_id=862,
+    family_id=263,
     abilities=[
         Ability(
             title="Untamed Shout",

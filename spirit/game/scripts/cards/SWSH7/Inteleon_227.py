@@ -30,7 +30,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.LIGHTNING,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Drizzile.Name",
-    family_id=818,
+    family_id=816,
     abilities=[
         Ability(
             title="Quick Shooting",
