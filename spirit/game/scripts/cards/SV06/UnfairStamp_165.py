@@ -1,4 +1,5 @@
 from spirit.game.data_utils import ItemCardDef
+from spirit.game.card_effects.support_common import all_of, requires_any_deck
 from spirit.game.attributes import Rarities
 from spirit.game.card_effects.support_common import shuffle_hand_into_deck_draw
 
@@ -18,7 +19,8 @@ card = ItemCardDef(
     set_code="SV06",
     regulation_mark="H",
     rarity=Rarities.Ace,
-    condition=_unfair_stamp_condition,
+    # Neither player able to shuffle means nothing after it happens.
+    condition=all_of(_unfair_stamp_condition, requires_any_deck()),
     effect=shuffle_hand_into_deck_draw(5, opponent_n=2),
 )
 

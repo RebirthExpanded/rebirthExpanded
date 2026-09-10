@@ -1,4 +1,5 @@
 from spirit.game.data_utils import SupporterCardDef
+from spirit.game.card_effects.support_common import requires_deck
 from spirit.game.attributes import Rarities
 
 
@@ -20,4 +21,6 @@ card = SupporterCardDef(
     set_code="SWSH5",
     rarity=Rarities.RareRainbow,
     effect=bruno,
+    # No deck to shuffle into, so the shuffle -- and the draw after it -- cannot happen.
+    condition=requires_deck(),
 )

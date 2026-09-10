@@ -1,4 +1,5 @@
 from spirit.game.data_utils import SupporterCardDef
+from spirit.game.card_effects.support_common import requires_deck
 from spirit.game.attributes import Rarities
 from spirit.game.card_effects.support_common import shuffle_hand_into_deck_draw
 
@@ -12,5 +13,7 @@ card = SupporterCardDef(
     collector_number=278,
     set_code="SWSH8",
     rarity=Rarities.RareRainbow,
-    effect=shuffle_hand_into_deck_draw(5)
+    effect=shuffle_hand_into_deck_draw(5),
+    # No deck to shuffle into, so the shuffle -- and the draw after it -- cannot happen.
+    condition=requires_deck(),
 )

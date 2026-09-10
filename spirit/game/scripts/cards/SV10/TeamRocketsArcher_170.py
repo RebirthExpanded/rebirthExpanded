@@ -1,4 +1,5 @@
 from spirit.game.data_utils import SupporterCardDef, def_for
+from spirit.game.card_effects.support_common import all_of, requires_any_deck
 from spirit.game.attributes import Rarities
 
 
@@ -31,6 +32,7 @@ card = SupporterCardDef(
     set_code="SV10",
     regulation_mark="I",
     rarity=Rarities.Uncommon,
-    condition=archer_condition,
+    # Neither player able to shuffle means nothing after it happens.
+    condition=all_of(archer_condition, requires_any_deck()),
     effect=team_rockets_archer,
 )

@@ -1,4 +1,5 @@
 from spirit.game.data_utils import SupporterCardDef
+from spirit.game.card_effects.support_common import requires_deck
 from spirit.game.attributes import Rarities
 from spirit.game.card_effects.attacks_common import count_prizes_remaining
 
@@ -22,5 +23,7 @@ card = SupporterCardDef(
     set_code="ME1",
     regulation_mark="I",
     rarity=Rarities.Uncommon,
-    effect=lillies_determination
+    effect=lillies_determination,
+    # No deck to shuffle into, so the shuffle -- and the draw after it -- cannot happen.
+    condition=requires_deck(),
 )

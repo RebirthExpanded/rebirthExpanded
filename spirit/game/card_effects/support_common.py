@@ -613,6 +613,34 @@ def requires_deck(n=1):
     return check
 
 
+def requires_any_deck(n=1):
+    """At least `n` cards in SOMEBODY's deck.
+
+    "Each player shuffles their hand into their deck. Then, ..." runs a half
+    per player, so one player still able to shuffle keeps the chain alive.
+    """
+    def check(board, player_id, pokemon=None):
+        for pid in board.player_ids:
+            deck = board.find_player_area(pid, "deck")
+            if deck is not None and len(deck.children) >= n:
+                return True
+        return False
+    return check
+
+
+def all_of(*checks):
+    """Every check must pass; each may take (board, player_id) or a third
+    argument (the hand card, or the Ability's Pokemon)."""
+    def check(board, player_id, card=None):
+        for c in checks:
+            code = getattr(c, "__code__", None)
+            ok = c(board, player_id, card) if code and code.co_argcount >= 3                 else c(board, player_id)
+            if not ok:
+                return False
+        return True
+    return check
+
+
 def requires_benched():
     """"if this Pokemon is on your Bench" -- the ability's own Pokemon is
     anywhere in play except the Active Spot."""

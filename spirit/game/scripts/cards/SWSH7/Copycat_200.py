@@ -1,4 +1,5 @@
 from spirit.game.data_utils import SupporterCardDef
+from spirit.game.card_effects.support_common import requires_deck
 from spirit.game.attributes import Rarities
 
 
@@ -20,5 +21,7 @@ card = SupporterCardDef(
     collector_number=200,
     set_code="SWSH7",
     rarity=Rarities.RareUltra,
-    effect=copycat
+    effect=copycat,
+    # No deck to shuffle into, so the shuffle -- and the draw after it -- cannot happen.
+    condition=requires_deck(),
 )

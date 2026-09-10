@@ -1,4 +1,5 @@
 from spirit.game.card_effects.trainers import kabu
+from spirit.game.card_effects.support_common import requires_deck
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import Rarities
 
@@ -12,5 +13,7 @@ card = SupporterCardDef(
     collector_number=163,
     set_code="SWSH3",
     rarity=Rarities.Uncommon,
-    effect=kabu
+    effect=kabu,
+    # No deck to shuffle into, so the shuffle -- and the draw after it -- cannot happen.
+    condition=requires_deck(),
 )

@@ -1,4 +1,5 @@
 from spirit.game.data_utils import SupporterCardDef
+from spirit.game.card_effects.support_common import requires_any_deck
 from spirit.game.attributes import Rarities
 from spirit.game.card_effects.trainers import judge
 
@@ -15,4 +16,6 @@ card = SupporterCardDef(
     regulation_mark="I",
     rarity=Rarities.Uncommon,
     effect=judge,
+    # Neither player can shuffle, so nothing after it happens either.
+    condition=requires_any_deck(),
 )

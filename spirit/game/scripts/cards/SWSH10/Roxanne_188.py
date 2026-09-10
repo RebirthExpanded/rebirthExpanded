@@ -1,4 +1,5 @@
 from spirit.game.card_effects.trainers import opponent_prizes_low, roxanne
+from spirit.game.card_effects.support_common import all_of, requires_any_deck
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import Rarities
 
@@ -13,5 +14,6 @@ card = SupporterCardDef(
     set_code="SWSH10",
     rarity=Rarities.RareUltra,
     effect=roxanne,
-    condition=opponent_prizes_low
+    # Neither player able to shuffle means nothing after it happens.
+    condition=all_of(opponent_prizes_low, requires_any_deck())
 )
