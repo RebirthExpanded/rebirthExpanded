@@ -1,7 +1,7 @@
 """Behaviors for the Special Energy cards of the Lugia VSTAR archetype deck."""
 
 from spirit.game.attributes import AttrID, PokemonTypes
-from spirit.game.data_utils import is_pokemon_v
+from spirit.game.data_utils import def_for, is_pokemon_v
 from spirit.game.session.constants import BENCH_CAPACITY
 from spirit.game.session.effects import is_basic_pokemon
 from spirit.game.session.passives import Passive, carrier_pokemon
@@ -15,6 +15,25 @@ ALL_TYPES_ONE_AT_A_TIME = [
         PokemonTypes.DRAGON, PokemonTypes.COLORLESS,
     )
 ]
+
+
+def discard_self_at_end_of_turn(card_name: str):
+    """"At the end of your turn, discard this card." -- for an Energy that
+    burns itself off (Ignition, Triple Acceleration).
+
+    The trigger fires on the HOLDER, not the Energy, so the effect has to
+    pick its own card back out of what is attached; matching on the printed
+    name takes every copy on that Pokemon and leaves other Energy alone.
+    """
+    async def effect(ctx):
+        to_discard = [
+            energy for energy in ctx.attached_energies(ctx.source)
+            if getattr(def_for(energy.archetype_id), "display_name", None)
+            == card_name
+        ]
+        if to_discard:
+            await ctx.discard_cards(to_discard)
+    return effect
 
 
 def _pokemon_has_type(pokemon, pokemon_type: PokemonTypes) -> bool:
