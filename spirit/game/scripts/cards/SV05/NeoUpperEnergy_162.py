@@ -11,6 +11,8 @@ ALL_TYPES_TWO_AT_A_TIME = [
 class NeoUpperPassive(Passive):
     """On a Stage 2 Pokémon: every type of Energy, 2 at a time."""
 
+    max_energy_provided = 2   # pip shows 2 at a time
+
     def modify_energy_provided(self, options, energy, holder, board):
         if carrier_pokemon(energy) is not holder or holder is None:
             return options

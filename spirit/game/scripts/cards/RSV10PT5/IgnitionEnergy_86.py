@@ -8,6 +8,8 @@ class IgnitionEnergyPassive(Passive):
     """On an Evolution Pokémon, this card provides Colorless Colorless
     Colorless instead of a single Colorless."""
 
+    max_energy_provided = 3   # pip shows Colorless x3
+
     def modify_energy_provided(self, options, energy, holder, board):
         if carrier_pokemon(energy) is not holder or holder is None:
             return options

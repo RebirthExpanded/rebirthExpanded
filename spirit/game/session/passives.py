@@ -124,6 +124,14 @@ class Passive:
     # Same-key passives count once in effective_max_hp (Abomasnow stacks).
     stacking_key: Optional[str] = None
 
+    # For a passive on an Energy card that can RAISE how much that card
+    # provides at once (Ignition to 3, Neo Upper to 2): the ceiling, so the
+    # attachment pip can be cropped to show that many emblems. Purely
+    # cosmetic -- modify_energy_provided is what actually pays costs. Leave
+    # None on a passive that only changes the TYPES provided and not the
+    # count (Prism Energy stays 1 at a time, so it stays one emblem).
+    max_energy_provided: Optional[int] = None
+
     # Optional awaitable damage stage: async (ctx, calc, target, carrier) ->
     # Optional[int], consulted in ctx.deal_damage AFTER compute_damage and
     # BEFORE the HP write (None = unchanged, else the new dealt amount).

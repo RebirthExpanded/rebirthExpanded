@@ -240,17 +240,29 @@ def _detect_emblem_circles(img, limit=1):
 
 
 def _energy_units(card_def) -> int:
-    """How much Energy one copy provides at once, off ENERGY_INFO (Double
-    Colorless: 2). Drives how many emblems the pip crop has to hold."""
+    """The most Energy one copy can ever provide at once. Drives how many
+    emblems the pip crop has to hold.
+
+    ENERGY_INFO carries the printed figure (Double Colorless: 2). A card
+    whose extra units come from a passive prints 1 there and declares its
+    ceiling on the passive instead (Ignition: 3, Neo Upper: 2). The pip
+    names the CARD, not what it happens to be worth this turn, so a card
+    that can act as several Energy is drawn as several either way -- a
+    passive that only widens the TYPES leaves the ceiling unset and keeps
+    its single emblem (Prism Energy: every type, 1 at a time).
+    """
+    units = 1
     spec = (getattr(card_def, "extra_attributes", None) or {}).get(
         str(AttrID.ENERGY_INFO.value))
-    if not isinstance(spec, dict):
-        return 1
-    try:
-        options = json.loads(spec.get("value") or "{}").get("options") or []
-    except (ValueError, TypeError):
-        return 1
-    return max((len(option) for option in options), default=1)
+    if isinstance(spec, dict):
+        try:
+            options = json.loads(spec.get("value") or "{}").get("options") or []
+            units = max((len(option) for option in options), default=1)
+        except (ValueError, TypeError):
+            units = 1
+    passive = getattr(card_def, "passive", None)
+    ceiling = getattr(passive, "max_energy_provided", None) if passive else None
+    return max(units, ceiling or 1)
 
 
 def _generate_pip_png(png_path, set_code, asset_name, suffix, detect,
