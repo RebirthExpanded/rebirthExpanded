@@ -696,15 +696,17 @@ async def dream_ball(ctx):
 
 
 async def dream_ball_prize_window(ctx):
-    """Taken as a face-down Prize: you may play it before it settles in hand."""
+    """Taken as a face-down Prize: you may play it before it settles in hand.
+
+    No Item-lock check, for the same reason as Greedy Dice: the locks all
+    say "from their hand" and this is played out of the Prize cards.
+    """
     ctx.suppress_announce = True
     board, pid = ctx.board, ctx.player_id
     bench = board.find_player_area(pid, "bench")
     if not bench or len(bench.children) >= effective_bench_capacity(board, pid):
         return
     if not ctx.deck(pid):
-        return
-    if trainer_play_blocked(board, pid, ctx.source):
         return
     if not await ctx.ask_yes_no("Play Dream Ball? Search your deck for a "
                                 "Pokémon and put it onto your Bench."):
@@ -728,10 +730,13 @@ async def greedy_dice(ctx):
 
 
 async def greedy_dice_prize_window(ctx):
-    """Taken as a face-down Prize: you may play it before it settles in hand."""
+    """Taken as a face-down Prize: you may play it before it settles in hand.
+
+    No Item-lock check: every Item lock in the pool reads "can't play any
+    Item cards FROM THEIR HAND", and this one is played out of the Prize
+    cards. Quaking Punch and friends do not stop it.
+    """
     ctx.suppress_announce = True
-    if trainer_play_blocked(ctx.board, ctx.player_id, ctx.source):
-        return
     if not await ctx.ask_yes_no(
             "Play Greedy Dice? Flip a coin; if heads, take 1 more Prize card."):
         return

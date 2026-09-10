@@ -26,23 +26,28 @@ it. Peonia does take Prize cards and so does open it.
 
 NOT AN IN-PLAY ABILITY. Garbotoxin and Silent Lab reach Pokemon in play,
 in hand and in the discard pile; neither names the Prize cards, so neither
-switches this off. Nothing here consults an ability lock, deliberately.
+switches this off. This is why "before you put it into your hand" is taken
+literally -- _take_prizes opens the window while the card is still a Prize.
+Fired one step later, from hand, Garbotoxin WOULD silence it.
 
-"Before you put it into your hand" is honoured in effect rather than in
-order: the trigger fires with the card already in hand and moves it to the
-Bench from there, so it ends up in the same place.
+"Your Bench isn't full" is the Bench you actually have, so a Stadium that
+shrinks it fills it sooner; the check goes through
+effective_bench_capacity rather than the raw constant.
 """
 
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.pokemon import delayed_knockout
-from spirit.game.session.constants import BENCH_CAPACITY
+from spirit.game.session.passives import effective_bench_capacity
 
 
 async def wish_upon_a_star(ctx):
     """Taken face down as a Prize: you may Bench it and take 1 more Prize."""
     bench = ctx.board.find_player_area(ctx.player_id, "bench")
-    if bench is None or len(bench.children) >= BENCH_CAPACITY:
+    # "your Bench isn't full" means the Bench you actually have: a Stadium
+    # that shrinks it (Collapsed Stadium, Parallel City) fills it sooner.
+    if bench is None or len(bench.children) >= effective_bench_capacity(
+            ctx.board, ctx.player_id):
         return
     if not await ctx.ask_yes_no(
             "Put this Pokémon onto your Bench and take 1 more Prize card?"):
