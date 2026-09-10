@@ -2389,6 +2389,24 @@ def is_basic_pokemon(card: CardEntity) -> bool:
     )
 
 
+def is_basic_pokemon_in_play(entity) -> bool:
+    """A Basic Pokemon AS IT SITS ON THE BOARD -- fossils included.
+
+    A Fossil (and any other Item played as a Pokemon) is a Trainer card in
+    hand, in the deck and in the discard pile, which is what is_basic_pokemon
+    reports; in play it is a 60-HP Basic Pokemon and every card that reads
+    the board should see it as one. The two questions are different, so they
+    are different helpers: search text ("search your deck for a Basic
+    Pokemon") wants the card, board text ("each Basic Pokemon in play")
+    wants this.
+    """
+    if not isinstance(entity, PokemonEntity):
+        return False
+    if entity.get_attribute(AttrID.STAGE) != PokemonStage.BASIC.value:
+        return False
+    return entity._containing_area_name() in ("activePokemonArea", "bench")
+
+
 def is_stage1_pokemon(card: CardEntity) -> bool:
     return (
         is_pokemon_card(card)

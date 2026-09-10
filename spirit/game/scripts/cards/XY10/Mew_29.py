@@ -22,7 +22,8 @@ from spirit.game.card_effects.pokemon import (BorrowedAttacksPassive,
                                               own_pokemon_in_play)
 from spirit.game.card_effects.support_common import search_to_hand
 from spirit.game.data_utils import Ability, Attack, PokemonCardDef
-from spirit.game.session.effects import is_basic_pokemon, is_pokemon_card
+from spirit.game.session.effects import (is_basic_pokemon_in_play,
+                                         is_pokemon_card)
 
 card = PokemonCardDef(
     guid="20217585-07d7-5e08-8cdc-e1914146e181",
@@ -44,7 +45,8 @@ card = PokemonCardDef(
         Ability(
             title="Memories of Dawn",
             game_text="This Pokémon can use the attacks of any of your Basic Pokémon in play. (You still need the necessary Energy to use each attack.)",
-            passive=BorrowedAttacksPassive(own_pokemon_in_play, is_basic_pokemon),
+            passive=BorrowedAttacksPassive(own_pokemon_in_play,
+                                           is_basic_pokemon_in_play),
         ),
         Attack(
             title="Encounter",

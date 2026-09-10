@@ -19,15 +19,17 @@ the two apart, which leaves Gapejaw Bog a hand-play watcher.
 during the OPPONENT's turn is not covered, so this bites only when the
 benching player is the turn player.
 
-And "Basic": an evolution card put onto the Bench by an effect (Miltank's
-partner, Rare Candy's target never leaves it) is not a Basic and takes
-nothing. Darkness Pokemon walk in free, which is the printed exception.
+And "Basic": an evolution card put onto the Bench by an effect is not a
+Basic and takes nothing. A Fossil is -- in hand it is an Item, but the
+moment it is on the Bench it is a 60-HP Basic Pokemon and takes its two
+counters like any other, which is what is_basic_pokemon_in_play answers.
+Darkness Pokemon walk in free, which is the printed exception.
 """
 
 from spirit.game.attributes import Rarities
 from spirit.game.card_effects.trainers import is_darkness_pokemon
 from spirit.game.data_utils import StadiumCardDef, Ability, Triggers
-from spirit.game.session.effects import is_basic_pokemon
+from spirit.game.session.effects import is_basic_pokemon_in_play
 
 COUNTERS = 2
 
@@ -35,7 +37,7 @@ COUNTERS = 2
 async def risky_ruins_watch(ctx):
     """2 damage counters on a Basic non-Darkness Pokémon just benched."""
     pokemon = ctx.benched_pokemon
-    if pokemon is None or not is_basic_pokemon(pokemon):
+    if pokemon is None or not is_basic_pokemon_in_play(pokemon):
         return
     if is_darkness_pokemon(pokemon):
         return

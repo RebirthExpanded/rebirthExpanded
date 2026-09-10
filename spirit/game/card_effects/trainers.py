@@ -12,6 +12,7 @@ from spirit.game.session.constants import BENCH_CAPACITY, PROMPT_CHOOSE_A_PRIZE
 from spirit.game.session.effects import (
     full_stack,
     is_basic_pokemon,
+    is_basic_pokemon_in_play,
     is_evolution_pokemon,
     is_item_card,
     is_basic_energy,
@@ -931,7 +932,9 @@ class SilentLabPassive(Passive):
     """
 
     def blocks_abilities(self, pokemon, carrier):
-        return is_basic_pokemon(pokemon)
+        # In play a Fossil IS a Basic Pokemon (in hand and in the discard it
+        # is an Item, which the out-of-play half below reads correctly).
+        return is_basic_pokemon_in_play(pokemon)
 
     def blocks_out_of_play_abilities(self, card, carrier):
         return is_basic_pokemon(card)
