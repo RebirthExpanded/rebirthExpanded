@@ -83,6 +83,7 @@ from spirit.game.game_sequence_packets import NestedSequence
 from spirit.game.attributes import (
     AttrID,
     CLIENT_SPECIAL_CONDITION_NAMES,
+    DeckFormat,
     GameSequence,
     PlayerAttrID,
     SpecialConditions,
@@ -480,16 +481,20 @@ class GameSession:
 
         game_options_dict = options.to_dict()
 
-        # A marker is on the playmat because someone's deck earns it. Whether
-        # it has been spent is the PlayerEntity attribute, which the client
-        # reads separately when it builds the token (PieGXToken.setupAnimator).
+        # A marker is on the playmat because the format allows the mechanic,
+        # or failing that because someone's deck earns it. Whether it has been
+        # spent is the PlayerEntity attribute, which the client reads
+        # separately when it builds the token (PieGXToken.setupAnimator).
         tokens = []
-        for player_id in self.players:
-            kinds = self.board_state.token_kinds.get(player_id) or {}
-            if kinds.get("GX") and TOKEN_GX not in tokens:
-                tokens.append(TOKEN_GX)
-            if kinds.get("VSTAR") and TOKEN_VSTAR not in tokens:
-                tokens.append(TOKEN_VSTAR)
+        if self._format_owns_both_markers():
+            tokens = [TOKEN_GX, TOKEN_VSTAR]
+        else:
+            for player_id in self.players:
+                kinds = self.board_state.token_kinds.get(player_id) or {}
+                if kinds.get("GX") and TOKEN_GX not in tokens:
+                    tokens.append(TOKEN_GX)
+                if kinds.get("VSTAR") and TOKEN_VSTAR not in tokens:
+                    tokens.append(TOKEN_VSTAR)
         if tokens:
             game_options_dict[GAME_OPTION_TOKENS_KEY] = ",".join(tokens)
 
@@ -506,6 +511,29 @@ class GameSession:
             game_options_dict["TournamentID"] = str(legacy_ctx["tournament_id"])
 
         return game_options_dict
+
+    # Formats where both markers belong on the mat whatever the decks hold.
+    _BOTH_MARKER_FORMATS = frozenset(
+        {DeckFormat.EXPANDED.value, DeckFormat.UNLIMITED.value})
+
+    def _format_owns_both_markers(self) -> bool:
+        """Whether this match puts both markers out regardless of deck contents.
+
+        The marker is a game accessory, not a card: in Expanded you have your
+        GX and VSTAR markers on the mat and may simply never use them. The
+        deck scan that used to decide this reads the DECK, so a deck whose
+        only VSTAR Power is Forest Seal Stone's Star Alchemy -- a Tool, not a
+        VSTAR Pokemon -- got no marker at all.
+
+        The format comes from the queue name, which is what the session knows.
+        A queue that names no format (Friend, SinglePlayer, Tournament_<id>)
+        is Expanded here, this server's format; Standard and Legacy keep the
+        deck scan, where a marker with nothing to spend it on is clutter.
+        """
+        from spirit.game.format_manager import FormatManager
+        guid = FormatManager().resolve_format_guid(
+            self.pairing.get("queue_name") or "")
+        return guid is None or guid in self._BOTH_MARKER_FORMATS
 
     def _mark_token_spent(self, player_id: str, attr) -> None:
         """Raise the playmat marker's spent flag.
