@@ -82,7 +82,7 @@ def search_to_bench(predicate=is_basic, count=1, then=None, prompt=""):
     space, regi_gate shape), shuffle after; `then(ctx, benched)` runs last."""
     async def effect(ctx):
         await _deal_printed(ctx)
-        space = BENCH_CAPACITY - len(ctx.my_bench())
+        space = effective_bench_capacity(ctx.board, ctx.player_id) - len(ctx.my_bench())
         benched: List[CardEntity] = []
         take = min(count, space)
         if take > 0:

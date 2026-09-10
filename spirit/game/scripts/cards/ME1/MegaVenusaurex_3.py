@@ -18,11 +18,17 @@ def _solar_transfer_condition(board, player_id, pokemon):
 
 
 async def solar_transfer(ctx):
-    """Move a Basic Grass Energy from 1 of your Pokémon to another."""
+    """Move Basic Grass Energy between your Pokemon, one after another.
+
+    "As often as you like" -- so one use keeps offering the next Energy
+    until the player is done rather than closing after a single move and
+    making them re-open the Ability. Declining the Energy picker is the
+    Done button; move_energy_freely stops there.
+    """
     pokemon = ctx.my_pokemon_in_play()
     await ctx.move_energy_freely(
-        pokemon, pokemon, predicate=_is_basic_grass_energy, max_count=1,
-        prompt="Choose a Basic Grass Energy to move",
+        pokemon, pokemon, predicate=_is_basic_grass_energy,
+        prompt="Choose a Basic Grass Energy to move (or Done)",
     )
 
 

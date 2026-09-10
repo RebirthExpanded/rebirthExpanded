@@ -2057,6 +2057,49 @@ class EffectContext:
             moved.append((energy, dest))
         return moved
 
+    async def move_damage_counters_freely(
+        self,
+        sources: Sequence[PokemonEntity],
+        dest_candidates: Sequence[PokemonEntity],
+        per_move: int = 1,
+        max_moves: Optional[int] = None,
+        source_prompt: str = "Choose a Pokémon to move a damage counter from",
+        dest_prompt: str = "Choose a Pokémon to move the damage counter to",
+    ) -> int:
+        """"As often as you like ... move 1 damage counter": repeats [pick a
+        damaged Pokemon, declining ends it] -> [pick where the counter goes]
+        until the player is done or nothing is left to move. Returns the
+        counters moved.
+
+        move_energy_freely's shape for damage counters, so one use of the
+        Ability shifts as many as the player wants instead of asking them to
+        re-open it per counter.
+        """
+        moved = 0
+        while max_moves is None or moved < max_moves:
+            damaged = [
+                p for p in sources
+                if self.max_hp(p) - p.get_attribute(AttrID.HP, 0) >= 10
+            ]
+            if not damaged:
+                break
+            source = await self.choose_pokemon(
+                damaged, source_prompt, optional=True)
+            if source is None:
+                break
+            dests = [d for d in dest_candidates if d is not source]
+            if not dests:
+                break
+            dest = await self.choose_pokemon(dests, dest_prompt)
+            if dest is None:
+                break
+            shifted = await self.move_damage_counters(
+                source, dest, max_count=per_move)
+            if shifted <= 0:
+                break
+            moved += shifted
+        return moved
+
     async def switch_active(self, player_id: str, new_active: PokemonEntity) -> bool:
         """Swaps a player's Active with the given benched Pokemon (gust or
         self-switch). Special Conditions on the leaving Active are cured."""
