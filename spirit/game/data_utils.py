@@ -284,6 +284,8 @@ def discard_area_name(archetype_id) -> str:
 _MULTI_PRIZE_SUBTYPES = {
     "V": 2, "VSTAR": 2, "V-UNION": 3, "VMAX": 3, "GX": 2, "EX": 2, "ex": 2,
     "SV_Mega": 3,
+    # A TAG TEAM is also a GX; prize_value takes the max, so 3 wins.
+    "TAG TEAM": 3,
 }
 _RULE_BOX_SUBTYPES = set(_MULTI_PRIZE_SUBTYPES) | {"Radiant"}
 

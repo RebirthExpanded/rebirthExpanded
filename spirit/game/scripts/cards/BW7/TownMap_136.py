@@ -10,13 +10,13 @@ thing, the "look at your Prize cards" reveal behind Prize-searching cards,
 is the opposite: it introduces the Prizes to the picker alone and the
 caller re-hides them with AttributesReset the moment the fan closes.
 
-So this does not send a reveal at all -- it sets CardEntity.face_up, the
-override in is_hidden_from, which is the single gate every serialization
-runs through. That is what makes the flip permanent AND survive a
-reconnect: the SGS is the sole source of truth for a fresh client, and it
-reads the same check, so the Prizes come back face up rather than as card
-backs. A one-off EntityIntroduced would look right until someone
-reconnected.
+So this does not send a reveal at all -- ctx.turn_prizes_face_up sets
+CardEntity.face_up, the override in is_hidden_from, which is the single
+gate every serialization runs through. That is what makes the flip
+permanent AND survive a reconnect: the SGS is the sole source of truth
+for a fresh client, and it reads the same check, so the Prizes come back
+face up rather than as card backs. A one-off EntityIntroduced would look
+right until someone reconnected. Chaotic Order-GX shares the helper.
 
 Face up means face up on the table, so the intro goes to BOTH players --
 the opponent gets to see them too. The owner's own Prizes are the only
@@ -39,17 +39,7 @@ def _has_prizes(board, player_id, pokemon=None) -> bool:
 
 async def town_map(ctx):
     """Turn the player's own Prize cards face up, for good."""
-    area = ctx.board.find_player_area(ctx.player_id, "prizePile")
-    prizes = list(area.children) if area else []
-    if not prizes:
-        return
-    for prize in prizes:
-        prize.face_up = True
-    # Both viewers, since the cards are now face up on the table.
-    for viewer_id in (ctx.player_id, ctx.opponent_id):
-        for prize in prizes:
-            ctx._queue(ctx.session._entity_introduced_msg(prize),
-                       viewer_id=viewer_id)
+    await ctx.turn_prizes_face_up()
 
 
 card = ItemCardDef(

@@ -2121,6 +2121,27 @@ class EffectContext:
         await self.session._flush_effect_runs(self)
         self._messages.clear()
 
+    async def turn_prizes_face_up(self, player_id: Optional[str] = None) -> int:
+        """"Turn all of your Prize cards face up. (They remain face up for the
+        rest of the game.)" -- Town Map, Chaotic Order-GX.
+
+        Not a reveal: it sets CardEntity.face_up, the override in
+        is_hidden_from that every serialization runs through, so the flip
+        survives a reconnect instead of lasting until the next SGS. Both
+        players are told, since face up means face up on the table. Returns
+        how many were turned over.
+        """
+        pid = player_id or self.player_id
+        area = self.board.find_player_area(pid, "prizePile")
+        prizes = [c for c in (area.children if area else []) if not c.face_up]
+        for prize in prizes:
+            prize.face_up = True
+        for viewer_id in (self.player_id, self.opponent_id):
+            for prize in prizes:
+                self._queue(self.session._entity_introduced_msg(prize),
+                            viewer_id=viewer_id)
+        return len(prizes)
+
     async def take_prizes(self, count: int, player_id: Optional[str] = None,
                           minimum: Optional[int] = None,
                           check_win: bool = True) -> List[CardEntity]:
