@@ -178,6 +178,10 @@ class TurnState:
     # second-attack prompt stamps the attacker here so the next main offer
     # auto-selects it and opens the attack panel.
     auto_select_attack_entity_id: Optional[str] = None
+    # The extra attack now on offer is Festival Lead's, which repeats
+    # only an attack the Pokemon HAS: attacks lent by a Tool or an
+    # Energy drop off the panel for it. See Passive.extra_attack_printed_only.
+    extra_attack_printed_only: bool = False
 
     def pokemon_lost_last_turn(self, player_id: str) -> List[Dict[str, Any]]:
         """"if any of your Pokemon were Knocked Out during your opponent's
@@ -254,6 +258,7 @@ class TurnState:
         self.ignore_target_effects_entities = set()
         self.extra_prize_watchers = []
         self.auto_select_attack_entity_id = None
+        self.extra_attack_printed_only = False
         if board is not None:
             board.temporary_passives = [
                 tp for tp in (getattr(board, "temporary_passives", None) or [])
@@ -821,6 +826,10 @@ def _attack_entries(
         if state.attack_locked(active.entity_id, ability_id):
             continue
         definition = ABILITIES_BY_ID.get(ability_id)
+        # Festival Lead's extra attack repeats an attack this Pokemon HAS, so
+        # one lent by a Tool or an Energy is not on offer for it.
+        if state.attacks_used and state.extra_attack_printed_only                 and getattr(definition, "is_granted", False):
+            continue
         # Asleep/Paralyzed suppression, per-attack exemptable (Windup Arm).
         if immobilized and not getattr(definition, "usable_despite_conditions", False):
             continue

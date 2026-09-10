@@ -373,6 +373,12 @@ class Passive:
         sequence handling, not at the rendering site."""
         return []
 
+    # True when the extra attack this passive hands out is limited to attacks
+    # the Pokemon HAS (Festival Lead), which a Tool or Energy lending one of
+    # its own is not. Jumpluff's "may attack twice" says no such thing, so it
+    # leaves this False and any attack on the panel counts.
+    extra_attack_printed_only: bool = False
+
     def attack_keeps_turn(self, attacker: PokemonEntity, ability: Any,
                           ctx: Any, carrier: BoardEntity) -> bool:
         """True to keep the turn going after `attacker`'s attack resolved

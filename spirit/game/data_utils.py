@@ -2,7 +2,7 @@ import importlib.util
 import json
 import os
 import uuid
-from typing import Any, Callable, Optional, List, Dict
+from typing import Any, Callable, Optional, List, Dict, Set
 from spirit.game.attributes import AttrID, CardType, TrainerType, PokemonStage, PokemonTypes, ProductType, AbilityTypes, Rarities, CLIENT_POKEMON_TYPE_NAMES, FoilMasks, FoilEffects
 from spirit.game.text_encoding import fix_mojibake, fix_mojibake_list, with_ascii_aliases
 
@@ -319,22 +319,48 @@ def _string_attr(definition: Optional["CardDefinition"], attr_id: AttrID) -> Opt
 
 
 # EVOLUTION_LOGIC_NAME -> CardDefinition index, rebuilt lazily when new card
-# scripts register (reprints share a name; any def in the line works).
+# scripts register (reprints share a name; any def in the line works), and
+# alongside it the set of names something in the pool evolves FROM.
 _LOGIC_NAME_INDEX: Dict[str, "CardDefinition"] = {}
+_EVOLVES_FROM_NAMES: Set[str] = set()
 _LOGIC_NAME_INDEX_SIZE = -1
+
+
+def _refresh_evolution_index() -> None:
+    global _LOGIC_NAME_INDEX_SIZE
+    if _LOGIC_NAME_INDEX_SIZE == len(CARD_DEFS_BY_GUID):
+        return
+    _LOGIC_NAME_INDEX.clear()
+    _EVOLVES_FROM_NAMES.clear()
+    for d in CARD_DEFS_BY_GUID.values():
+        logic_name = _string_attr(d, AttrID.EVOLUTION_LOGIC_NAME)
+        if logic_name:
+            _LOGIC_NAME_INDEX.setdefault(logic_name, d)
+        from_name = _string_attr(d, AttrID.EVOLUTION_LOGIC_FROM)
+        if from_name:
+            _EVOLVES_FROM_NAMES.add(from_name)
+    _LOGIC_NAME_INDEX_SIZE = len(CARD_DEFS_BY_GUID)
+
+
+def has_evolution(logic_name: Optional[str]) -> bool:
+    """Whether any card in the pool evolves from `logic_name`.
+
+    "You may play this card only if you have a Pokemon in play that can be
+    evolved" (Wally, Boost Shake) asks whether an evolution EXISTS, not
+    whether the player's deck holds one -- deck contents stay hidden, and
+    whiffing the search is legal. The pool stands in for "exists": a card
+    the emulator has not implemented cannot be searched up either.
+    """
+    if not logic_name:
+        return False
+    _refresh_evolution_index()
+    return logic_name in _EVOLVES_FROM_NAMES
 
 
 def evolves_from_chain(archetype_id: Optional[str]) -> List[str]:
     """EVOLUTION_LOGIC_NAME lineage below a card, direct pre-evolution first
     (Blastoise -> ["Wartortle", "Squirtle"]), walking EVOLUTION_LOGIC_FROM."""
-    global _LOGIC_NAME_INDEX_SIZE
-    if _LOGIC_NAME_INDEX_SIZE != len(CARD_DEFS_BY_GUID):
-        _LOGIC_NAME_INDEX.clear()
-        for d in CARD_DEFS_BY_GUID.values():
-            logic_name = _string_attr(d, AttrID.EVOLUTION_LOGIC_NAME)
-            if logic_name:
-                _LOGIC_NAME_INDEX.setdefault(logic_name, d)
-        _LOGIC_NAME_INDEX_SIZE = len(CARD_DEFS_BY_GUID)
+    _refresh_evolution_index()
     chain: List[str] = []
     definition = def_for(archetype_id)
     for _ in range(8):  # depth cap doubles as a cycle guard

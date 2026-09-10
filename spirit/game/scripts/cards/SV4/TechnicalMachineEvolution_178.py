@@ -23,16 +23,24 @@ The evolution itself is Pokemon Breeder's Nurturing narrowed to the Bench:
 matches EVOLUTION_LOGIC_FROM against the target's own name rather than the
 whole-line evolves_from() that Rare Candy needs to skip a stage.
 
-Nothing here waives the ordinary evolution timing -- unlike Wally, the
-card says nothing about it -- so a Pokemon benched this turn is not a
-legal target, and neither is anything on turn 1. That gating is
-turn_state.may_evolve_target, the same check Rare Candy and Breeder's
-Nurturing use.
+The ordinary evolution timing does NOT apply. This is an attack putting
+the card onto the Pokemon, not the player taking their evolve action, so
+a Pokemon benched this turn is a legal target and so is one on the first
+turn. ctx.evolve_pokemon already bypasses those rules on its own -- the
+cards that DO enforce them (Rare Candy, Pokemon Breeder's Nurturing) do it
+by filtering their own candidate list with may_evolve_target, and this one
+deliberately does not.
+
+Unlike Wally and Boost Shake, which are unplayable with nothing to evolve,
+this is an attack: it can always be declared. What it cannot do is open the
+deck for a search that has no target, so with no evolvable Pokemon on the
+Bench it simply does nothing.
 
 The pool's first Paradox Rift card, so SV4 is registered here.
 """
 
-from spirit.game.data_utils import Attack, Ability, PokemonToolCardDef, Triggers
+from spirit.game.data_utils import (Attack, Ability, PokemonToolCardDef,
+                                    Triggers, has_evolution)
 from spirit.game.attributes import AttrID, PokemonTypes, Rarities
 from spirit.game.card_effects.trainers import discard_self_tool_at_end_of_turn
 
@@ -41,10 +49,11 @@ MAX_TARGETS = 2
 
 
 def _evolvable_bench(ctx):
-    turn_state = ctx.session.turn_state
+    """Every Benched Pokemon a card in the pool evolves from. No
+    may_evolve_target filter: see the note above on timing."""
     bench = ctx.board.find_player_area(ctx.player_id, "bench")
     return [p for p in (bench.children if bench else [])
-            if turn_state.may_evolve_target(p.entity_id)]
+            if has_evolution(p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME))]
 
 
 async def evolution(ctx):

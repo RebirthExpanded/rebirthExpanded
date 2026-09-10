@@ -5224,11 +5224,20 @@ class GameSession:
         # An attack normally ends the turn; the effect (Additional Order-style
         # ctx flag) or a passive (Fluffy Barrage, evaluated after promotions
         # so "after your opponent chooses a new Active" holds) can keep it.
-        keeps = ctx is not None and (
-            ctx.attack_keeps_turn or any(
-                passive.attack_keeps_turn(card, ability, ctx, carrier)
-                for passive, carrier in active_passives(self.board_state)
-            )
+        keepers = [] if ctx is None else [
+            passive
+            for passive, carrier in active_passives(self.board_state)
+            if passive.attack_keeps_turn(card, ability, ctx, carrier)
+        ]
+        keeps = ctx is not None and (ctx.attack_keeps_turn or bool(keepers))
+        # Festival Lead repeats "an attack it has", so its extra attack does
+        # not offer one lent by a Tool or an Energy. An attack that kept its
+        # own turn (Additional Order) says nothing of the sort.
+        self.turn_state.extra_attack_printed_only = bool(
+            keepers
+            and not ctx.attack_keeps_turn
+            and all(getattr(p, "extra_attack_printed_only", False)
+                    for p in keepers)
         )
         if keeps:
             logging.info(

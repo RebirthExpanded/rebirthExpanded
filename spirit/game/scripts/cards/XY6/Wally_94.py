@@ -18,6 +18,11 @@ ctx.evolve_pokemon already bypasses the may-evolve rules on its own.
 EVOLUTION_LOGIC_FROM against the target's own name -- not the whole-line
 evolves_from() that Rare Candy needs to skip a stage.
 
+"1 of your Pokemon" has to be a Pokemon that can be evolved, so a card
+that evolves from it must exist; with only fully evolved Pokemon in play
+there is nothing to choose and the card is unplayable (condition), the
+same gate Boost Shake carries.
+
 The exclusion is on the Pokemon being evolved, not on what it evolves
 into, and it is the XY-era uppercase rule box only: "Pokemon-EX" and the
 SV-era "Pokemon ex" are separate mechanics, and text naming one does not
@@ -30,7 +35,7 @@ Pokemon ex, which is the modern echo of the interaction the clause was
 printed to prevent.
 """
 
-from spirit.game.data_utils import SupporterCardDef, subtypes_for
+from spirit.game.data_utils import SupporterCardDef, has_evolution, subtypes_for
 from spirit.game.attributes import AttrID, Rarities
 
 
@@ -40,7 +45,13 @@ def _is_pokemon_EX(pokemon) -> bool:
 
 
 def _wally_targets(pokemon_in_play):
-    return [p for p in pokemon_in_play if not _is_pokemon_EX(p)]
+    """Pokemon this card could actually evolve: not a Pokemon-EX, and with an
+    evolution that exists to be searched for. A fully evolved Bench is no
+    target at all, so with nothing but those in play Wally cannot be played
+    -- the deck is never opened."""
+    return [p for p in pokemon_in_play
+            if not _is_pokemon_EX(p)
+            and has_evolution(p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME))]
 
 
 def _wally_condition(board, player_id):

@@ -1076,10 +1076,21 @@ def pokemon_has_ability_titled(pokemon, title: str) -> bool:
 
 class FestivalLeadPassive(Passive):
     """If Festival Grounds is in play, this Pokemon may attack twice each turn
-    (same timing as Fluffy Barrage: Yes/No prompt, then auto-select)."""
+    (same timing as Fluffy Barrage: Yes/No prompt, then auto-select).
+
+    "an attack it HAS", where Jumpluff just says "may attack twice": an
+    attack lent by a Tool or an Energy (Technical Machine: Evolution,
+    Earthen Seal Stone) is not one this Pokemon has, so Festival Lead never
+    repeats it. Both ends are shut -- lending attack does not earn the
+    second attack here, and extra_attack_printed_only keeps the lent attack
+    off the panel once the extra attack is granted."""
+
+    extra_attack_printed_only = True
 
     def attack_keeps_turn(self, attacker, ability, ctx, carrier):
         if attacker is not carrier or not festival_grounds_in_play(ctx):
+            return False
+        if getattr(ability, "is_granted", False):
             return False
         uses = [e for e in ctx.session.turn_state.attacks_used
                 if e[0] == carrier.entity_id]
