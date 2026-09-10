@@ -203,6 +203,10 @@ class CardEntity(BoardEntity):
     PUBLIC_AREAS = ("activePokemonArea", "bench", "discard", "lostZone",
                     "activeStadium", "activeTrainer")
 
+    # Turned face up where it lies, permanently, regardless of zone. Only
+    # Town Map sets it today; see is_hidden_from.
+    face_up: bool = False
+
     def _containing_area_name(self) -> Optional[str]:
         """Name of the PlayArea this card ultimately sits in, walking up through
         any Pokemon it is attached to."""
@@ -215,7 +219,16 @@ class CardEntity(BoardEntity):
 
     def is_hidden_from(self, viewer_id: Optional[str]) -> bool:
         """A card's identity is hidden from non-owners unless it sits in a public
-        zone; from its owner only while in a hidden-knowledge zone (deck/prizes)."""
+        zone; from its owner only while in a hidden-knowledge zone (deck/prizes).
+
+        `face_up` overrides both: a card turned face up where it lies stays
+        public to everyone for the rest of the game (Town Map does this to
+        its owner's Prizes). Setting it here rather than sending a one-off
+        reveal is what makes the flip survive a reconnect, since the SGS
+        serializes straight off this check.
+        """
+        if self.face_up:
+            return False
         if viewer_id is None:
             return False
         area_name = self._containing_area_name()

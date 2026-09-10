@@ -1572,7 +1572,12 @@ class EffectContext:
         prize_area = self.board.find_player_area(self.player_id, "prizePile")
         if not prize_area or not prize_area.children:
             return False
-        prizes = list(prize_area.children)
+        # Every clause of this card says "face-down Prize cards", so a Prize
+        # already turned face up (Town Map) is not looked at, not takeable,
+        # not a slot the source can drop into, and not shuffled.
+        prizes = [c for c in prize_area.children if not c.face_up]
+        if not prizes:
+            return False
         basics = [c for c in prizes if is_basic_pokemon(c)]
         picked_id = await session.prompt_prize_reveal_pick(
             self.player_id, self.source.entity_id,
@@ -1612,7 +1617,7 @@ class EffectContext:
         # is also face-up to the opponent (it sat on the trainer slot), so reset
         # it there too. Then shuffle -- both viewers see the reshuffle.
         resets = [session._attributes_reset_msg(c.entity_id)
-                  for c in prize_area.children]
+                  for c in prize_area.children if not c.face_up]
         if resets:
             await session.send_game_sequence(
                 [session.players[self.player_id]], GameSequence.GROUPED_MOVE, resets)
@@ -1620,7 +1625,13 @@ class EffectContext:
             await session.send_game_sequence(
                 [session.players[opponent]], GameSequence.GROUPED_MOVE,
                 [session._attributes_reset_msg(self.source.entity_id)])
-        random.shuffle(prize_area.children)
+        # Shuffle the face-down Prizes among their own slots; a face-up one
+        # stays where it is, since the card only shuffles the face-down pile.
+        slots = [i for i, c in enumerate(prize_area.children) if not c.face_up]
+        moving = [prize_area.children[i] for i in slots]
+        random.shuffle(moving)
+        for slot, card in zip(slots, moving):
+            prize_area.children[slot] = card
         await session.send_game_sequence(
             both, GameSequence.GROUPED_MOVE,
             [session._build_msg(OutboundMsg.SHUFFLED.value,
