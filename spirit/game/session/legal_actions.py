@@ -18,7 +18,8 @@ from spirit.game.attributes import (
     SpecialConditions,
     TrainerType,
 )
-from spirit.game.data_utils import ABILITIES_BY_ID, Activations, def_for
+from spirit.game.data_utils import (ABILITIES_BY_ID, Activations, def_for,
+                                    searches_deck)
 from spirit.game.models.board import (
     BoardState,
     EnergyEntity,
@@ -462,6 +463,8 @@ def compute_legal_actions(
 
     in_play = board.pokemon_in_play(player_id)
     in_play_ids = [p.entity_id for p in in_play]
+    deck_area = board.find_player_area(player_id, "deck")
+    deck_cards = deck_area.children if deck_area else []
     bench_has_space = len(bench_area.children) < effective_bench_capacity(board, player_id)
 
     for card in hand_area.children:
@@ -536,6 +539,12 @@ def compute_legal_actions(
             condition = getattr(definition, "condition", None)
             if condition is not None \
                     and not trainer_condition_met(condition, board, player_id, card):
+                continue
+            # "Search your deck for..." with an empty deck is nothing to
+            # do, so the card is not offered at all. Nothing in the pool
+            # puts cards INTO the deck before searching it, so the count
+            # here is the count the search itself would see.
+            if searches_deck(definition) and not deck_cards:
                 continue
             if trainer_type == TrainerType.ITEM.value:
                 entries.append(_target_map_entry(

@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import types
 import uuid
 from typing import Any, Callable, Optional, List, Dict, Set
 from spirit.game.attributes import AttrID, CardType, TrainerType, PokemonStage, PokemonTypes, ProductType, AbilityTypes, Rarities, CLIENT_POKEMON_TYPE_NAMES, FoilMasks, FoilEffects
@@ -256,6 +257,62 @@ CARD_DEFS_BY_GUID: Dict[str, "CardDefinition"] = {}
 def def_for(archetype_id: Optional[str]) -> Optional["CardDefinition"]:
     """The CardDefinition behind an entity's archetype GUID, if scripted."""
     return CARD_DEFS_BY_GUID.get((archetype_id or "").lower())
+
+
+# "Search your deck for ..." -- the names an effect reaches the deck browser
+# by, directly (ctx.search_deck) or through one of the shared factories.
+_DECK_SEARCH_NAMES = ("search_deck", "search_deck_groups")
+_SEARCHES_DECK_CACHE: Dict[str, bool] = {}
+
+
+def _referenced_names(fn, seen=None) -> Set[str]:
+    """Every name `fn` mentions, following nested code and closed-over
+    functions -- which is how the card_effects factories carry the call."""
+    if seen is None:
+        seen = set()
+    names: Set[str] = set()
+    code = getattr(fn, "__code__", None)
+    if code is None or id(code) in seen:
+        return names
+    seen.add(id(code))
+    stack = [code]
+    while stack:
+        current = stack.pop()
+        names.update(current.co_names)
+        for const in current.co_consts:
+            if isinstance(const, types.CodeType):
+                stack.append(const)
+    for cell in (fn.__closure__ or ()):
+        try:
+            value = cell.cell_contents
+        except ValueError:
+            continue
+        if isinstance(value, types.FunctionType):
+            names |= _referenced_names(value, seen)
+    return names
+
+
+def searches_deck(definition: Optional["CardDefinition"]) -> bool:
+    """Whether playing this card can open a deck search.
+
+    Read off the effect rather than declared on 145 card scripts that would
+    drift: every searching effect reaches EffectContext.search_deck by that
+    name, its own or a shared factory's. A definition can overrule the
+    reading by setting searches_deck itself.
+    """
+    if definition is None:
+        return False
+    declared = getattr(definition, "searches_deck", None)
+    if isinstance(declared, bool):
+        return declared
+    key = (definition.guid or "").lower()
+    cached = _SEARCHES_DECK_CACHE.get(key)
+    if cached is None:
+        effect = getattr(definition, "effect", None)
+        cached = isinstance(effect, types.FunctionType) and any(
+            name in _referenced_names(effect) for name in _DECK_SEARCH_NAMES)
+        _SEARCHES_DECK_CACHE[key] = cached
+    return cached
 
 
 def subtypes_for(archetype_id: Optional[str]) -> List[str]:
