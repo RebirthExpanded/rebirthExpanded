@@ -225,6 +225,13 @@ class Passive:
         """True to forbid `pokemon` from retreating (Octolock, Flygon)."""
         return False
 
+    def attacks_first_turn(self, pokemon: PokemonEntity,
+                           carrier: BoardEntity) -> bool:
+        """True to lift the "no attacking on turn 1 going first" rule for
+        `pokemon` (Meloetta ex's Debut Performance). The per-attack form of
+        the same permission is the Attack's own usable_first_turn."""
+        return False
+
     def attacks_despite_conditions(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
         """True to let `pokemon` attack even while Asleep/Paralyzed (Windup Arm)."""
         return False
@@ -818,6 +825,14 @@ def attacking_blocked(board: BoardState, pokemon: PokemonEntity) -> bool:
     """Whether a continuous passive stops this Pokemon attacking at all."""
     return any(
         passive.blocks_attacking(pokemon, carrier, board)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def can_attack_first_turn(board: BoardState, pokemon: PokemonEntity) -> bool:
+    """Whether a passive lets `pokemon` attack on the going-first turn 1."""
+    return any(
+        passive.attacks_first_turn(pokemon, carrier)
         for passive, carrier in active_passives(board)
     )
 

@@ -36,6 +36,7 @@ from .passives import (
     attacking_blocked,
     out_of_play_ability_locked,
     can_attack_despite_conditions,
+    can_attack_first_turn,
     can_evolve_early,
     can_evolve_onto,
     can_evolve_same_turn,
@@ -820,6 +821,9 @@ def _attack_entries(
     # A passive (Windup Arm) can exempt the whole Pokemon from the gate.
     if immobilized and can_attack_despite_conditions(board, active):
         immobilized = False
+    # Meloetta ex's Debut Performance lifts the turn-1 ban for every attack
+    # this Pokemon has, where usable_first_turn lifts it one attack at a time.
+    first_turn_ok = state.turn_number > 1 or can_attack_first_turn(board, active)
     abilities = active.get_attribute(AttrID.PIE_ABILITIES) or []
     if not isinstance(abilities, list):
         logging.warning(
@@ -848,8 +852,7 @@ def _attack_entries(
             continue
         # The player going first cannot attack on turn 1 unless the attack
         # explicitly allows it (Indeedee's Watch Over).
-        if state.turn_number == 1 \
-                and not getattr(definition, "usable_first_turn", False):
+        if not (first_turn_ok or getattr(definition, "usable_first_turn", False)):
             continue
         if definition is not None and definition.vstar \
                 and player_id in state.vstar_used:
