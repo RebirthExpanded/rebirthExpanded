@@ -16,11 +16,13 @@ Spot, and your FIRST turn -- turn 1 for the player going first and turn 2
 for the other, which is what "your first turn" means to the turn counter.
 After that the Ability is simply not offered.
 
-The replacement is not a switch and not a bench play. Ditto's whole stack
-goes to the discard first, which empties the Active spot, and the Pokemon
-found in the deck is put there directly (put_in_active_spot). Nothing
-about that is an evolution or a hand play, so no on-play trigger fires --
-the new Active is just suddenly there, which is what the card describes.
+The replacement is not a switch and not a bench play: it is the identity
+swap Zoroark's Phantom Transformation already uses, with the deck as the
+source instead of the discard pile. transfer=False is the difference that
+matters -- Ditto's attachments go to the discard with it rather than
+following the new Pokemon, which is what "discard this Pokemon and all
+attached cards" says. No on-play trigger fires; the new Active is simply
+there.
 
 "Except any Ditto" is by name, so this printing cannot fetch the Pokemon GO
 one either.
@@ -29,7 +31,7 @@ one either.
 from spirit.game.attributes import AttrID, PokemonStage, PokemonTypes, Rarities
 from spirit.game.data_utils import (Ability, Activations, Attack,
                                     PokemonCardDef)
-from spirit.game.session.effects import full_stack, is_basic_pokemon
+from spirit.game.session.effects import is_basic_pokemon
 
 DITTO_NAME = "com.direwolfdigital.cake.data.archetypes.pokemon.Ditto.Name"
 
@@ -62,8 +64,8 @@ async def transformative_start(ctx):
     if not picks:
         await ctx.shuffle_deck()
         return
-    await ctx.discard_cards(full_stack(ditto))
-    await ctx.put_in_active_spot(picks[0])
+    await ctx.identity_swap(ditto, picks[0], destination="discard",
+                            transfer=False)
     await ctx.shuffle_deck()
 
 
