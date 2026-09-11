@@ -19,6 +19,7 @@ from spirit.game.attributes import (
     TrainerType,
 )
 from spirit.game.data_utils import (ABILITIES_BY_ID, Activations, def_for,
+                                    unplayable_from_hand_now,
                                     searches_deck)
 from spirit.game.models.board import (
     BoardState,
@@ -653,9 +654,9 @@ def compute_legal_actions(
             if state.play_locked(player_id, card):
                 continue
             stage = card.get_attribute(AttrID.STAGE)
+            if unplayable_from_hand_now(board, player_id, card):
+                continue  # Shedinja / Palafin ex: enters play only via an effect
             if stage == PokemonStage.BASIC.value:
-                if getattr(def_for(card.archetype_id), "unplayable_from_hand", False):
-                    continue  # Shedinja: enters play only via an effect
                 # Fossils stay Item cards in hand: Item locks gate the bench play.
                 if (card.get_attribute(AttrID.TRAINER_TYPE) is not None
                         and trainer_play_blocked(board, player_id, card)):

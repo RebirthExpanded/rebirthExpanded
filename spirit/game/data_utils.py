@@ -147,7 +147,7 @@ def reprint(
             subtypes=list(base.subtypes or []),
             regulation_mark=new_reg,
             passive=getattr(base, "passive", None),
-            unplayable_from_hand=bool(getattr(base, "unplayable_from_hand", False)),
+            unplayable_from_hand=getattr(base, "unplayable_from_hand", False),
             setup_as_active=bool(getattr(base, "setup_as_active", False)),
         )
 
@@ -367,6 +367,17 @@ _MULTI_PRIZE_SUBTYPES = {
 _RULE_BOX_SUBTYPES = set(_MULTI_PRIZE_SUBTYPES) | {"Radiant", "BREAK"}
 
 
+def unplayable_from_hand_now(board, player_id: str, card) -> bool:
+    """Whether `card` may not be played from the hand right now. The
+    definition's unplayable_from_hand is a bool (Shedinja) or a predicate
+    (board, player_id, card) -> bool (Palafin ex's Hero's Spirit, which
+    stops binding once an Ability lock reaches the hand)."""
+    flag = getattr(def_for(card.archetype_id), "unplayable_from_hand", False)
+    if callable(flag):
+        return bool(flag(board, player_id, card))
+    return bool(flag)
+
+
 def is_pokemon_v(archetype_id: Optional[str]) -> bool:
     """Pokemon V of any kind (V, VSTAR, VMAX, V-UNION)."""
     return any(s in ("V", "VSTAR", "VMAX", "V-UNION") for s in subtypes_for(archetype_id))
@@ -470,6 +481,9 @@ class Triggers:
     # This Pokemon moved into the Active spot (Cinderace Libero); fires at
     # most once per entity per turn.
     ON_MOVE_TO_ACTIVE = "on_move_to_active"
+    # This Pokemon moved from its owner's Active Spot to their Bench during
+    # the owner's own turn (Palafin's Zero to Hero): retreat or a switch.
+    ON_MOVE_TO_BENCH = "on_move_to_bench"
     # Another of the owner's Pokemon was Knocked Out (Exp. Share); fires
     # BEFORE the KO'd stack moves (energies still attached); ctx carries
     # ko_pokemon / ko_from_attack / ko_attacker.
@@ -821,7 +835,7 @@ class PokemonCardDef(CardDefinition):
         attributes: Optional[dict] = None,
         regulation_mark: Optional[str] = None,
         passive: Optional[Any] = None,
-        unplayable_from_hand: bool = False,
+        unplayable_from_hand: Any = False,
         setup_as_active: bool = False,
         foil: Optional[Foil] = None
     ):

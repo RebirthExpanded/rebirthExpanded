@@ -4149,6 +4149,18 @@ class GameSession:
         await self._fire_stadium_triggers(
             benching_player_id, Triggers.ON_POKEMON_BENCHED, _setup)
 
+    async def fire_move_to_bench_triggers(self, pokemon):
+        """ON_MOVE_TO_BENCH (Palafin's Zero to Hero): the Pokemon just left
+        its owner's Active Spot for their Bench, during the owner's turn."""
+        if pokemon is None or pokemon.owning_player_id is None:
+            return
+        if pokemon.owning_player_id != self.turn_state.active_player_id:
+            return
+        if pokemon._containing_area_name() != "bench":
+            return
+        await self._fire_triggered_abilities(
+            pokemon.owning_player_id, pokemon, Triggers.ON_MOVE_TO_BENCH)
+
     async def fire_move_to_active_triggers(self, pokemon):
         """ON_MOVE_TO_ACTIVE (Cinderace Libero), at most once per entity per
         turn regardless of how often it re-enters the Active spot."""
@@ -5324,6 +5336,7 @@ class GameSession:
             self.turn_state.turn_number
         await self._apply_active_to_bench_counters(player_id, card)
         await self.fire_move_to_active_triggers(new_active)
+        await self.fire_move_to_bench_triggers(card)
         # An Active-spot change can flip suppression passives (Tool Jammer).
         await self.resync_effective_max_hp()
 

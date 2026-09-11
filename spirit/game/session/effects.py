@@ -2264,9 +2264,12 @@ class EffectContext:
             if counters > 0:
                 await self.deal_damage(
                     counters * 10, target=old_active, as_counters=True)
-        # ON_MOVE_TO_ACTIVE fires after the swap choreography flushes.
+        # ON_MOVE_TO_ACTIVE / ON_MOVE_TO_BENCH fire after the swap
+        # choreography flushes.
         self.deferred_actions.append(
             lambda p=new_active: self.session.fire_move_to_active_triggers(p))
+        self.deferred_actions.append(
+            lambda p=old_active: self.session.fire_move_to_bench_triggers(p))
         return True
 
     async def flush_choreography(self):
