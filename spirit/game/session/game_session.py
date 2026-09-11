@@ -121,7 +121,7 @@ from .passives import (
     effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, energy_attach_taxer, evolve_heal_amount,
     granted_extra_attacks, player_visualizations,
-    retreat_energy_destination, tool_slots_free,
+    retreat_energy_destination, sleep_checkup_coin_count, tool_slots_free,
     tool_suppressed, special_energy_suppressed,
 )
 from .legal_actions import (
@@ -3385,7 +3385,10 @@ class GameSession:
 
     async def _checkup_sleep(self, player_id: str, active):
         """Sleep flip: all heads wakes (Thumping Snore's rider flips 2 coins)."""
-        coins = self.sleep_checkup_coins.get(active.entity_id, 1)
+        # The attack that put it to sleep may ask for 2 coins (Thumping
+        # Snore); so may a Stadium (Slumbering Forest). The larger applies.
+        coins = max(self.sleep_checkup_coins.get(active.entity_id, 1),
+                    sleep_checkup_coin_count(self.board_state, active))
         flips = [random.choice([0, 1]) for _ in range(coins)]
         woke = all(f == 0 for f in flips)
         self.stat_add(player_id, "headsflipped", flips.count(0))

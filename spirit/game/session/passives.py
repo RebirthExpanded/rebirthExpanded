@@ -244,6 +244,12 @@ class Passive:
         """True to let `pokemon` attack even while Asleep/Paralyzed (Windup Arm)."""
         return False
 
+    def sleep_checkup_coins(self, pokemon: PokemonEntity, carrier: BoardEntity) -> int:
+        """How many coins `pokemon` flips to wake up at Checkup under this
+        passive (Slumbering Forest: 2). 0 = no opinion; the largest answer
+        wins, and every coin has to be heads."""
+        return 0
+
     def supporter_play_limit(self, player_id: str, carrier: BoardEntity) -> int:
         """How many Supporter cards `player_id` may play in a turn under this
         passive (Magnezone's Dual Brains: 2). 0 = no opinion; the largest
@@ -890,6 +896,15 @@ def can_attack_despite_conditions(board: BoardState, pokemon: PokemonEntity) -> 
         passive.attacks_despite_conditions(pokemon, carrier)
         for passive, carrier in active_passives(board)
     )
+
+
+def sleep_checkup_coin_count(board: BoardState, pokemon: PokemonEntity) -> int:
+    """Coins `pokemon` flips to wake up: 1, or the largest figure a passive
+    names (Slumbering Forest's 2)."""
+    coins = 1
+    for passive, carrier in active_passives(board):
+        coins = max(coins, passive.sleep_checkup_coins(pokemon, carrier))
+    return coins
 
 
 def supporter_play_limit(board: BoardState, player_id: str) -> int:
