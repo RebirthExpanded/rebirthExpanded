@@ -978,6 +978,7 @@ class EffectContext:
         if count <= 0:
             return []
         results = [random.choice([0, 1]) for _ in range(count)]
+        self._apply_forced_first_flip(results)
         final = await self._maybe_reroll_attack_coins(
             results, title, source,
             lambda: [random.choice([0, 1]) for _ in range(count)])
@@ -986,6 +987,18 @@ class EffectContext:
         else:
             results = final
         return [r == 0 for r in results]
+
+    def _apply_forced_first_flip(self, results: List[int]) -> bool:
+        """Will: the turn player's chosen result replaces the first coin of
+        the next flip they make this turn. 0 is heads in the raw results.
+        Only the flipping player's own choice applies -- Will names "you"."""
+        state = self.session.turn_state
+        forced = getattr(state, "forced_first_flip", None)
+        if forced is None or not results or self.player_id != state.active_player_id:
+            return False
+        results[0] = 0 if forced else 1
+        state.forced_first_flip = None
+        return True
 
     async def flip_until_tails(self, title: str = "") -> int:
         """"Flip a coin until you get tails": one coin screen shows the whole
@@ -996,6 +1009,12 @@ class EffectContext:
                 run.append(random.choice([0, 1]))
             return run
         results = _run()
+        if self._apply_forced_first_flip(results):
+            # A forced first coin re-shapes the run: a forced heads keeps
+            # flipping, a forced tails ends it there.
+            results = results[:1]
+            while results[-1] == 0:
+                results.append(random.choice([0, 1]))
         final = await self._maybe_reroll_attack_coins(results, title, None, _run)
         if final is None:
             await self._queue_coin_results(results, title)

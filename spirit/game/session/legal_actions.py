@@ -175,6 +175,10 @@ class TurnState:
     # Whether the turn player used their once-per-turn attack-coin re-flip
     # (Glimwood Tangle); only actually re-flipping consumes it.
     attack_coin_reroll_used: bool = False
+    # Will: "the next time you flip any number of coins ... this turn, choose
+    # heads or tails for the first coin flip". True = heads, None = nothing
+    # chosen; the first flip of the turn after it is set consumes it.
+    forced_first_flip: Optional[bool] = None
     # entity_id -> (through_turn, flip_title): a Smokescreen-family check --
     # this entity must flip a coin to attack, tails cancels the attack.
     attack_flip_checks: Dict[str, Tuple[int, str]] = field(default_factory=dict)
@@ -258,6 +262,7 @@ class TurnState:
         self.on_move_to_active_fired = set()
         self.devolved_this_turn = set()
         self.attack_coin_reroll_used = False
+        self.forced_first_flip = None
         self.play_locks = {
             pid: kept for pid, locks in self.play_locks.items()
             if (kept := [(p, exp) for p, exp in locks

@@ -1340,6 +1340,153 @@ async def blow_away_bomb(ctx):
                               apply_modifiers=False)
 
 
+# --- Fire-deck engine pieces (Fiery Flint, Wait and See Hammer, Archie's,
+#     Brigette, Will, Eri, Electropower) ----------------------------------
+
+def is_fire_energy_card(card) -> bool:
+    return is_energy_of_type(card, PokemonTypes.FIRE)
+
+
+def is_fire_or_fighting_energy_card(card) -> bool:
+    return (is_energy_of_type(card, PokemonTypes.FIRE)
+            or is_energy_of_type(card, PokemonTypes.FIGHTING))
+
+
+def is_basic_water_or_fighting_pokemon(card) -> bool:
+    return is_basic_pokemon(card) and (
+        is_pokemon_of_type(card, PokemonTypes.WATER)
+        or is_pokemon_of_type(card, PokemonTypes.FIGHTING))
+
+
+async def fiery_flint(ctx):
+    """Discard 2 other cards, then up to 4 [R] Energy out of the deck."""
+    if len(await ctx.discard_from_hand(
+            2, prompt="Discard 2 cards for Fiery Flint")) < 2:
+        return
+    picks = await ctx.search_deck(
+        is_fire_energy_card, count=4, minimum=0,
+        prompt="Choose up to 4 Fire Energy cards to put into your hand.")
+    if picks:
+        await ctx.put_in_hand(picks, reveal=True)
+    await ctx.shuffle_deck()
+
+
+def second_players_first_turn(board, player_id, pokemon=None) -> bool:
+    """"Only if you go second, and only on your first turn" is turn 2 of
+    the game (Shaymin ASR 14, Scatterbug FLI 5 read it the same way)."""
+    return board.turn_state.turn_number == 2
+
+
+def wait_and_see_hammer_condition(board, player_id, pokemon=None) -> bool:
+    opponent = _other_player(board, player_id)
+    return second_players_first_turn(board, player_id) and opponent is not None \
+        and any(board.attached_energies(p) for p in board.pokemon_in_play(opponent))
+
+
+async def wait_and_see_hammer(ctx):
+    """An Energy off 1 of their Pokemon -- any of them, Bench included."""
+    targets = [p for p in ctx.opponent_pokemon_in_play()
+               if ctx.attached_energies(p)]
+    target = await ctx.choose_pokemon(
+        targets, "Choose 1 of your opponent's Pokémon to discard an Energy from")
+    if target is None:
+        return
+    await ctx.discard_energy_from(
+        target, 1, prompt="Choose an Energy to discard")
+
+
+def archies_ace_condition(board, player_id, pokemon=None) -> bool:
+    """The last card in hand, a [W] Pokemon in the discard, room on the Bench."""
+    hand = board.find_player_area(player_id, "hand")
+    if not hand or len(hand.children) != 1:
+        return False
+    discard = board.find_player_area(player_id, "discard")
+    if not any(is_water_pokemon(c) for c in (discard.children if discard else [])):
+        return False
+    bench = board.find_player_area(player_id, "bench")
+    return bool(bench) and len(bench.children) < effective_bench_capacity(board, player_id)
+
+
+async def archies_ace_in_the_hole(ctx):
+    """A [W] Pokemon -- any stage -- from the discard onto the Bench, then 5."""
+    candidates = [c for c in ctx.discard_pile() if is_water_pokemon(c)]
+    picks = await ctx.choose_cards(
+        candidates, 1, minimum=1,
+        prompt="Choose a Water Pokémon to put onto your Bench.")
+    if not picks:
+        return
+    if not await ctx.bench_pokemon(picks[0]):
+        return
+    await ctx.draw_cards(5)
+
+
+def _is_basic_ex(card) -> bool:
+    return is_basic_pokemon(card) and "EX" in subtypes_for(card.archetype_id)
+
+
+def _is_basic_non_ex(card) -> bool:
+    return is_basic_pokemon(card) and "EX" not in subtypes_for(card.archetype_id)
+
+
+async def brigette(ctx):
+    """1 Basic Pokemon-EX, or 3 Basic Pokemon that are not EX, onto the Bench.
+
+    The choice is made up front, as the card reads it; each search is capped
+    by the Bench space actually left."""
+    choice = await ctx.choose(
+        "Brigette: which will you search for?",
+        ["1 Basic Pokémon-EX", "3 Basic Pokémon (not EX)"])
+    predicate, count = ((_is_basic_ex, 1) if choice == 0
+                        else (_is_basic_non_ex, 3))
+    space = effective_bench_capacity(ctx.board, ctx.player_id) - len(ctx.my_bench())
+    take = min(count, space)
+    if take > 0:
+        picks = await ctx.search_deck(
+            predicate, count=take, minimum=0,
+            prompt="Choose Basic Pokémon to put onto your Bench.")
+        for card in picks:
+            await ctx.bench_pokemon(card)
+    await ctx.shuffle_deck()
+
+
+async def will(ctx):
+    """Choose heads or tails for the first coin of your next flip this turn."""
+    choice = await ctx.choose("Will: choose the result of your next first coin flip.",
+                              ["Heads", "Tails"])
+    ctx.session.turn_state.forced_first_flip = (choice == 0)
+
+
+def eri_condition(board, player_id, pokemon=None) -> bool:
+    opponent = _other_player(board, player_id)
+    hand = board.find_player_area(opponent, "hand") if opponent else None
+    return bool(hand and hand.children)
+
+
+async def eri(ctx):
+    """They reveal their hand; up to 2 Item cards from it are discarded."""
+    hand = await ctx.reveal_hand(ctx.opponent_id)
+    items = [c for c in hand if is_item_card(c)]
+    if not items:
+        return
+    picks = await ctx.choose_cards(
+        items, 2, minimum=0,
+        prompt="Choose up to 2 Item cards to discard from your opponent's hand.")
+    if picks:
+        await ctx.discard_cards(picks)
+
+
+async def electropower(ctx):
+    """This turn, your [L] Pokemon's attacks do 30 more to their Active."""
+    def _is_lightning(pokemon):
+        return is_pokemon_of_type(pokemon, PokemonTypes.LIGHTNING)
+    ctx.add_turn_damage_modifier(
+        TurnDamageModifier(30, ctx.player_id, source_predicate=_is_lightning))
+    for pokemon in ctx.my_pokemon_in_play():
+        if _is_lightning(pokemon):
+            await ctx.add_stat_visualization(
+                pokemon, "Positive", "DamageDealtIncreased", card_text="+30 damage")
+
+
 # --- Switch Cart (ASR, Item) ---------------------------------------------
 
 def switch_cart_condition(board, player_id):
