@@ -597,7 +597,11 @@ class BoardState:
         stack: List[BoardEntity] = list(pokemon.children)
         while stack:
             entity = stack.pop()
-            if isinstance(entity, EnergyEntity):
+            # A card attached "as a Special Energy card" (Electrode's Buzzap
+            # Thunder) is a Pokemon card wearing an Energy's attributes; it
+            # counts here and stops counting when clear_pokemon_effects
+            # strips the flag on its way out of play.
+            if isinstance(entity, EnergyEntity) or getattr(entity, "acts_as_energy", False):
                 energies.append(entity)
             stack.extend(entity.children)
         return energies

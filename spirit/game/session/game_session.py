@@ -1493,6 +1493,12 @@ class GameSession:
         had_conditions = bool(pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS))
         pokemon.set_attribute(AttrID.SPECIAL_CONDITIONS, [])
         self.clear_condition_state(pokemon.entity_id)
+        # A Pokemon card that was attached "as a Special Energy card"
+        # (Buzzap Thunder) is a Pokemon card again once it leaves play.
+        if getattr(pokemon, "acts_as_energy", False):
+            pokemon.acts_as_energy = False
+            pokemon.set_attribute(AttrID.ENERGY_INFO, None)
+            pokemon.set_attribute(AttrID.IS_SPECIAL_ENERGY, False)
         entity_id = pokemon.entity_id
         state = self.turn_state
         for key in [k for k in state.attack_locks if k[0] == entity_id]:
@@ -4983,6 +4989,7 @@ class GameSession:
         card.owning_player_id = player_id  # global area move clears the owner
         if card.get_attribute(AttrID.TRAINER_TYPE) == TrainerType.SUPPORTER.value:
             self.turn_state.supporter_played = True
+            self.turn_state.supporter_plays += 1
         self._record_trainer_played(card)
         self.stat_add(player_id, "trainersplayed")
 
@@ -5176,7 +5183,7 @@ class GameSession:
         cost = effective_retreat_cost(self.board_state, card)
         energies = [
             e for e in (self.board_state.get_entity(eid) for eid in discard_ids)
-            if isinstance(e, EnergyEntity)
+            if isinstance(e, EnergyEntity) or getattr(e, "acts_as_energy", False)
         ]
         paid = sum(energy_provided_count(e, self.board_state) for e in energies)
         if paid < cost:

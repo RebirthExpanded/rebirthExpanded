@@ -38,6 +38,7 @@ from .passives import (
     can_attack_despite_conditions,
     can_attack_first_turn,
     can_retreat_despite_conditions,
+    supporter_play_limit,
     can_evolve_early,
     can_evolve_onto,
     can_evolve_same_turn,
@@ -97,6 +98,9 @@ class TurnState:
     turn_number: int = 0
     active_player_id: Optional[str] = None
     supporter_played: bool = False
+    # How many Supporters the turn player has played; the limit is 1 unless
+    # a passive raises it (Magnezone's Dual Brains), so both are kept.
+    supporter_plays: int = 0
     # A player may play only 1 Stadium per turn, the same way they may
     # play only 1 Supporter. Set even when the Stadium never reaches the
     # board (Chaotic Swell sweeps it): playing it is what spends the turn's
@@ -229,6 +233,7 @@ class TurnState:
         self.turn_number += 1
         self.active_player_id = player_id
         self.supporter_played = False
+        self.supporter_plays = 0
         self.stadium_played = False
         self.energy_attached = False
         self.retreated = False
@@ -594,7 +599,7 @@ def compute_legal_actions(
                 # Normally Supporters are illegal on turn 1 (going first).
                 # Cards like Team Rocket's Proton set usable_first_turn.
                 first_ok = bool(getattr(definition, "usable_first_turn", False))
-                if not state.supporter_played and (
+                if state.supporter_plays < supporter_play_limit(board, player_id) and (
                     state.turn_number > 1 or first_ok
                 ):
                     entries.append(_target_map_entry(

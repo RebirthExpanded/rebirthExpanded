@@ -244,6 +244,13 @@ class Passive:
         """True to let `pokemon` attack even while Asleep/Paralyzed (Windup Arm)."""
         return False
 
+    def supporter_play_limit(self, player_id: str, carrier: BoardEntity) -> int:
+        """How many Supporter cards `player_id` may play in a turn under this
+        passive (Magnezone's Dual Brains: 2). 0 = no opinion; the largest
+        answer wins, the rule's own 1 is the floor -- two Dual Brains do not
+        make 3."""
+        return 0
+
     def retreats_despite_conditions(self, pokemon: PokemonEntity,
                                     carrier: BoardEntity) -> bool:
         """True to let `pokemon` retreat even while Asleep/Paralyzed
@@ -883,6 +890,15 @@ def can_attack_despite_conditions(board: BoardState, pokemon: PokemonEntity) -> 
         passive.attacks_despite_conditions(pokemon, carrier)
         for passive, carrier in active_passives(board)
     )
+
+
+def supporter_play_limit(board: BoardState, player_id: str) -> int:
+    """Supporter plays allowed to `player_id` this turn: 1, or the largest
+    figure a passive names (Dual Brains)."""
+    limit = 1
+    for passive, carrier in active_passives(board):
+        limit = max(limit, passive.supporter_play_limit(player_id, carrier))
+    return limit
 
 
 def can_retreat_despite_conditions(board: BoardState, pokemon: PokemonEntity) -> bool:
