@@ -130,6 +130,13 @@ def _discard(board, player_id):
 
 # "Ball" as a whole word: Great Ball and Poke Ball yes, Air Balloon no.
 _BALL_IN_NAME = re.compile(r"\bball\b")
+# ...and not every English "Ball" is a Poke Ball. The rule the card states is
+# the Japanese one -- a Goods card whose name carries ボール -- so a name that
+# picks the word up only in translation is not a Ball card. Delicious Onigiri
+# (ME6 63) is the live case: おいしいおむすび says nothing about ボール, but
+# rendered as a "Rice Ball" it would read as one here. Any future rendering
+# that does the same belongs in this pattern.
+_NOT_A_POKE_BALL = re.compile(r"\brice ball\b")
 
 
 def is_basic_energy_card(card) -> bool:
@@ -604,13 +611,15 @@ def is_ball_item(card) -> bool:
 
     "Ball" is a WORD in the name, not a run of letters: Air Balloon is not a
     Ball card -- and is a Pokemon Tool rather than an Item besides, which is
-    the other half of why it is out of reach.
+    the other half of why it is out of reach. Nor is every "Ball" a Poke Ball:
+    a name that only gains the word in English (a "Rice Ball") is not one
+    either, which _NOT_A_POKE_BALL is for.
     """
     if not is_item_card(card):
         return False
     definition = def_for(getattr(card, "archetype_id", None) or "")
     name = (getattr(definition, "display_name", None) or "").lower()
-    return bool(_BALL_IN_NAME.search(name))
+    return bool(_BALL_IN_NAME.search(name) and not _NOT_A_POKE_BALL.search(name))
 
 
 async def ball_guy(ctx):
