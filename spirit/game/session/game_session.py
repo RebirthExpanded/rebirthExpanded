@@ -2249,6 +2249,7 @@ class GameSession:
         passive_pairs = active_passives(self.board_state)
         prize_plans: List[Tuple[str, int, str]] = []
         ally_triggers: List[Tuple[PokemonEntity, str, Ability, PokemonEntity, bool]] = []
+        self_triggers: List[Tuple[PokemonEntity, str, Ability, bool, bool]] = []
         for pokemon in ctx.knockouts:
             owner_id = pokemon.owning_player_id
             if owner_id is None:
@@ -2289,6 +2290,21 @@ class GameSession:
             prize_plans.append((taker_id, max(0, count), mode))
             ko_from_attack = _damage_ko(pokemon) \
                 and ctx.attacker.owning_player_id != owner_id
+            # The KO'd Pokemon's own pre-discard triggers (the Batons ride
+            # it as Tools, so a lock on its Abilities does not reach them).
+            own_locked = ability_locked(self.board_state, pokemon)
+            was_active = self.board_state.active_pokemon(owner_id) is pokemon
+            for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
+                if not isinstance(entry, dict):
+                    continue
+                ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
+                if ability is None \
+                        or not ability.has_trigger(Triggers.ON_KNOCKED_OUT_IN_PLAY):
+                    continue
+                if own_locked and not ability.is_granted:
+                    continue
+                self_triggers.append(
+                    (pokemon, owner_id, ability, ko_from_attack, was_active))
             for ally in self.board_state.pokemon_in_play(owner_id):
                 if ally is pokemon or ally in ctx.knockouts:
                     continue
@@ -2304,8 +2320,20 @@ class GameSession:
                         continue
                     ally_triggers.append(
                         (ally, owner_id, ability, pokemon, ko_from_attack))
-        # ON_ALLY_KNOCKED_OUT fires pre-discard: the KO'd stack is still on
-        # board with its energies attached (Exp. Share moves one off it).
+        # ON_KNOCKED_OUT_IN_PLAY / ON_ALLY_KNOCKED_OUT fire pre-discard: the
+        # KO'd stack is still on board with its energies attached (the
+        # Batons and Exp. Share move Energy off it).
+        for victim, owner_id, ability, from_attack, was_active in self_triggers:
+            def _self_setup(c, _victim=victim, _from_attack=from_attack,
+                            _was_active=was_active):
+                c.ko_pokemon = _victim
+                c.ko_from_attack = _from_attack
+                c.ko_attacker = ctx.attacker if _from_attack else None
+                c.was_active_at_ko = _was_active
+            await resolve_triggered_ability(
+                self, owner_id, victim, ability, ctx_setup=_self_setup,
+                _ko_depth=_ko_depth + 1,
+            )
         for ally, owner_id, ability, victim, from_attack in ally_triggers:
             def _ally_setup(c, _victim=victim, _from_attack=from_attack):
                 c.ko_pokemon = _victim

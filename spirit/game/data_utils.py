@@ -488,6 +488,11 @@ class Triggers:
     # BEFORE the KO'd stack moves (energies still attached); ctx carries
     # ko_pokemon / ko_from_attack / ko_attacker.
     ON_ALLY_KNOCKED_OUT = "on_ally_knocked_out"
+    # This Pokemon was Knocked Out, run BEFORE its stack moves (energies
+    # still attached, Tools still riding it): Wishful Baton / Heavy Baton
+    # move Energy off it. ctx carries ko_from_attack / ko_attacker /
+    # was_active_at_ko; ON_KNOCKED_OUT is the post-discard cousin.
+    ON_KNOCKED_OUT_IN_PLAY = "on_knocked_out_in_play"
     # Either player manually put a Basic from hand onto their Bench (Gapejaw
     # Bog); ctx carries benching_player_id / benched_pokemon.
     ON_POKEMON_BENCHED = "on_pokemon_benched"
