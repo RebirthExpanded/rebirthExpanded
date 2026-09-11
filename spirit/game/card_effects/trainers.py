@@ -1,5 +1,7 @@
 """Behaviors for the Trainer cards of the Lugia VSTAR and Mew VMAX decks."""
 
+import re
+
 from spirit.game.attributes import (
     AttrID, CardType, CLIENT_POKEMON_TYPE_NAMES, PokemonStage, PokemonTypes, TrainerType,
 )
@@ -124,6 +126,10 @@ def opponent_has_special_energy(board, player_id):
 def _discard(board, player_id):
     area = board.find_player_area(player_id, "discard")
     return list(area.children) if area else []
+
+
+# "Ball" as a whole word: Great Ball and Poke Ball yes, Air Balloon no.
+_BALL_IN_NAME = re.compile(r"\bball\b")
 
 
 def is_basic_energy_card(card) -> bool:
@@ -588,6 +594,49 @@ async def ultra_ball(ctx):
     picks = await ctx.search_deck(
         is_pokemon_card, count=1, minimum=0,
         prompt="Choose a Pokémon to put into your hand.",
+    )
+    await ctx.put_in_hand(picks, reveal=True)
+    await ctx.shuffle_deck()
+
+
+def is_ball_item(card) -> bool:
+    """An Item card with "Ball" in its name (Ball Guy).
+
+    "Ball" is a WORD in the name, not a run of letters: Air Balloon is not a
+    Ball card -- and is a Pokemon Tool rather than an Item besides, which is
+    the other half of why it is out of reach.
+    """
+    if not is_item_card(card):
+        return False
+    definition = def_for(getattr(card, "archetype_id", None) or "")
+    name = (getattr(definition, "display_name", None) or "").lower()
+    return bool(_BALL_IN_NAME.search(name))
+
+
+async def ball_guy(ctx):
+    """Up to 3 DIFFERENT Item cards with "Ball" in their name, out of the
+    deck and into your hand.
+
+    "3 different" is by name, so a deck holding four Quick Balls offers one
+    of them; the chooser sees the whole deck behind the candidates so the
+    player can count what is left.
+    """
+    deck_cards = list(ctx.deck(ctx.player_id))
+    reps = []
+    seen_names = set()
+    for card_entity in deck_cards:
+        if not is_ball_item(card_entity):
+            continue
+        definition = def_for(card_entity.archetype_id)
+        name = definition.display_name if definition else None
+        if not name or name in seen_names:
+            continue
+        seen_names.add(name)
+        reps.append(card_entity)
+    picks = await ctx.choose_cards(
+        reps, 3, minimum=0,
+        prompt="Choose up to 3 different Item cards with \"Ball\" in their name.",
+        display_cards=deck_cards,
     )
     await ctx.put_in_hand(picks, reveal=True)
     await ctx.shuffle_deck()
