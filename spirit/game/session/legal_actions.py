@@ -120,6 +120,10 @@ class TurnState:
     vstar_used: Set[str] = field(default_factory=set)
     # Players who already used their once-per-game GX attack.
     gx_used: Set[str] = field(default_factory=set)
+    # player_id -> [predicate(pokemon)]: Pokemon that may use a GX attack
+    # THIS turn even though the player already used theirs (Misty &
+    # Lorelei's "your [W] Pokemon"). Cleared every begin_turn.
+    gx_reuse: Dict[str, List[Any]] = field(default_factory=dict)
     # (entity_id, ability_id) -> last turn number the attack stays locked
     # ("during your next turn, this Pokemon can't use ...").
     attack_locks: Dict[Tuple[str, str], int] = field(default_factory=dict)
@@ -275,6 +279,7 @@ class TurnState:
         self.devolved_this_turn = set()
         self.attack_coin_reroll_used = False
         self.forced_first_flip = None
+        self.gx_reuse = {}
         self.play_locks = {
             pid: kept for pid, locks in self.play_locks.items()
             if (kept := [(p, exp) for p, exp in locks
@@ -393,6 +398,16 @@ class TurnState:
             removed += len(board.temporary_passives) - len(kept)
             board.temporary_passives = kept
         return removed
+
+    def gx_available(self, player_id: str, pokemon: Any) -> bool:
+        """May `pokemon` use a GX attack now: the player's once-per-game use
+        is unspent, or a this-turn allowance names this Pokemon."""
+        if player_id not in self.gx_used:
+            return True
+        return any(pred(pokemon) for pred in self.gx_reuse.get(player_id, []))
+
+    def allow_gx_reuse(self, player_id: str, predicate) -> None:
+        self.gx_reuse.setdefault(player_id, []).append(predicate)
 
     def mark_entered_play(self, entity_id: str):
         self.entered_play_turn[entity_id] = self.turn_number
@@ -1001,7 +1016,7 @@ def _attack_entries(
                 and player_id in state.vstar_used:
             continue
         if definition is not None and definition.gx \
-                and player_id in state.gx_used:
+                and not state.gx_available(player_id, active):
             continue
         # Attack usage restriction ("You can use this attack only if...").
         if definition is not None and definition.condition is not None \

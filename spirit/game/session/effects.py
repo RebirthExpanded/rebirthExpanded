@@ -867,7 +867,8 @@ class EffectContext:
         # runs for a COPIED attack), so it has to be checked/recorded here
         # too -- otherwise Regidrago VSTAR's Apex Dragon (or any other
         # attack-copying effect) can replay a GX attack freely.
-        if getattr(ability, "gx", False) and self.player_id in self.session.turn_state.gx_used:
+        if getattr(ability, "gx", False) and not self.session.turn_state.gx_available(
+                self.player_id, self.attacker):
             logging.info(
                 f"[Effects {self.game_id}] Copied GX attack '{ability.title}' "
                 f"blocked: player {self.player_id} already used a GX attack "
