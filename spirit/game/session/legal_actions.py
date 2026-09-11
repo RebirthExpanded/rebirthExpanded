@@ -34,6 +34,7 @@ from .constants import (
 from .passives import (
     ability_locked,
     attack_effects_blocked,
+    tool_attach_blocked,
     attacking_blocked,
     out_of_play_ability_locked,
     can_attack_despite_conditions,
@@ -750,6 +751,8 @@ def compute_legal_actions(
                         action_id_for(card.entity_id, "stadium"), ACTION_PLAY_STADIUM,
                     ))
             elif trainer_type == TrainerType.POKEMON_TOOL.value:
+                if tool_attach_blocked(board, player_id):
+                    continue
                 tool_attach_to = getattr(definition, "attach_to", None)
                 tool_targets = [
                     p.entity_id for p in in_play

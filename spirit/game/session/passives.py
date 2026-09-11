@@ -466,6 +466,17 @@ class Passive:
         """True to keep `card` from being discarded by an opponent's effect."""
         return False
 
+    def blocks_tool_attach(self, player_id: str, carrier: BoardEntity) -> bool:
+        """True to keep `player_id` from attaching Pokemon Tool cards from
+        their hand (Goodra's Slip Trip, both players)."""
+        return False
+
+    def turn_draw_count(self, player_id: str, count: int,
+                        carrier: BoardEntity) -> int:
+        """Rewrites how many cards `player_id` draws at the start of their
+        turn (Hall of Fame Belt: 2 while its holder is Active)."""
+        return count
+
     def blocks_player_attack_effects(self, player_id: str,
                                      carrier: BoardEntity) -> bool:
         """True to shield `player_id` and their HAND from the effects of an
@@ -1042,6 +1053,22 @@ def discard_blocked(board: BoardState, card: BoardEntity) -> bool:
         passive.blocks_discard(card, carrier)
         for passive, carrier in active_passives(board)
     )
+
+
+def tool_attach_blocked(board: BoardState, player_id: str) -> bool:
+    """Whether a passive keeps `player_id` from attaching Tools from hand."""
+    return any(
+        passive.blocks_tool_attach(player_id, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def effective_turn_draw(board: BoardState, player_id: str) -> int:
+    """How many cards `player_id` draws at the start of their turn."""
+    count = 1
+    for passive, carrier in active_passives(board):
+        count = passive.turn_draw_count(player_id, count, carrier)
+    return max(0, count)
 
 
 def player_attack_effects_blocked(board: BoardState, player_id: str) -> bool:

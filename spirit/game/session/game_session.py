@@ -120,7 +120,7 @@ from .passives import (
     ability_locked, active_passives, active_to_bench_counters,
     burn_recovery_blocked, discard_destination_for,
     effective_bench_capacity, effective_max_hp,
-    effective_retreat_cost, energy_attach_taxer, evolve_heal_amount,
+    effective_retreat_cost, effective_turn_draw, energy_attach_taxer, evolve_heal_amount,
     granted_extra_attacks, player_visualizations,
     mega_evolution_ends_turn, retreat_energy_destination,
     sleep_checkup_coin_count, tool_slots_free,
@@ -3729,7 +3729,10 @@ class GameSession:
             f"begins for {player.screen_name}."
         )
 
-        drawn = self.board_state.draw_cards(active_id, 1)
+        # A passive may raise the draw (Hall of Fame Belt); drawing fewer
+        # than that from a short deck is fine, drawing none is the deck-out.
+        drawn = self.board_state.draw_cards(
+            active_id, effective_turn_draw(self.board_state, active_id))
         if not drawn:
             # Failing the mandatory turn draw loses the game (deck out).
             await self.end_game(
