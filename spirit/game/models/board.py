@@ -2,7 +2,7 @@ import uuid
 import json
 import random
 import logging
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from spirit.game.attributes import AttrID, CardType, PokemonStage, Rarities, PlayerAttrID
 from spirit.game.models.card import Card
 from spirit.game.scripts.cards import loader as card_loader
@@ -390,8 +390,20 @@ class BoardState:
                 return child
         return None
 
+    # Callbacks run just BEFORE any card changes place (add_card_to_area /
+    # move_card / attach_card): state that depends on the ORDER of board
+    # changes (passives.py's New Moon shields) settles itself against the
+    # board as it stood, so two changes with no query in between still
+    # resolve in sequence. Registered by the session layer.
+    pre_change_hooks: List[Callable[["BoardState"], None]] = []
+
+    def _before_change(self) -> None:
+        for hook in self.pre_change_hooks:
+            hook(self)
+
     def add_card_to_area(self, card_entity: CardEntity, area: PlayArea):
         """Inserts a card entity into a play area, updating ownership and registration."""
+        self._before_change()
         area.add_child(card_entity)
         card_entity.owning_player_id = area.owning_player_id
         self._register_entity(card_entity)
@@ -403,6 +415,7 @@ class BoardState:
 
         if not isinstance(card, CardEntity) or not isinstance(to_area, PlayArea):
             return False
+        self._before_change()
 
         # "Turned face up where it lies" ends when it stops lying there: a
         # Prize turned over by Town Map is a private hand card again once it
@@ -433,6 +446,7 @@ class BoardState:
             return False
         if card is target:
             return False
+        self._before_change()
 
         if card.parent_id:
             parent = self.get_entity(card.parent_id)

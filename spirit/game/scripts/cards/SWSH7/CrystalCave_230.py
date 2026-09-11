@@ -1,6 +1,7 @@
 from spirit.game.data_utils import StadiumCardDef, Ability, Activations
 from spirit.game.attributes import Rarities, PokemonTypes, AttrID
 from spirit.game.session.passives import effective_max_hp
+from spirit.game.session.passives import stadium_effects_prevented
 
 
 def _is_metal_or_dragon(pokemon):
@@ -11,6 +12,7 @@ def _is_metal_or_dragon(pokemon):
 def crystal_cave_condition(board, player_id, stadium):
     return any(
         _is_metal_or_dragon(p) and p.get_attribute(AttrID.HP, 0) < effective_max_hp(board, p)
+        and not stadium_effects_prevented(board, p)  # New Moon
         for p in board.pokemon_in_play(player_id)
     )
 

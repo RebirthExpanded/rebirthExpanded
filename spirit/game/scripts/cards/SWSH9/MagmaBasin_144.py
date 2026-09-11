@@ -1,6 +1,7 @@
 from spirit.game.data_utils import StadiumCardDef, Ability, Activations
 from spirit.game.attributes import Rarities, AttrID, PokemonTypes
 from spirit.game.card_effects.pokemon import energy_provides_type
+from spirit.game.session.passives import stadium_effects_prevented
 
 
 def _is_fire_energy(card):
@@ -16,7 +17,9 @@ def _magma_basin_condition(board, player_id, stadium):
     discard = board.find_player_area(player_id, "discard")
     has_energy = bool(discard) and any(_is_fire_energy(c) for c in discard.children)
     bench = board.find_player_area(player_id, "bench")
-    has_bench = bool(bench) and any(_is_fire_pokemon(p) for p in bench.children)
+    has_bench = bool(bench) and any(
+        _is_fire_pokemon(p) and not stadium_effects_prevented(board, p)  # New Moon
+        for p in bench.children)
     return has_energy and has_bench
 
 
@@ -25,7 +28,8 @@ async def _magma_basin_effect(ctx):
     their discard pile to 1 of their Benched Fire Pokemon and put 2 damage
     counters on it."""
     energy = [c for c in ctx.discard_pile() if _is_fire_energy(c)]
-    bench = [p for p in ctx.my_bench() if _is_fire_pokemon(p)]
+    bench = [p for p in ctx.my_bench()
+             if _is_fire_pokemon(p) and not stadium_effects_prevented(ctx.board, p)]
     if not energy or not bench:
         return
     picks = await ctx.choose_cards(

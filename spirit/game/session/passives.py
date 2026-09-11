@@ -557,6 +557,14 @@ class Passive:
         Pokemon whose attack flipped the coins, when known."""
         return False
 
+    def stadium_immunity(self, board: BoardState, carrier: BoardEntity) -> bool:
+        """New Moon: True while this passive asks for its owner's Pokemon in
+        play to be shielded from every Stadium effect ("If you have Solrock
+        in play, prevent all effects of any Stadium done to your Pokemon in
+        play"). The shield is stateful -- see _refresh_stadium_shields -- so
+        the answer here is only the printed condition, not the lock check."""
+        return False
+
 
 def carrier_pokemon(carrier: BoardEntity) -> Optional[PokemonEntity]:
     """The in-play Pokemon a passive rides: the carrier itself, or the
@@ -568,6 +576,188 @@ def carrier_pokemon(carrier: BoardEntity) -> Optional[PokemonEntity]:
             return entity
         entity = parent if isinstance(parent, CardEntity) else None
     return None
+
+
+# --- New Moon: a side's Pokemon in play ignore every Stadium effect --------
+#
+# Lunatone's New Moon is the only printed shield against Stadium effects, and
+# the official Q&A makes it ORDER-DEPENDENT: Silent Lab played onto a working
+# New Moon is itself a Stadium effect and gets prevented, while a Lunatone
+# put into play under Silent Lab has no Ability to shield anyone with. So the
+# shield is a piece of state (board.stadium_shields: Lunatone entity id ->
+# owner) that flips on when the printed condition is met AND the Ability is
+# not locked at that moment (Stadium locks still reach it), and flips off
+# when the condition fails or a NON-Stadium lock (Garbotoxin) reaches it --
+# Stadium locks can't, because the shield is up. Stealthy Hood needs nothing
+# extra: _locks_abilities_of already ignores an opponent's Ability lock on
+# its holder, so Garbotoxin never switches a hooded Lunatone off.
+
+# Stadium hooks that read as an effect on the PLAYER (or the coin) even
+# though a Pokemon rides along in the arguments; the official Q&A lets a
+# New Moon player re-flip under Luminous Maze Forest.
+_STADIUM_PLAYER_HOOKS = frozenset({
+    "offers_attack_coin_reroll", "player_visualizations", "bench_capacity",
+    "supporter_play_limit", "turn_draw_count", "blocks_trainer_play",
+    "blocks_discard_recovery", "blocks_tool_attach",
+    "blocks_player_attack_effects", "replace_supporter_effect",
+    "blocks_moving_damage_counters", "blocks_out_of_play_abilities",
+})
+# Hooks whose first argument is an attached card: the effect lands on the
+# Pokemon it is attached to (Temple of Sinnoh under New Moon leaves
+# Luminous Energy providing every type, per the Q&A).
+_STADIUM_ATTACHMENT_HOOKS = frozenset({
+    "discard_destination", "suppresses_special_energy", "suppresses_tool",
+    "blocks_energy_removal",
+})
+
+
+def _stadium_hook_target(name: str, args, kwargs) -> Optional[PokemonEntity]:
+    """The in-play Pokemon a Stadium hook call is an effect on, or None when
+    the call is not about any particular Pokemon."""
+    if name in _STADIUM_PLAYER_HOOKS:
+        return None
+    values = list(args) + list(kwargs.values())
+    if values and isinstance(values[0], DamageCalc):
+        calc = values[0]
+        entity = calc.attacker if name == "modify_damage_dealt" else calc.target
+        return entity if isinstance(entity, PokemonEntity) else None
+    for value in values:
+        if isinstance(value, PokemonEntity):
+            return value
+    if name in _STADIUM_ATTACHMENT_HOOKS and values:
+        return carrier_pokemon(values[0]) if isinstance(values[0], BoardEntity) else None
+    return None
+
+
+def stadium_effects_prevented(board: BoardState, pokemon: BoardEntity) -> bool:
+    """Whether `pokemon` (in play) is shielded from Stadium effects by a
+    working New Moon on its side. Card scripts use it for the Stadium
+    effects that are not passives (Gapejaw Bog's counters, Crystal Cave's
+    heal); EffectContext consults it for every Stadium-sourced primitive."""
+    if not isinstance(pokemon, PokemonEntity):
+        return False
+    _collect_passives(board)  # refreshes the shields for the current board
+    if pokemon.owning_player_id not in (getattr(board, "stadium_shield_players", None) or ()):
+        return False
+    return pokemon._containing_area_name() in ("activePokemonArea", "bench")
+
+
+def _shielded(board: BoardState, target: PokemonEntity) -> bool:
+    players = getattr(board, "stadium_shield_players", None)
+    if not players or target.owning_player_id not in players:
+        return False
+    return target._containing_area_name() in ("activePokemonArea", "bench")
+
+
+class _StadiumGuard(Passive):
+    """Wraps a Stadium's passive: every hook whose target Pokemon is under a
+    New Moon shield answers with the Passive base default instead."""
+
+    def __init__(self, inner: Passive, board: BoardState):
+        self.inner = inner
+        self.board = board
+
+    def __getattr__(self, name):
+        return getattr(self.inner, name)
+
+
+def _make_stadium_guard_hook(name, base_fn):
+    def hook(self, *args, **kwargs):
+        target = _stadium_hook_target(name, args, kwargs)
+        if target is not None and _shielded(self.board, target):
+            return base_fn(self.inner, *args, **kwargs)
+        return getattr(self.inner, name)(*args, **kwargs)
+    hook.__name__ = name
+    return hook
+
+
+for _name, _fn in list(vars(Passive).items()):
+    if callable(_fn) and not _name.startswith("_") and _name != "stadium_immunity":
+        setattr(_StadiumGuard, _name, _make_stadium_guard_hook(_name, _fn))
+
+
+def _stadium_immunity_archetypes() -> Set[str]:
+    """Archetype ids whose Abilities carry a stadium_immunity passive
+    (Lunatone); cached against the size of the card registry."""
+    global _IMMUNITY_CACHE
+    from spirit.game.data_utils import CARD_DEFS_BY_GUID
+    size = len(CARD_DEFS_BY_GUID)
+    if _IMMUNITY_CACHE is None or _IMMUNITY_CACHE[0] != size:
+        found = set()
+        for guid, definition in CARD_DEFS_BY_GUID.items():
+            for ability in getattr(definition, "abilities", None) or []:
+                passive = getattr(ability, "passive", None)
+                if passive is not None and                         type(passive).stadium_immunity is not Passive.stadium_immunity:
+                    found.add(guid)
+        _IMMUNITY_CACHE = (size, found)
+    return _IMMUNITY_CACHE[1]
+
+
+_IMMUNITY_CACHE: Optional[Tuple[int, Set[str]]] = None
+
+
+def _settle_stadium_shields_before_change(board: BoardState) -> None:
+    """BoardState pre-change hook: with a New Moon Pokemon in play, decide
+    the shields against the board as it stands before the next card moves,
+    so "Silent Lab played onto a working New Moon" and "Lunatone put into
+    play under Silent Lab" come out differently even when nothing queried
+    the passives in between."""
+    if not getattr(board, "player_ids", None):
+        return
+    archetypes = _stadium_immunity_archetypes()
+    if not archetypes:
+        return
+    for player_id in board.player_ids:
+        for pokemon in board.pokemon_in_play(player_id):
+            if (pokemon.archetype_id or "").lower() in archetypes:
+                _collect_passives(board)
+                return
+    if getattr(board, "stadium_shields", None):
+        board.stadium_shields.clear()
+        board.stadium_shield_players = frozenset()
+
+
+BoardState.pre_change_hooks.append(_settle_stadium_shields_before_change)
+
+
+def _refresh_stadium_shields(
+    board: BoardState,
+    triples: List[Tuple[Passive, BoardEntity, bool]],
+    stadium_triples: List[Tuple[Passive, BoardEntity, bool]],
+) -> None:
+    """State-based update of board.stadium_shields (see the note above)."""
+    shields = getattr(board, "stadium_shields", None)
+    if shields is None:
+        shields = {}
+        board.stadium_shields = shields
+    seen = set()
+    non_stadium = None
+    for passive, carrier, is_ability in triples:
+        if type(passive).stadium_immunity is Passive.stadium_immunity:
+            continue
+        key = carrier.entity_id
+        seen.add(key)
+        owner = carrier.owning_player_id
+        condition = passive.stadium_immunity(board, carrier)
+        if non_stadium is None:
+            non_stadium = [t for t in triples
+                           if not any(t is st for st in stadium_triples)]
+        if key in shields:
+            # Up: only the condition failing or a non-Stadium lock ends it.
+            if not condition or (is_ability and _locks_abilities_of(non_stadium, carrier)):
+                del shields[key]
+            continue
+        if not condition:
+            continue
+        # Down: Stadium locks still reach this Pokemon -- unless a sibling
+        # shield on the same side is already up and covering it.
+        pool = non_stadium if owner in shields.values() else triples
+        if is_ability and _locks_abilities_of(pool, carrier):
+            continue
+        shields[key] = owner
+    for key in [k for k in shields if k not in seen]:
+        del shields[key]
+    board.stadium_shield_players = frozenset(shields.values())
 
 
 def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, bool]]:
@@ -602,11 +792,13 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
                 if passive is not None:
                     triples.append((passive, attachment, False))
     stadium_area = board.find_global_area("activeStadium")
+    stadium_triples: List[Tuple[Passive, BoardEntity, bool]] = []
     for stadium in (stadium_area.children if stadium_area else []):
         definition = def_for(stadium.archetype_id)
         passive = getattr(definition, "passive", None)
         if passive is not None:
-            triples.append((passive, stadium, False))
+            stadium_triples.append((passive, stadium, False))
+    triples.extend(stadium_triples)
     # "For the rest of this game" passives (Full Metal Wall-GX): owned by a
     # PLAYER rather than by a card, so they outlive the Pokemon that made
     # them and nothing on the board can switch them off. The owner's Active
@@ -622,6 +814,12 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
         if carrier is None or not _carrier_in_play(carrier):
             continue
         triples.append((temp.passive, carrier, False))
+    # New Moon: decide the shields on the raw set, then hand out the Stadium
+    # passives behind a guard that honours them.
+    _refresh_stadium_shields(board, triples, stadium_triples)
+    if stadium_triples and getattr(board, "stadium_shield_players", None):
+        guarded = {id(t): (_StadiumGuard(t[0], board), t[1], t[2]) for t in stadium_triples}
+        triples = [guarded.get(id(t), t) for t in triples]
     return triples
 
 

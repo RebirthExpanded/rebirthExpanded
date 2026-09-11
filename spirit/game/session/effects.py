@@ -66,6 +66,7 @@ from .passives import (
     trainer_effects_blocked,
     damage_counters_blocked,
     moving_damage_counters_blocked,
+    stadium_effects_prevented,
 )
 
 # CakeAttackEffect's damageType is a string array of client type names.
@@ -258,6 +259,18 @@ class EffectContext:
     def prizes_taken(self, player_id: Optional[str] = None) -> int:
         return self.board.prizes_taken(player_id or self.player_id)
 
+    def _stadium_effect_prevented(self, target) -> bool:
+        """New Moon: an effect this ctx runs FOR a Stadium (its on-play effect,
+        its once-per-turn ability, its trigger) does nothing to a shielded
+        Pokemon -- Crystal Cave can't heal it, Magma Basin can't attach to
+        it, Gapejaw Bog puts no counters on it."""
+        source = self.source
+        if source is None or not isinstance(target, PokemonEntity):
+            return False
+        if source.get_attribute(AttrID.TRAINER_TYPE) != TrainerType.STADIUM.value:
+            return False
+        return stadium_effects_prevented(self.board, target)
+
     def is_attack_effect(self) -> bool:
         """Whether this ctx's ability is an attack (vs. a PokeAbility/trainer)."""
         return self.ability is not None and self.ability.ability_type in (
@@ -412,7 +425,7 @@ class EffectContext:
         if target is None:
             logging.warning(f"[Effects {self.game_id}] deal_damage with no target; skipped.")
             return 0
-        if self._trainer_blocked(target):
+        if self._trainer_blocked(target) or self._stadium_effect_prevented(target):
             return 0
         base = amount if amount is not None else getattr(self.ability, "damage", 0)
         if base <= 0:
@@ -541,7 +554,7 @@ class EffectContext:
         the heal keyword, so Legendary Ocean Trench must not inflate it).
         """
         target = target if target is not None else self.my_active()
-        if target is None or amount <= 0:
+        if target is None or amount <= 0 or self._stadium_effect_prevented(target):
             return 0
         if healing_blocked(self.board, target):
             logging.info(
@@ -652,6 +665,8 @@ class EffectContext:
         all Special Conditions"); returns True if any were removed."""
         if target is None or not target.get_attribute(AttrID.SPECIAL_CONDITIONS):
             return False
+        if self._stadium_effect_prevented(target):
+            return False
         target.set_attribute(AttrID.SPECIAL_CONDITIONS, [])
         self.session.clear_condition_state(target.entity_id)
         # The executor diffs the full new array; its ctor requires a "Target" data effect.
@@ -673,6 +688,8 @@ class EffectContext:
             return False
         name = CLIENT_SPECIAL_CONDITION_NAMES[condition]
         if name not in (target.get_attribute(AttrID.SPECIAL_CONDITIONS) or []):
+            return False
+        if self._stadium_effect_prevented(target):
             return False
         msg = self.session._remove_single_condition(target, condition)
         # Executor ctor (M.t) indexes the bracket's data effects with "Target".
@@ -2063,7 +2080,7 @@ class EffectContext:
         observers (deferred until the choreography flushes); most effect
         attaches are NOT "attaching from hand" and leave it False.
         """
-        if energy is None or pokemon is None:
+        if energy is None or pokemon is None or self._stadium_effect_prevented(pokemon):
             return False
         position = len(pokemon.children)
         if not self.board.attach_card(energy.entity_id, pokemon.entity_id):
