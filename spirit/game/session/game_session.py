@@ -2325,6 +2325,13 @@ class GameSession:
             if not discard:
                 continue
             was_active = self.board_state.active_pokemon(owner_id) is pokemon
+            # "Knocked Out by damage from an opponent's attack": stamped on
+            # the entity so a destination passive (Splash Energy's "put that
+            # Pokemon into your hand") can read the cause without a ctx.
+            pokemon.ko_by_opposing_attack_damage = bool(
+                _damage_ko(pokemon)
+                and ctx.attacker is not None
+                and ctx.attacker.owning_player_id != owner_id)
             # Lost City-style passives (Lost Zone) redirect the KO'd Pokemon
             # stack; energy/tools always fall to the discard pile.
             dest_name = next(
