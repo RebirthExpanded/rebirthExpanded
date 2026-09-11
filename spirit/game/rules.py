@@ -17,6 +17,9 @@ MAX_COPIES = 4
 # searches under the name it was printed with.
 EXCLUSIVE_NAME_GROUPS: List[frozenset] = [
     frozenset({"Boss's Orders", "Lysandre"}),
+    # The three "discard your hand and draw 7" professors are the same card
+    # under three names; a deck may hold copies of only one of them.
+    frozenset({"Professor's Research", "Professor Sycamore", "Professor Juniper"}),
 ]
 
 
