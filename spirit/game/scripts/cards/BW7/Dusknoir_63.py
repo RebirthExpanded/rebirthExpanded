@@ -26,13 +26,15 @@ play with a counter to move, or there is nothing to do.
 
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities
-from spirit.game.session.passives import effective_max_hp
+from spirit.game.session.passives import (effective_max_hp,
+                                          moving_damage_counters_blocked)
 
 
 def _sinister_hand_condition(board, player_id, pokemon=None):
-    """Two of the opponent's Pokemon in play, one of them with a counter."""
+    """Two of the opponent's Pokemon in play, one of them with a counter,
+    and no Watchful Eye (Patrat) pinning every counter where it sits."""
     opponent = next((pid for pid in board.player_ids if pid != player_id), None)
-    if opponent is None:
+    if opponent is None or moving_damage_counters_blocked(board):
         return False
     theirs = board.pokemon_in_play(opponent)
     if len(theirs) < 2:
