@@ -8,7 +8,7 @@ from spirit.game.attributes import (
 from spirit.game.models.board import PokemonEntity
 from spirit.game.data_utils import (
     Ability, Activations, Attack, def_for, has_rule_box, is_pokemon_v,
-    subtypes_for,
+    subtypes_for, Triggers,
 )
 from spirit.game.session.constants import BENCH_CAPACITY, PROMPT_CHOOSE_A_PRIZE
 from spirit.game.session.effects import (
@@ -1287,6 +1287,57 @@ async def cyrus_prism_star(ctx):
                for c in full_stack(p)]
     if leaving:
         await ctx.shuffle_into_deck(leaving, ctx.opponent_id)
+
+
+# --- Roxie (CEC, Supporter) ----------------------------------------------
+
+def _is_gx_or_uppercase_ex(card) -> bool:
+    return any(s in ("GX", "EX") for s in subtypes_for(card.archetype_id))
+
+
+def _roxie_fodder(card) -> bool:
+    """A Pokemon card that is neither a Pokemon-GX nor a Pokemon-EX.
+
+    The SM-era pair, so a Scarlet & Violet Pokemon ex (lowercase) is not
+    excluded -- it is not a "Pokemon-EX" any more than a V is.
+    """
+    return is_pokemon_card(card) and not _is_gx_or_uppercase_ex(card)
+
+
+def roxie_condition(board, player_id) -> bool:
+    hand = board.find_player_area(player_id, "hand")
+    return any(_roxie_fodder(c) for c in (hand.children if hand else []))
+
+
+async def roxie(ctx):
+    """Discard up to 2 non-GX/EX Pokemon from your hand; draw 3 for each.
+
+    The discarded cards then get their own say: "Blow-Away Bomb" fires here
+    rather than in the discard path, which is what the card means by
+    "(Place damage counters after the effect of Roxie.)".
+    """
+    discarded = await ctx.discard_from_hand(
+        2, minimum=0, predicate=_roxie_fodder,
+        prompt="Discard up to 2 Pokémon that aren't Pokémon-GX or Pokémon-EX.")
+    if not discarded:
+        return
+    await ctx.draw_cards(3 * len(discarded))
+    for card in discarded:
+        await ctx.session._fire_triggered_abilities(
+            ctx.player_id, card, Triggers.ON_DISCARDED_BY_ROXIE)
+
+
+async def blow_away_bomb(ctx):
+    """A damage counter on each of their Pokemon, if you want it."""
+    targets = list(ctx.opponent_pokemon_in_play())
+    if not targets:
+        return
+    if not await ctx.ask_yes_no(
+            "Put 1 damage counter on each of your opponent's Pokémon?"):
+        return
+    for target in targets:
+        await ctx.deal_damage(10, target=target, as_counters=True,
+                              apply_modifiers=False)
 
 
 # --- Switch Cart (ASR, Item) ---------------------------------------------

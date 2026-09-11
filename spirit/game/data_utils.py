@@ -491,6 +491,13 @@ class Triggers:
     # effect (Amoonguss "Surprise Spores"); fires via the acting ctx's
     # deferred_actions, after that effect's choreography flushes.
     ON_DISCARDED_FROM_HAND = "on_discarded_from_hand"
+    # This card was discarded from its owner's hand BY ROXIE (Koffing and
+    # Weezing "Blow-Away Bomb"). The printed text names that one Supporter,
+    # so nothing else opens this window -- not another hand discard, and not
+    # a discard from anywhere but the hand. Roxie fires it after its own
+    # draw, which is the card's "(Place damage counters after the effect of
+    # Roxie.)".
+    ON_DISCARDED_BY_ROXIE = "on_discarded_by_roxie"
 
 
 class Activations:
