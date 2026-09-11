@@ -2955,6 +2955,20 @@ async def resolve_energy_on_attach(session, player_id: str, energy: EnergyEntity
     return ctx
 
 
+async def resolve_tool_on_attach(session, player_id: str, tool: CardEntity,
+                                 target: PokemonEntity) -> Optional[EffectContext]:
+    """Runs a Pokemon Tool's on_attach hook after it attached from hand
+    (the Energy hook's twin)."""
+    definition = def_for(tool.archetype_id)
+    hook = getattr(definition, "on_attach", None)
+    if hook is None or hook is unimplemented:
+        return None
+    ctx = EffectContext(session, player_id, tool, None, attached_to=target)
+    ctx.is_trainer_effect = True
+    await hook(ctx)
+    return ctx
+
+
 async def _send_attack_bracket(session, ctx: AttackContext, action_id: str, title: str):
     """One Attack bracket per viewer: begin marker, effect messages, end marker."""
     # AbilityPlayedEffect uses the client's AbilityType enum (Attack/PokeAbility),

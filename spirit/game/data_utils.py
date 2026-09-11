@@ -1034,14 +1034,19 @@ class PokemonToolCardDef(TrainerCardDef):
     passives.Passive); `effect` stays unused for plain stat tools.
     `granted_abilities` are Abilities the tool grants its holder while
     attached (Forest Seal Stone). `attach_to(pokemon_entity) -> bool`
-    restricts legal attach targets (Hero's Medal)."""
+    restricts legal attach targets (Hero's Medal). `on_attach` is an async
+    (ctx) hook run once the tool has been attached from hand, ctx.attached_to
+    being the holder (Ancient Booster Energy Capsule's "recovers from all
+    Special Conditions") -- the Energy on_attach shape."""
     def __init__(self, passive: Optional[Any] = None,
                  granted_abilities: Optional[List[Ability]] = None,
-                 attach_to: Optional[Callable] = None, **kwargs):
+                 attach_to: Optional[Callable] = None,
+                 on_attach: Optional[Any] = None, **kwargs):
         kwargs['trainer_type'] = TrainerType.POKEMON_TOOL
         super().__init__(**kwargs)
         self.passive = passive
         self.attach_to = attach_to
+        self.on_attach = on_attach
         self.granted_abilities: List[Ability] = granted_abilities or []
         for idx, a in enumerate(self.granted_abilities):
             if not a.ability_id:

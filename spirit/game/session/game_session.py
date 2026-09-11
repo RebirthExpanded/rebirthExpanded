@@ -113,6 +113,7 @@ from .effects import (
     resolve_attack,
     resolve_energy_attach_cost,
     resolve_energy_on_attach,
+    resolve_tool_on_attach,
     resolve_trainer_effect,
     resolve_triggered_ability,
 )
@@ -4646,6 +4647,10 @@ class GameSession:
         )
         await self._refresh_max_hp(target, max_before)
         await self.refresh_granted_abilities(target)
+        attach_ctx = await resolve_tool_on_attach(self, player_id, card, target)
+        if attach_ctx is not None:
+            await self._flush_effect_runs(attach_ctx)
+            await self.resolve_knockouts(attach_ctx)
 
     async def _execute_use_ability(self, player_id, card, entry) -> bool:
         """Activates a Pokemon's usable ability (once-per-turn / VSTAR).
