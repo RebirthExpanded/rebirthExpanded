@@ -10,7 +10,7 @@ async def cursed_blast_5(ctx):
     target = await ctx.choose_pokemon(candidates, "Choose a Pokémon")
     if target is None:
         return
-    await ctx.place_damage_counters(5, [target])
+    await ctx.deal_damage(amount=50, target=target, as_counters=True)
     await ctx.knock_out(ctx.source)
 
 

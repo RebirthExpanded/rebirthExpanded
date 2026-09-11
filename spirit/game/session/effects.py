@@ -1082,6 +1082,11 @@ class EffectContext:
         pool = [p for p in pool if p.entity_id in in_play_ids]
         if not pool or count <= 0:
             return
+        if len(pool) == 1:
+            # One place to put them all (Cursed Blast onto a chosen Pokemon):
+            # nothing to distribute, so no click-per-counter picker.
+            await self.deal_damage(amount=count * 10, target=pool[0], as_counters=True)
+            return
         placement = await self.session.prompt_damage_counter_placement(
             self.player_id, self.source.entity_id, pool, count,
             prompt=f"Place {count} damage counters on your opponent's Pokemon.",
