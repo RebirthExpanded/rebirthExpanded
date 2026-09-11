@@ -26,15 +26,17 @@ play with a counter to move, or there is nothing to do.
 
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities
-from spirit.game.session.passives import (effective_max_hp,
-                                          moving_damage_counters_blocked)
+from spirit.game.session.passives import effective_max_hp
 
 
 def _sinister_hand_condition(board, player_id, pokemon=None):
-    """Two of the opponent's Pokemon in play, one of them with a counter,
-    and no Watchful Eye (Patrat) pinning every counter where it sits."""
+    """Two of the opponent's Pokemon in play, one of them with a counter.
+
+    A move lock (Patrat's Watchful Eye) does not switch the Ability off:
+    the clicked counter is still taken off its Pokemon, it just cannot be
+    put on another, and the Ability ends there."""
     opponent = next((pid for pid in board.player_ids if pid != player_id), None)
-    if opponent is None or moving_damage_counters_blocked(board):
+    if opponent is None:
         return False
     theirs = board.pokemon_in_play(opponent)
     if len(theirs) < 2:

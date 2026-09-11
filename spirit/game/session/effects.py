@@ -1152,12 +1152,16 @@ class EffectContext:
         """
         if source is None:
             return 0
-        if moving_damage_counters_blocked(self.board):
-            return 0
         damage = max(0, self.max_hp(source) - source.get_attribute(AttrID.HP, 0))
         available = damage // 10
         count = available if max_count is None else min(available, max_count)
         if count <= 0:
+            return 0
+        if moving_damage_counters_blocked(self.board):
+            # Watchful Eye (Patrat): the counters still come off the source
+            # -- that half of "move" is not what the lock names -- but they
+            # cannot be put on another Pokemon, so the move ends there.
+            await self.remove_damage_counters(source, count)
             return 0
         if isinstance(dest_or_targets, PokemonEntity):
             if self.effects_blocked(dest_or_targets):
@@ -2217,7 +2221,9 @@ class EffectContext:
         """"As often as you like ... move 1 damage counter": repeats [click a
         damaged Pokemon -- its counter lifts off at once] -> [click where it
         lands -- it drops at once] until Done is clicked on the source pick
-        or nothing is left to move. Returns the counters moved.
+        or nothing is left to move. Returns the counters moved. Under a
+        move lock (Watchful Eye) the clicked counter comes off and the
+        Ability ends without placing it.
 
         Each half is flushed to both clients before the next click, so the
         board shows -1 / +1 as the player goes (Sinister Hand) instead of
@@ -2227,8 +2233,6 @@ class EffectContext:
         move_damage_counters).
         """
         moved = 0
-        if moving_damage_counters_blocked(self.board):
-            return 0
         # An AIPlayer answers every pick with the first candidate and never
         # clicks Done, which would shuttle one counter back and forth
         # forever; it gets a single move per activation.
@@ -2262,6 +2266,11 @@ class EffectContext:
             lifted = await self.remove_damage_counters(source, lifted)
             await self.flush_choreography()
             if lifted <= 0:
+                break
+            if moving_damage_counters_blocked(self.board):
+                # Watchful Eye (Patrat): the counter is off its Pokemon but
+                # cannot be put on another, so it stays off and the Ability
+                # ends here.
                 break
             dest = await self.choose_pokemon(dests, dest_prompt)
             if dest is None or self.effects_blocked(dest):
