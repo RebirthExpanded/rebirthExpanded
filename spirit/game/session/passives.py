@@ -166,6 +166,15 @@ class Passive:
         """True to prevent the hit entirely (calc.amount becomes 0)."""
         return False
 
+    def applies_bench_modifiers(self, calc: DamageCalc, carrier: BoardEntity) -> bool:
+        """True to run Weakness/Resistance on a hit that skipped them only
+        because its target is Benched -- the rules parenthetical "(Don't
+        apply Weakness and Resistance for Benched Pokemon.)" -- Wide Lens.
+        An attack whose own text says its damage "isn't affected by
+        Weakness or Resistance" (ignore_weakness / ignore_resistance) stays
+        unaffected: those flags live on the calc, not on this switch."""
+        return False
+
     def modify_attack_cost(
         self,
         cost: Dict[str, int],
@@ -810,6 +819,11 @@ def compute_damage(
                 continue
             calc.amount += mod.amount
         calc.amount = max(0, calc.amount)
+
+    # Wide Lens: a Benched target's hit gets W/R after all (the rules
+    # parenthetical was the only thing skipping them).
+    if calc.is_attack and not calc.apply_modifiers and attacker is not None             and calc.is_opposing and not calc.to_active             and any(p.applies_bench_modifiers(calc, c) for p, c in passives):
+        calc.apply_modifiers = True
 
     if calc.apply_modifiers and attacker is not None:
         for passive, carrier in passives:
