@@ -856,6 +856,14 @@ def _locks_abilities_of(
             continue
         if shielded and is_ability                 and carrier.owning_player_id != pokemon.owning_player_id:
             continue
+        # A lock that is itself an Ability (Cursed Land on a Rule Box
+        # Ting-Lu ex) is silent while a lock that is NOT one (Path to the
+        # Peak, Silent Lab) reaches its carrier. One level only: those
+        # locks have no Ability to switch off, so this cannot recurse.
+        if is_ability and any(
+                p.blocks_abilities(carrier, c)
+                for p, c, from_ability in triples if not from_ability):
+            continue
         return True
     return False
 
