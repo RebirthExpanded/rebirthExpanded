@@ -7,7 +7,7 @@ from spirit.game.session.effects import is_pokemon_card
 def _dragon_discard_attacks(ctx):
     pairs = []
     seen = set()
-    gx_spent = not ctx.session.turn_state.gx_available(ctx.player_id, ctx.attacker)
+    gx_spent = not ctx.session.turn_state.gx_available(ctx.player_id, ctx.attacker, ctx.board)
     vstar_spent = ctx.player_id in ctx.session.turn_state.vstar_used
     for card in ctx.discard_pile():
         if not is_pokemon_card(card):

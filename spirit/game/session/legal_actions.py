@@ -33,6 +33,7 @@ from .constants import (
 )
 from .passives import (
     ability_locked,
+    attack_effects_blocked,
     attacking_blocked,
     out_of_play_ability_locked,
     can_attack_despite_conditions,
@@ -124,6 +125,13 @@ class TurnState:
     # THIS turn even though the player already used theirs (Misty &
     # Lorelei's "your [W] Pokemon"). Cleared every begin_turn.
     gx_reuse: Dict[str, List[Any]] = field(default_factory=dict)
+    # "For the rest of this game, your opponent can't use any GX attacks"
+    # (Latios-GX's Clear Vision-GX): [{"player_id", "source"}], source being
+    # the Pokemon that used the attack. Checked per attacker, so a Pokemon
+    # shielded from that source's attack effects (Keldeo-GX's Pure Heart vs
+    # a Pokemon-GX) is not bound. An effect of an attack on a player, so
+    # Pokemon Ranger removes it (the ledger lists it); it never expires.
+    gx_blocks: List[Dict[str, Any]] = field(default_factory=list)
     # (entity_id, ability_id) -> last turn number the attack stays locked
     # ("during your next turn, this Pokemon can't use ...").
     attack_locks: Dict[Tuple[str, str], int] = field(default_factory=dict)
@@ -315,7 +323,7 @@ class TurnState:
 
     _DICT_EFFECT_STORES = ("attack_locks", "retreat_locks", "attach_restrictions",
                            "attack_flip_checks", "scheduled_knockouts")
-    _LIST_EFFECT_STORES = ("damage_modifiers", "extra_prize_watchers")
+    _LIST_EFFECT_STORES = ("damage_modifiers", "extra_prize_watchers", "gx_blocks")
 
     def _prune_attack_effects(self) -> None:
         """Forget ledger entries whose store entry already expired, so a
@@ -399,15 +407,31 @@ class TurnState:
             board.temporary_passives = kept
         return removed
 
-    def gx_available(self, player_id: str, pokemon: Any) -> bool:
-        """May `pokemon` use a GX attack now: the player's once-per-game use
-        is unspent, or a this-turn allowance names this Pokemon."""
+    def gx_available(self, player_id: str, pokemon: Any,
+                     board: Optional[Any] = None) -> bool:
+        """May `pokemon` use a GX attack now: no Clear Vision-GX binds it
+        (a shield against its source's attack effects lifts that), and the
+        player's once-per-game use is unspent -- or a this-turn allowance
+        (Misty & Lorelei) names this Pokemon. The allowance does not get
+        past Clear Vision: it forgives a spent GX attack, not a ban."""
+        for block in self.gx_blocks:
+            if block.get("player_id") != player_id:
+                continue
+            if board is not None and pokemon is not None and attack_effects_blocked(
+                    board, pokemon, block.get("source")):
+                continue
+            return False
         if player_id not in self.gx_used:
             return True
         return any(pred(pokemon) for pred in self.gx_reuse.get(player_id, []))
 
     def allow_gx_reuse(self, player_id: str, predicate) -> None:
         self.gx_reuse.setdefault(player_id, []).append(predicate)
+
+    def block_gx_attacks(self, player_id: str, source: Any) -> None:
+        """Clear Vision-GX: `player_id` can't use GX attacks for the rest of
+        the game (per-attacker shields against `source` excepted)."""
+        self.gx_blocks.append({"player_id": player_id, "source": source})
 
     def mark_entered_play(self, entity_id: str):
         self.entered_play_turn[entity_id] = self.turn_number
@@ -1016,7 +1040,7 @@ def _attack_entries(
                 and player_id in state.vstar_used:
             continue
         if definition is not None and definition.gx \
-                and not state.gx_available(player_id, active):
+                and not state.gx_available(player_id, active, board):
             continue
         # Attack usage restriction ("You can use this attack only if...").
         if definition is not None and definition.condition is not None \

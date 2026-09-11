@@ -61,6 +61,7 @@ from .passives import (
     energy_removal_blocked,
     healing_blocked,
     supporter_effect_replacement,
+    player_attack_effects_blocked,
     trainer_effects_blocked,
     damage_counters_blocked,
     moving_damage_counters_blocked,
@@ -304,6 +305,31 @@ class EffectContext:
             logging.info(
                 f"[Effects {self.game_id}] Trainer effect on {pid} blocked "
                 f"by a trainer-effect shield."
+            )
+            return True
+        return False
+
+    def _player_attack_effect_blocked(self, player_or_entity) -> bool:
+        """Bodyguard shield: in an ATTACK context, True when the primitive's
+        direct object is the other player or a card in their hand and a
+        passive shields that player from attack effects. Guards: lock_plays,
+        draw_cards/draw_until, discard_from_hand, hand_to_bottom_of_deck,
+        shuffle_into_deck (hand cards)."""
+        if not self.is_attack_effect():
+            return False
+        if isinstance(player_or_entity, str):
+            pid = player_or_entity
+        else:
+            pid = getattr(player_or_entity, "owning_player_id", None)
+            if getattr(player_or_entity, "_containing_area_name", None) is None \
+                    or player_or_entity._containing_area_name() != "hand":
+                return False
+        if pid is None or pid == self.player_id:
+            return False
+        if player_attack_effects_blocked(self.board, pid):
+            logging.info(
+                f"[Effects {self.game_id}] Attack effect on player {pid} "
+                f"blocked by a player shield (Bodyguard)."
             )
             return True
         return False
@@ -724,6 +750,8 @@ class EffectContext:
                    through_turn: Optional[int] = None) -> None:
         """"<player> can't play <cards matching predicate>" (default: through
         their next turn)."""
+        if self._player_attack_effect_blocked(player_id):
+            return
         self.session.turn_state.lock_plays(player_id, predicate, through_turn)
 
     def restrict_attachments(self, target: PokemonEntity,
@@ -868,7 +896,7 @@ class EffectContext:
         # too -- otherwise Regidrago VSTAR's Apex Dragon (or any other
         # attack-copying effect) can replay a GX attack freely.
         if getattr(ability, "gx", False) and not self.session.turn_state.gx_available(
-                self.player_id, self.attacker):
+                self.player_id, self.attacker, self.board):
             logging.info(
                 f"[Effects {self.game_id}] Copied GX attack '{ability.title}' "
                 f"blocked: player {self.player_id} already used a GX attack "
@@ -1296,7 +1324,7 @@ class EffectContext:
     ) -> List[CardEntity]:
         """Chooser over the player's hand, then discards the picks."""
         pid = player_id or self.player_id
-        if self._trainer_blocked(pid):
+        if self._trainer_blocked(pid) or self._player_attack_effect_blocked(pid):
             return []
         excluded = set(id(c) for c in (exclude or []))
         cards = [c for c in self.hand(pid)
@@ -1314,7 +1342,7 @@ class EffectContext:
     async def draw_cards(self, count: int, player_id: Optional[str] = None) -> int:
         """Draws cards for a player (default: the effect's owner); returns how many."""
         pid = player_id or self.player_id
-        if self._trainer_blocked(pid):
+        if self._trainer_blocked(pid) or self._player_attack_effect_blocked(pid):
             return 0
         moved = self.board.draw_cards(pid, count)
         if moved:
@@ -1734,7 +1762,8 @@ class EffectContext:
         if not deck:
             return
         for card in cards:
-            if self._trainer_blocked(card) or self._energy_removal_blocked(card):
+            if self._trainer_blocked(card) or self._energy_removal_blocked(card) \
+                    or self._player_attack_effect_blocked(card):
                 continue
             holder = self._tool_holder_before_move(card)
             position = len(deck.children)
@@ -1762,7 +1791,7 @@ class EffectContext:
         PlaceOnBottom lifts the deck; V.s NREs without a PlaceOnBottom.
         """
         pid = player_id or self.player_id
-        if self._trainer_blocked(pid):
+        if self._trainer_blocked(pid) or self._player_attack_effect_blocked(pid):
             return 0
         hand = self.board.find_player_area(pid, "hand")
         deck = self.board.find_player_area(pid, "deck")

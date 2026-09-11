@@ -466,6 +466,14 @@ class Passive:
         """True to keep `card` from being discarded by an opponent's effect."""
         return False
 
+    def blocks_player_attack_effects(self, player_id: str,
+                                     carrier: BoardEntity) -> bool:
+        """True to shield `player_id` and their HAND from the effects of an
+        opposing Pokemon's attack (Marowak's Bodyguard): play locks, hand
+        discards / shuffles / bottom-decking, forced draws. Effects done to
+        a Pokemon are a different question (blocks_attack_effects)."""
+        return False
+
     def blocks_trainer_effects(
         self, affected_player_id: str, trainer_card: BoardEntity,
         trainer_type: Any, carrier: BoardEntity,
@@ -1032,6 +1040,15 @@ def discard_blocked(board: BoardState, card: BoardEntity) -> bool:
     """Whether a passive protects `card` from an opponent-caused discard."""
     return any(
         passive.blocks_discard(card, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def player_attack_effects_blocked(board: BoardState, player_id: str) -> bool:
+    """Whether a passive shields `player_id` (and their hand) from the
+    effects of opposing attacks (Bodyguard)."""
+    return any(
+        passive.blocks_player_attack_effects(player_id, carrier)
         for passive, carrier in active_passives(board)
     )
 
