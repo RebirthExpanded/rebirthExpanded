@@ -38,7 +38,7 @@ from spirit.game.data_utils import (
 from spirit.game.models.board import BoardEntity, CardEntity, EnergyEntity, PokemonEntity
 from spirit.network.message_names import OutboundMsg
 from spirit.game.game_sequence_packets import NestedSequence
-from .constants import PROMPT_NO, PROMPT_YES
+from .constants import PROMPT_CHOOSE_A_PRIZE, PROMPT_NO, PROMPT_YES
 from .passives import (
     TempPassive,
     ability_effects_blocked,
@@ -2314,6 +2314,62 @@ class EffectContext:
             self._queue(session._refresh_prize_gaps(pid, prize_area),
                         bracket=GameSequence.GROUPED_MOVE.value)
         return placed
+
+    async def swap_prize_with_deck_top(self, look_first: bool = False,
+                                       prompt: Optional[str] = None) -> bool:
+        """Switch 1 of your face-down Prize cards with the top card of your
+        deck (Mr. Mime's Pantomime). look_first shows the chosen Prize to its
+        owner alone and then asks whether to switch it (Pokemon Card Gym
+        Medal: "look at it, put it back; you may switch it").
+
+        Both cards stay face down for everyone: the Prize that moves goes
+        onto the deck unseen, the deck card drops into the vacated slot with
+        its attributes reset. Returns True when the switch happened.
+        """
+        session = self.session
+        pid = self.player_id
+        prize_area = self.board.find_player_area(pid, "prizePile")
+        deck = self.board.find_player_area(pid, "deck")
+        prizes = [c for c in (prize_area.children if prize_area else [])
+                  if not c.face_up]
+        if not prizes or not deck or not deck.children:
+            return False
+        await self.flush_choreography()
+        picked_ids = await session._prompt_prize_pick(
+            pid, [c.entity_id for c in prizes], 1,
+            prompt=prompt or PROMPT_CHOOSE_A_PRIZE, minimum=1)
+        picked = self.board.get_entity(picked_ids[0]) if picked_ids else None
+        if not isinstance(picked, CardEntity) or picked not in prizes:
+            return False
+        owner = session.players[pid]
+        if look_first:
+            await session.send_game_sequence(
+                [owner], GameSequence.SERIAL_SEQUENCE,
+                [session._entity_introduced_msg(picked)])
+            switch = await self.ask_yes_no(
+                "Switch this Prize card with the top card of your deck?")
+            await session.send_game_sequence(
+                [owner], GameSequence.GROUPED_MOVE,
+                [session._attributes_reset_msg(picked.entity_id)])
+            if not switch:
+                return False
+        slot = getattr(picked, "board_slot", None)
+        if slot is None:
+            slot = prize_area.children.index(picked)
+        top = deck.children[-1]
+        position = len(deck.children)
+        if not self.board.move_card(picked.entity_id, deck.entity_id):
+            return False
+        self._queue(session._entity_moved_msg(picked.entity_id, deck.entity_id, position),
+                    bracket=GameSequence.GROUPED_MOVE.value)
+        if self.board.move_card(top.entity_id, prize_area.entity_id, slot):
+            self._queue(session._entity_moved_msg(top.entity_id, prize_area.entity_id, slot),
+                        bracket=GameSequence.GROUPED_MOVE.value)
+            self._queue(session._attributes_reset_msg(top.entity_id),
+                        bracket=GameSequence.GROUPED_MOVE.value)
+        self._queue(session._refresh_prize_gaps(pid, prize_area),
+                    bracket=GameSequence.GROUPED_MOVE.value)
+        return True
 
     async def win_game(self, reason: str = "") -> None:
         """Declares the effect's owner the winner (Unown V; raises GameOver)."""
