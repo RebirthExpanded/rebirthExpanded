@@ -1250,6 +1250,35 @@ async def trekking_shoes(ctx):
 
 # --- Hisuian Heavy Ball (ASR, Item) --------------------------------------
 
+def has_face_down_prize(board, player_id, pokemon=None) -> bool:
+    """Playability for the cards that LOOK AT your face-down Prize cards
+    (Hisuian Heavy Ball, Beast Ball, Gladion).
+
+    Every clause of those cards names FACE-DOWN Prizes, so with none left
+    face down there is nothing to look at. Town Map turns them all face up;
+    cards that flip only some leave the rest playable, which is why this
+    counts rather than asking whether Town Map was played.
+    """
+    area = board.find_player_area(player_id, "prizePile")
+    return any(not c.face_up for c in (area.children if area else []))
+
+
+def is_ultra_beast(card) -> bool:
+    return is_pokemon_card(card) and "Ultra Beast" in subtypes_for(card.archetype_id)
+
+
+async def beast_ball(ctx):
+    """Look at your face-down Prize cards; you MAY reveal an Ultra Beast
+    there, put it into your hand, and put this card in its place.
+
+    Hisuian Heavy Ball with a different filter -- the swap, the re-hide and
+    the shuffle are the same, so both go through look_at_prizes_take.
+    """
+    await ctx.look_at_prizes_take(
+        predicate=is_ultra_beast,
+        prompt="You may reveal an Ultra Beast among your Prize cards.")
+
+
 async def hisuian_heavy_ball(ctx):
     """Look at your face-down Prize cards; you MAY reveal a Basic Pokemon
     there, put it into your hand, and put this card in its place as a
