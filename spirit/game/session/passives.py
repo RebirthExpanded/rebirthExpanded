@@ -244,6 +244,23 @@ class Passive:
         """True to let `pokemon` attack even while Asleep/Paralyzed (Windup Arm)."""
         return False
 
+    def retreats_despite_conditions(self, pokemon: PokemonEntity,
+                                    carrier: BoardEntity) -> bool:
+        """True to let `pokemon` retreat even while Asleep/Paralyzed
+        (Escape Board). The retreat cost itself is unaffected."""
+        return False
+
+    def discard_destination(self, card: BoardEntity,
+                            carrier: BoardEntity) -> Optional[str]:
+        """Player-area name replacing "discard" for `card` when it is
+        discarded FROM PLAY (U-Turn Board's "put it into your hand instead
+        of the discard pile"). None for the ordinary discard.
+
+        Only asked of cards leaving play: the same card discarded out of a
+        hand or a deck goes to the discard pile like any other.
+        """
+        return None
+
     def blocks_special_conditions(
         self, target: PokemonEntity, condition: Any, carrier: BoardEntity
     ) -> bool:
@@ -866,6 +883,24 @@ def can_attack_despite_conditions(board: BoardState, pokemon: PokemonEntity) -> 
         passive.attacks_despite_conditions(pokemon, carrier)
         for passive, carrier in active_passives(board)
     )
+
+
+def can_retreat_despite_conditions(board: BoardState, pokemon: PokemonEntity) -> bool:
+    """Whether a passive lets `pokemon` retreat while Asleep/Paralyzed."""
+    return any(
+        passive.retreats_despite_conditions(pokemon, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def discard_destination_for(board: BoardState, card: BoardEntity) -> Optional[str]:
+    """First non-None area a passive sends `card` to instead of the discard
+    pile when it leaves play (U-Turn Board's "into your hand"), or None."""
+    for passive, carrier in active_passives(board):
+        dest = passive.discard_destination(card, carrier)
+        if dest is not None:
+            return dest
+    return None
 
 
 def conditions_blocked(board: BoardState, target: PokemonEntity, condition: Any) -> bool:

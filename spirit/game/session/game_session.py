@@ -117,7 +117,8 @@ from .effects import (
 )
 from .passives import (
     ability_locked, active_passives, active_to_bench_counters,
-    burn_recovery_blocked, effective_bench_capacity, effective_max_hp,
+    burn_recovery_blocked, discard_destination_for,
+    effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, energy_attach_taxer, evolve_heal_amount,
     granted_extra_attacks, player_visualizations,
     retreat_energy_destination, tool_slots_free,
@@ -2320,7 +2321,10 @@ class GameSession:
             )
             dest_area = self.board_state.find_player_area(owner_id, dest_name) or discard
             stack = [pokemon] + _stack_descendants(pokemon)
-            moves = []
+            # Every destination is decided while the stack is still in play:
+            # a card that names its own (U-Turn Board's "into your hand")
+            # speaks through a passive, and the first move would silence it.
+            destinations = {}
             for entity in stack:
                 area = dest_area if isinstance(entity, PokemonEntity) else discard
                 # Prism Star: anything in the stack that would hit a discard
@@ -2329,6 +2333,15 @@ class GameSession:
                     if discard_area_name(entity.archetype_id) == "lostZone":
                         area = self.board_state.find_player_area(
                             owner_id, "lostZone") or area
+                if area is discard:
+                    own = discard_destination_for(self.board_state, entity)
+                    if own:
+                        area = self.board_state.find_player_area(
+                            owner_id, own) or area
+                destinations[entity.entity_id] = area
+            moves = []
+            for entity in stack:
+                area = destinations[entity.entity_id]
                 position = len(area.children)
                 if self.board_state.move_card(entity.entity_id, area.entity_id):
                     moves.append(self._entity_moved_msg(

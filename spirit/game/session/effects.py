@@ -52,6 +52,7 @@ from .passives import (
     compute_damage,
     conditions_blocked,
     discard_blocked,
+    discard_destination_for,
     effective_bench_capacity,
     effective_heal_amount,
     effective_max_hp,
@@ -1435,7 +1436,18 @@ class EffectContext:
         return await session.prompt_choice_panel(pid, card, buttons, prompt)
 
     async def discard_cards(self, cards: List[CardEntity]):
-        """Moves cards to their owner's discard pile (a public zone)."""
+        """Moves cards to their owner's discard pile (a public zone).
+
+        A card leaving PLAY may name somewhere else to go instead (U-Turn
+        Board's "put it into your hand"); a copy discarded from a hand or a
+        deck is not in play and takes the ordinary route.
+        """
+        to_hand = [c for c in cards
+                   if carrier_pokemon(c) is not None
+                   and discard_destination_for(self.board, c) == "hand"]
+        if to_hand:
+            cards = [c for c in cards if c not in to_hand]
+            await self.put_in_hand(to_hand, reveal=False)
         pending = []
         if self.is_attack_effect() and self.attacker is not None:
             for card in cards:

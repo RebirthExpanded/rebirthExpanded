@@ -37,6 +37,7 @@ from .passives import (
     out_of_play_ability_locked,
     can_attack_despite_conditions,
     can_attack_first_turn,
+    can_retreat_despite_conditions,
     can_evolve_early,
     can_evolve_onto,
     can_evolve_same_turn,
@@ -621,7 +622,10 @@ def compute_legal_actions(
     # Asleep/Paralyzed gates attacks per-attack (Attack(usable_despite_conditions)).
     immobilized = _active_immobilized(board, player_id)
     entries.extend(_attack_entries(board, state, player_id, game_id, immobilized))
-    if not immobilized:
+    # Retreat has its own exemption (Escape Board), asked of the Active only.
+    active = board.active_pokemon(player_id)
+    if not immobilized or (active is not None
+                           and can_retreat_despite_conditions(board, active)):
         entries.extend(_retreat_entry(board, state, player_id, game_id))
     # A turn kept alive past an attack (Fluffy Barrage / Festival Lead) stays
     # in the attack phase: only attacking (or End Turn) remains legal. The

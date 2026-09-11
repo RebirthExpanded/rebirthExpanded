@@ -963,6 +963,16 @@ class ThunderMountainPassive(ShieldedStadiumPassive):
         return cost
 
 
+class WondrousLabyrinthPassive(ShieldedStadiumPassive):
+    """Attacks of non-Fairy Pokemon (both sides) cost [C] more."""
+
+    def modify_attack_cost(self, cost, pokemon, carrier, board):
+        if is_pokemon_of_type(pokemon, PokemonTypes.FAIRY):
+            return cost
+        cost["Colorless"] = cost.get("Colorless", 0) + 1
+        return cost
+
+
 class BlackMarketPassive(ShieldedStadiumPassive):
     """A Darkness Pokemon with any Darkness Energy attached is worth one
     Prize less when an opponent's attack knocks it out -- either side's."""
@@ -1168,6 +1178,117 @@ async def scoop_up_net(ctx):
         ctx.deferred_actions.append(_promote)
 
 
+# --- Acerola / Penny / Professor Turo's Scenario --------------------------
+
+async def _bounce_to_hand(ctx, candidates, prompt, attached_to_hand: bool):
+    """Put 1 of your Pokemon into your hand, with the cards attached to it
+    following it there (Acerola, Penny) or discarded (Professor Turo's
+    Scenario, Scoop Up Net).
+
+    The attached cards move FIRST either way: moving the Pokemon takes its
+    children with it, and a card that rode along would sit in the hand still
+    attached to it.
+    """
+    target = await ctx.choose_pokemon(candidates, prompt)
+    if target is None:
+        return
+    was_active = target is ctx.my_active()
+    attached = [c for c in full_stack(target) if c is not target]
+    if attached_to_hand:
+        await ctx.put_in_hand(attached, reveal=False)
+    else:
+        await ctx.discard_cards(attached)
+    await ctx.put_in_hand([target], reveal=False)
+    if was_active:
+        async def _promote():
+            if not await ctx.session._promote_new_active(ctx.player_id):
+                screen_name = ctx.session.players[ctx.player_id].screen_name
+                await ctx.session.end_game(
+                    ctx.opponent_id, f"{screen_name} has no Pokémon left"
+                )
+        ctx.deferred_actions.append(_promote)
+
+
+def _damaged_pokemon(board, pokemon) -> bool:
+    return pokemon.get_attribute(AttrID.HP, 0) < effective_max_hp(board, pokemon)
+
+
+def acerola_condition(board, player_id) -> bool:
+    return any(_damaged_pokemon(board, p) for p in board.pokemon_in_play(player_id))
+
+
+async def acerola(ctx):
+    """Put 1 of your damaged Pokemon and everything attached to it into your
+    hand. Damage counters are not "attached cards" -- the Pokemon simply
+    leaves play, and comes back as a fresh card."""
+    candidates = [p for p in ctx.my_pokemon_in_play()
+                  if _damaged_pokemon(ctx.board, p)]
+    await _bounce_to_hand(
+        ctx, candidates,
+        "Choose 1 of your damaged Pokémon to put into your hand",
+        attached_to_hand=True)
+
+
+def penny_condition(board, player_id) -> bool:
+    return any(p.get_attribute(AttrID.STAGE) == PokemonStage.BASIC.value
+               for p in board.pokemon_in_play(player_id))
+
+
+async def penny(ctx):
+    """Put 1 of your Basic Pokemon and everything attached to it into your
+    hand. A Basic sitting UNDER an evolution is not "your Basic Pokemon" --
+    the Pokemon in play is the top card."""
+    candidates = [p for p in ctx.my_pokemon_in_play()
+                  if p.get_attribute(AttrID.STAGE) == PokemonStage.BASIC.value]
+    await _bounce_to_hand(
+        ctx, candidates,
+        "Choose 1 of your Basic Pokémon to put into your hand",
+        attached_to_hand=True)
+
+
+async def professor_turos_scenario(ctx):
+    """Put 1 of your Pokemon in play into your hand; everything attached to
+    it is discarded. Any of them, evolved ones included -- the whole stack
+    goes back, so a Stage 2 returns as the single card it was played as."""
+    await _bounce_to_hand(
+        ctx, list(ctx.my_pokemon_in_play()),
+        "Choose 1 of your Pokémon to put into your hand",
+        attached_to_hand=False)
+
+
+# --- Cyrus {*} (UPR, Supporter, Prism Star) -------------------------------
+
+def cyrus_prism_condition(board, player_id) -> bool:
+    """Playable only with a [W] or [M] Active."""
+    active = board.active_pokemon(player_id)
+    return active is not None and (
+        is_pokemon_of_type(active, PokemonTypes.WATER)
+        or is_pokemon_of_type(active, PokemonTypes.METAL)
+    )
+
+
+async def cyrus_prism_star(ctx):
+    """Your opponent chooses 2 of their Benched Pokemon; the rest, and
+    everything attached to them, are shuffled into their deck.
+
+    THEY choose, so the prompt is theirs -- and with 2 or fewer on the Bench
+    there is nothing to lose, which is why the card is worth playing only
+    into a wide board.
+    """
+    bench = list(ctx.opponent_bench())
+    if len(bench) <= 2:
+        return
+    kept = await ctx.choose_cards(
+        bench, 2, minimum=2, player_id=ctx.opponent_id,
+        prompt="Choose 2 of your Benched Pokémon to keep.",
+    )
+    kept_ids = {p.entity_id for p in kept}
+    leaving = [c for p in bench if p.entity_id not in kept_ids
+               for c in full_stack(p)]
+    if leaving:
+        await ctx.shuffle_into_deck(leaving, ctx.opponent_id)
+
+
 # --- Switch Cart (ASR, Item) ---------------------------------------------
 
 def switch_cart_condition(board, player_id):
@@ -1322,6 +1443,47 @@ async def peonia(ctx):
         prompt=f"Choose {len(taken)} card(s) to put face down as Prize cards",
     )
     await ctx.put_in_prizes(picks)
+
+
+# --- Escape Board (UPR, Pokemon Tool) ------------------------------------
+
+class EscapeBoardPassive(Passive):
+    """The holder's Retreat Cost is [C] less, and it can retreat even while
+    Asleep or Paralyzed.
+
+    The second half is a permission, not a cost: the retreat still has to be
+    paid for, and the Special Condition itself stays on the Pokemon (a
+    retreat cures it the ordinary way, by leaving the Active spot).
+    """
+
+    def modify_retreat_cost(self, cost, pokemon, carrier, board):
+        if carrier_pokemon(carrier) is pokemon:
+            return cost - 1
+        return cost
+
+    def retreats_despite_conditions(self, pokemon, carrier):
+        return carrier_pokemon(carrier) is pokemon
+
+
+# --- U-Turn Board (UNM, Pokemon Tool) ------------------------------------
+
+class UTurnBoardPassive(Passive):
+    """The holder's Retreat Cost is [C] less, and this card goes back to its
+    owner's hand instead of the discard pile when it is discarded from play.
+
+    "Discarded from play" is the whole clause: a copy discarded out of a hand
+    (Ultra Ball) or milled from a deck is not in play and goes to the discard
+    like anything else, which is why the destination is asked of the card
+    only while it is attached.
+    """
+
+    def modify_retreat_cost(self, cost, pokemon, carrier, board):
+        if carrier_pokemon(carrier) is pokemon:
+            return cost - 1
+        return cost
+
+    def discard_destination(self, card, carrier):
+        return "hand" if card is carrier else None
 
 
 # --- Air Balloon (SSH, Pokemon Tool) -------------------------------------
