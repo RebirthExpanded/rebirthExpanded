@@ -1,5 +1,14 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, AttrID
+
+
+
+def _any_can_still_evolve(board, player_id, pokemon) -> bool:
+    """Usable only with a Pokemon in play whose evolution can still come out
+    of the deck (not every copy of it in the discard pile)."""
+    return any(pokemon_can_still_evolve(board, player_id, p)
+               for p in board.pokemon_in_play(player_id))
 
 
 async def moonlit_miracle(ctx):
@@ -52,6 +61,7 @@ card = PokemonCardDef(
             title="Moonlit Miracle",
             game_text="Flip 3 coins. Choose a number of your Pokémon in play up to the number of heads. For each of those Pokémon, search your deck for a card that evolves from that Pokémon and put it onto that Pokémon to evolve it. Then, shuffle your deck.",
             cost={PokemonTypes.COLORLESS: 1},
+            condition=_any_can_still_evolve,
             effect=moonlit_miracle,
         ),
         Attack(

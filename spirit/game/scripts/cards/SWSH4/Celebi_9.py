@@ -1,6 +1,16 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, AttrID
 from spirit.game.card_effects.attacks_common import damage_per, count_energy
+
+
+
+def _bench_can_still_evolve(board, player_id, pokemon) -> bool:
+    """Usable only with a Benched Pokemon whose evolution can still come out
+    of the deck (not every copy of it in the discard pile)."""
+    bench = board.find_player_area(player_id, "bench")
+    return any(pokemon_can_still_evolve(board, player_id, p)
+               for p in (bench.children if bench else []))
 
 
 async def _amazing_bloom(ctx):
@@ -50,6 +60,7 @@ card = PokemonCardDef(
             title="Amazing Bloom",
             game_text="For each of your Benched Pok\u00e9mon, search your deck for a card that evolves from that Pok\u00e9mon and put it onto that Pok\u00e9mon to evolve it. Then, shuffle your deck.",
             cost={PokemonTypes.LIGHTNING: 1, PokemonTypes.PSYCHIC: 1},
+            condition=_bench_can_still_evolve,
             effect=_amazing_bloom,
         ),
     ],

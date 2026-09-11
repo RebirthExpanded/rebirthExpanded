@@ -1,23 +1,25 @@
-from spirit.game.data_utils import ItemCardDef, has_evolution
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
+from spirit.game.data_utils import ItemCardDef
 from spirit.game.attributes import AttrID, Rarities
 
 
-def _boost_shake_targets(pokemon_in_play):
+def _boost_shake_targets(board, player_id):
     """Pokemon there is something to evolve into. "1 of your Pokemon" has to
     be a Pokemon that can be evolved, so a card that evolves from it must
-    exist; with only fully evolved Pokemon in play there is no target, the
-    card is unplayable, and the deck is never opened. Wally's gate."""
-    return [p for p in pokemon_in_play
-            if has_evolution(p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME))]
+    exist -- and not have every copy of it in the discard pile; with only
+    such Pokemon in play there is no target, the card is unplayable, and the
+    deck is never opened. Wally's gate."""
+    return [p for p in board.pokemon_in_play(player_id)
+            if pokemon_can_still_evolve(board, player_id, p)]
 
 
 def _boost_shake_condition(board, player_id):
-    return bool(_boost_shake_targets(board.pokemon_in_play(player_id)))
+    return bool(_boost_shake_targets(board, player_id))
 
 
 async def boost_shake(ctx):
     """Search a card that evolves from 1 of your Pokemon, evolve it immediately, shuffle. Your turn ends."""
-    candidates = _boost_shake_targets(ctx.my_pokemon_in_play())
+    candidates = _boost_shake_targets(ctx.board, ctx.player_id)
     if candidates:
         target = await ctx.choose_pokemon(candidates, "Choose a Pokémon to evolve")
         logic_name = target.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) if target else None

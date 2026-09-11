@@ -29,7 +29,8 @@ anything, asked as a single question of what is attached.
 
 from spirit.game.attributes import (AttrID, PokemonStage, PokemonTypes,
                                     Rarities)
-from spirit.game.data_utils import (Attack, PokemonCardDef, has_evolution)
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
+from spirit.game.data_utils import Attack, PokemonCardDef
 from spirit.game.session.effects import is_pokemon_of_type
 from spirit.game.session.legal_actions import attack_cost_satisfied
 
@@ -37,15 +38,21 @@ from spirit.game.session.legal_actions import attack_cost_satisfied
 _COST_PLUS_EXTRAS = {"Grass": 3, "Colorless": 3}
 
 
-def _evolvable_grass(ctx):
-    return [p for p in ctx.my_pokemon_in_play()
+def _evolvable_grass(board, player_id):
+    return [p for p in board.pokemon_in_play(player_id)
             if is_pokemon_of_type(p, PokemonTypes.GRASS)
-            and has_evolution(p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME))]
+            and pokemon_can_still_evolve(board, player_id, p)]
+
+
+def _super_growth_condition(board, player_id, pokemon) -> bool:
+    """Usable only with a Grass Pokemon that can still be evolved: one whose
+    evolution cards are not all in the discard pile."""
+    return bool(_evolvable_grass(board, player_id))
 
 
 async def super_growth(ctx):
     """Evolve one of your Grass Pokemon, and a Stage 1 on to its Stage 2."""
-    candidates = _evolvable_grass(ctx)
+    candidates = _evolvable_grass(ctx.board, ctx.player_id)
     target = None
     if candidates:
         target = await ctx.choose_pokemon(candidates, "Choose a Grass Pokémon to evolve")
@@ -116,6 +123,7 @@ card = PokemonCardDef(
             title="Super Growth",
             game_text="Search your deck for a card that evolves from 1 of your Grass Pokémon and put it onto that Pokémon to evolve it. If that Pokémon is now a Stage 1 Pokémon, search your deck for a Stage 2 Pokémon that evolves from that Pokémon and put it onto that Pokémon to evolve it. Then, shuffle your deck.",
             cost={},
+            condition=_super_growth_condition,
             effect=super_growth,
         ),
         Attack(

@@ -1,10 +1,19 @@
 from spirit.game.data_utils import SupporterCardDef
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
 from spirit.game.attributes import AttrID, Rarities
 
 
 def _breeders_nurturing_condition(board, player_id):
     turn_state = getattr(board, "turn_state", None)
-    return turn_state is not None and turn_state.turn_number > 2
+    if turn_state is None or turn_state.turn_number <= 2:
+        return False
+    # A target it could evolve: in play since an earlier turn, with an
+    # evolution that can still come out of the deck (not every copy of it
+    # in the discard pile).
+    return any(
+        turn_state.entered_play_turn.get(p.entity_id) != turn_state.turn_number
+        and pokemon_can_still_evolve(board, player_id, p)
+        for p in board.pokemon_in_play(player_id))
 
 
 async def pokemon_breeders_nurturing(ctx):

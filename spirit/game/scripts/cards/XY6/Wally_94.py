@@ -35,6 +35,7 @@ Pokemon ex, which is the modern echo of the interaction the clause was
 printed to prevent.
 """
 
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
 from spirit.game.data_utils import SupporterCardDef, has_evolution, subtypes_for
 from spirit.game.attributes import AttrID, Rarities
 
@@ -44,25 +45,25 @@ def _is_pokemon_EX(pokemon) -> bool:
     return "EX" in subtypes_for(pokemon.archetype_id)
 
 
-def _wally_targets(pokemon_in_play):
+def _wally_targets(board, player_id):
     """Pokemon this card could actually evolve: not a Pokemon-EX, and with an
-    evolution that exists to be searched for. A fully evolved Bench is no
-    target at all, so with nothing but those in play Wally cannot be played
-    -- the deck is never opened."""
-    return [p for p in pokemon_in_play
+    evolution that exists to be searched for and is not entirely in the
+    discard pile. A fully evolved Bench is no target at all, so with nothing
+    but those in play Wally cannot be played -- the deck is never opened."""
+    return [p for p in board.pokemon_in_play(player_id)
             if not _is_pokemon_EX(p)
-            and has_evolution(p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME))]
+            and pokemon_can_still_evolve(board, player_id, p)]
 
 
 def _wally_condition(board, player_id):
-    return bool(_wally_targets(board.pokemon_in_play(player_id)))
+    return bool(_wally_targets(board, player_id))
 
 
 async def wally(ctx):
     """Choose one of your Pokemon that is not a Pokemon-EX, search the deck
     for its direct evolution, and evolve it -- at any point in the game and
     even on a Pokemon played this turn."""
-    candidates = _wally_targets(ctx.my_pokemon_in_play())
+    candidates = _wally_targets(ctx.board, ctx.player_id)
     if not candidates:
         return
     target = await ctx.choose_pokemon(

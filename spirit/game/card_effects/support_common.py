@@ -59,6 +59,82 @@ async def _attach_all(ctx, cards, target: PokemonEntity):
         await ctx.attach_energy(card, target)
 
 
+# --- Evolution availability ---------------------------------------------------
+
+_PLAYER_ZONES = ("deck", "hand", "discard", "prizePile", "lostZone",
+                 "bench", "activePokemonArea")
+
+
+def _player_cards_by_archetype(board, player_id):
+    """(owned, in_discard): copies of each archetype the player has anywhere,
+    and how many of them sit in their discard pile. Stacks are walked, so a
+    tucked pre-evolution and an attached card both count."""
+    owned: dict = {}
+    trashed: dict = {}
+    for zone in _PLAYER_ZONES:
+        area = board.find_player_area(player_id, zone)
+        if area is None:
+            continue
+        stack = list(area.children)
+        while stack:
+            entity = stack.pop()
+            stack.extend(getattr(entity, "children", None) or [])
+            archetype = getattr(entity, "archetype_id", None)
+            if not archetype:
+                continue
+            key = str(archetype).lower()
+            owned[key] = owned.get(key, 0) + 1
+            if zone == "discard":
+                trashed[key] = trashed.get(key, 0) + 1
+    return owned, trashed
+
+
+def evolution_available(board, player_id, logic_name, def_predicate=None) -> bool:
+    """Whether an evolution of `logic_name` could still come out of the deck.
+
+    "You may play this card only if you have a Pokemon in play that can be
+    evolved" reads the pool for what evolves from the Pokemon (has_evolution:
+    deck contents stay hidden, a whiffed search is legal) -- with one
+    correction the discard pile makes in public: an evolution card of which
+    the player has copies, ALL of them in the discard pile, cannot be found,
+    and if every evolution the pool knows is in that state the effect has
+    nothing to do and is not offered. Copies elsewhere (hand, Prizes) keep
+    the effect usable: they are not public.
+
+    def_predicate narrows which evolution definitions count (Grand Tree's
+    Stage 1, Salvatore's no-Ability).
+    """
+    from spirit.game.data_utils import CARD_DEFS_BY_GUID, _string_attr
+    if not logic_name:
+        return False
+    owned, trashed = _player_cards_by_archetype(board, player_id)
+    matched = False
+    have_total = 0
+    trashed_total = 0
+    for definition in CARD_DEFS_BY_GUID.values():
+        if _string_attr(definition, AttrID.EVOLUTION_LOGIC_FROM) != logic_name:
+            continue
+        if def_predicate is not None and not def_predicate(definition):
+            continue
+        matched = True
+        key = str(definition.guid).lower()
+        have_total += owned.get(key, 0)
+        trashed_total += trashed.get(key, 0)
+    if not matched:
+        return False
+    # Counted across every print: the player's Thwackeys are all in the
+    # discard whichever set each came from. Owning none at all leaves the
+    # question to the deck, which stays hidden.
+    return have_total == 0 or trashed_total < have_total
+
+
+def pokemon_can_still_evolve(board, player_id, pokemon, def_predicate=None) -> bool:
+    """evolution_available for a Pokemon in play."""
+    return evolution_available(
+        board, player_id, pokemon.get_attribute(AttrID.EVOLUTION_LOGIC_NAME),
+        def_predicate)
+
+
 # --- Deck searches -----------------------------------------------------------
 
 def search_to_hand(predicate=None, count=1, minimum=0, reveal=True, prompt=""):

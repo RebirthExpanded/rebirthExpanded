@@ -1,4 +1,5 @@
 from spirit.game.data_utils import StadiumCardDef, Ability, Activations
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
 from spirit.game.attributes import AttrID, PokemonStage, Rarities
 from spirit.game.session.effects import is_basic_pokemon, is_pokemon_card
 
@@ -17,8 +18,14 @@ def _grand_tree_condition(board, player_id, stadium=None) -> bool:
     turn_state = getattr(board, "turn_state", None)
     if turn_state is None:
         return False
+    def _stage1_def(definition):
+        from spirit.game.data_utils import _attr_value
+        return int(_attr_value(definition, AttrID.STAGE, -1) or 0) == PokemonStage.STAGE1.value
     return any(
         is_basic_pokemon(p) and turn_state.may_evolve_target(p.entity_id)
+        # ...and a Stage 1 of it can still come out of the deck (not every
+        # copy in the discard pile).
+        and pokemon_can_still_evolve(board, player_id, p, _stage1_def)
         for p in board.pokemon_in_play(player_id)
     )
 

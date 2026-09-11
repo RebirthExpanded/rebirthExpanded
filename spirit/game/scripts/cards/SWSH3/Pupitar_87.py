@@ -1,5 +1,13 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
 from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities
+
+
+
+def _can_still_evolve(board, player_id, pokemon) -> bool:
+    """Usable only while an evolution of this Pokemon can still come out of
+    the deck (not every copy of it in the discard pile)."""
+    return pokemon_can_still_evolve(board, player_id, pokemon)
 
 
 async def rocket_evolution(ctx):
@@ -48,6 +56,7 @@ card = PokemonCardDef(
             game_text="Search your deck for a card that evolves from this Pokémon and put it onto this Pokémon to evolve it. Then, shuffle your deck.",
             cost={PokemonTypes.COLORLESS: 3},
             damage=40,
+            condition=_can_still_evolve,
             effect=rocket_evolution,
         ),
     ],

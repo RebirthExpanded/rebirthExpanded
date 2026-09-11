@@ -22,37 +22,30 @@ or put down at setup, may be evolved.
 
 from spirit.game.attributes import AttrID, Rarities
 from spirit.game.card_effects.pokemon import has_printed_ability
-from spirit.game.data_utils import (CARD_DEFS_BY_GUID, Ability, Attack,
-                                    SupporterCardDef, _string_attr)
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
+from spirit.game.data_utils import Ability, Attack, SupporterCardDef
 
 
-def _abilityless_evolution_exists(logic_name) -> bool:
-    """Whether the pool holds a card evolving from `logic_name` that prints
-    no Ability (attacks only)."""
-    if not logic_name:
-        return False
-    for definition in CARD_DEFS_BY_GUID.values():
-        if _string_attr(definition, AttrID.EVOLUTION_LOGIC_FROM) != logic_name:
-            continue
-        abilities = getattr(definition, "abilities", None) or []
-        if not any(isinstance(a, Ability) and not isinstance(a, Attack)
-                   for a in abilities):
-            return True
-    return False
+def _prints_no_ability(definition) -> bool:
+    abilities = getattr(definition, "abilities", None) or []
+    return not any(isinstance(a, Ability) and not isinstance(a, Attack)
+                   for a in abilities)
 
 
-def _salvatore_targets(pokemon_in_play):
-    return [p for p in pokemon_in_play
-            if _abilityless_evolution_exists(p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME))]
+def _salvatore_targets(board, player_id):
+    """Pokemon with an Ability-less evolution that can still come out of the
+    deck (not every copy of it in the discard pile)."""
+    return [p for p in board.pokemon_in_play(player_id)
+            if pokemon_can_still_evolve(board, player_id, p, _prints_no_ability)]
 
 
 def _salvatore_condition(board, player_id):
-    return bool(_salvatore_targets(board.pokemon_in_play(player_id)))
+    return bool(_salvatore_targets(board, player_id))
 
 
 async def salvatore(ctx):
     """Evolve one of your Pokemon with an Ability-less evolution card."""
-    candidates = _salvatore_targets(ctx.my_pokemon_in_play())
+    candidates = _salvatore_targets(ctx.board, ctx.player_id)
     if not candidates:
         return
     target = await ctx.choose_pokemon(candidates, "Choose a Pokémon to evolve")

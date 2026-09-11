@@ -39,6 +39,7 @@ Bench it simply does nothing.
 The pool's first Paradox Rift card, so SV4 is registered here.
 """
 
+from spirit.game.card_effects.support_common import pokemon_can_still_evolve
 from spirit.game.data_utils import (Attack, Ability, PokemonToolCardDef,
                                     Triggers, has_evolution)
 from spirit.game.attributes import AttrID, PokemonTypes, Rarities
@@ -53,7 +54,15 @@ def _evolvable_bench(ctx):
     may_evolve_target filter: see the note above on timing."""
     bench = ctx.board.find_player_area(ctx.player_id, "bench")
     return [p for p in (bench.children if bench else [])
-            if has_evolution(p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME))]
+            if pokemon_can_still_evolve(ctx.board, ctx.player_id, p)]
+
+
+def _evolution_condition(board, player_id, pokemon) -> bool:
+    """Usable only with a Benched Pokemon whose evolution can still come out
+    of the deck (not every copy of it in the discard pile)."""
+    bench = board.find_player_area(player_id, "bench")
+    return any(pokemon_can_still_evolve(board, player_id, p)
+               for p in (bench.children if bench else []))
 
 
 async def evolution(ctx):
@@ -88,6 +97,7 @@ card = PokemonToolCardDef(
             title="Evolution",
             game_text="Choose up to 2 of your Benched Pokémon. For each of those Pokémon, search your deck for a card that evolves from that Pokémon and put it onto that Pokémon to evolve it. Then, shuffle your deck.",
             cost={PokemonTypes.COLORLESS: 1},
+            condition=_evolution_condition,
             effect=evolution,
         ),
         Ability(
