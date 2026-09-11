@@ -13,11 +13,31 @@ FORMATS_PATH = os.path.abspath(os.path.join(
     os.path.dirname(__file__), '..', 'database', 'json_data', 'formats.json'
 ))
 
+SETS_PATH = os.path.join(os.path.dirname(FORMATS_PATH), 'sets.json')
+
 LEGACY_SETS = {"BW1"}
 STANDARD_NON_SWSH_SETS = {
     "CEL25", "PGO", "CZ", "CUSTOM", "Free_Energy", "SV05", "SV06", "SV065", "SV07", "SV08",
     "SV085", "SV10",
 }
+
+
+_registered_sets_cache: Optional[Set[str]] = None
+
+
+def registered_set_names() -> Set[str]:
+    """Set codes registered in sets.json (the client's set list), whether or
+    not the pool has a card script from them yet."""
+    global _registered_sets_cache
+    if _registered_sets_cache is None:
+        try:
+            with open(SETS_PATH, encoding="utf-8") as handle:
+                _registered_sets_cache = {
+                    str(entry.get("name")) for entry in json.load(handle)}
+        except (OSError, ValueError) as e:
+            logging.warning(f"[Formats] Could not read sets.json: {e}")
+            _registered_sets_cache = set()
+    return _registered_sets_cache
 
 
 def is_basic_energy_card(card) -> bool:
@@ -142,7 +162,15 @@ class FormatManager:
                 if c.key.upper() == set_code.upper() and \
                         str(c.get_attribute_value(AttrID.COLLECTOR_NUMBER)) == num.strip():
                     return c.guid.lower()
-            logging.warning(f"[Formats] Card ref '{ref}' matched no loaded card")
+            # A ban is registered from the official list ahead of the card
+            # being scripted, so a ref into a set the pool has no card from
+            # yet is expected and takes effect the day the card is added. A
+            # set code nothing is registered under is a typo, and stays loud.
+            known = {k.upper() for k in registered_set_names()}
+            if set_code.upper() in known:
+                logging.info(f"[Formats] Card ref '{ref}' names no card in the pool yet")
+            else:
+                logging.warning(f"[Formats] Card ref '{ref}' names an unknown set")
             return None
         return ref.lower()
 

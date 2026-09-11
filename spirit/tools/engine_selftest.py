@@ -834,6 +834,42 @@ async def test_set_registry_is_unique():
         unknown = sorted(set(fmt.get("sets") or []) - known)
         assert not unknown,             f"format {fmt['key']} lists sets missing from sets.json: {unknown}"
 
+    # A banned-card ref is "SET/number". The set half has to be a real set
+    # and the number a plain integer, or the ban never resolves to a card
+    # and the card stays legal without anyone noticing.
+    for fmt in formats:
+        refs = list(fmt.get("bannedCards") or []) + list(fmt.get("extraLegalCards") or [])
+        bad_sets = sorted(r for r in refs
+                          if "/" in r and r.partition("/")[0] not in known)
+        assert not bad_sets, f"format {fmt['key']} has card refs into unknown sets: {bad_sets}"
+        bad_numbers = sorted(r for r in refs
+                             if "/" in r and not r.partition("/")[2].isdigit())
+        assert not bad_numbers, f"format {fmt['key']} has non-numeric card refs: {bad_numbers}"
+
+
+async def test_expanded_bans_resolve():
+    """The Expanded bans that name a card the pool has must resolve to it,
+    and the format must then refuse the card (Scoop Up Net and Shaymin-EX
+    are the ones a Regidrago deck is most likely to reach for)."""
+    from spirit.game.format_manager import FormatManager
+    fm = FormatManager()
+    expanded = next(f for f in fm.formats if f.key == "Expanded")
+    banned, _ = fm._resolved_refs(expanded)
+    for name, key, number in (("Scoop Up Net", "SWSH2", 165),
+                              ("Shaymin-EX", "XY6", 77),
+                              ("Flapple", "SWSH2", 22),
+                              ("Medicham V", "SWSH7", 83)):
+        card = next(c for c in card_loader.cards
+                    if c.key == key
+                    and c.get_attribute_value(AttrID.COLLECTOR_NUMBER) == number)
+        assert card.guid.lower() in banned, f"{name} is not resolved as banned"
+        assert not fm.is_card_eventually_legal(expanded.guid, card), f"{name} is still Expanded-legal"
+    # A card of the same name from an unbanned print stays legal.
+    other = next(c for c in card_loader.cards
+                 if c.key == "SWSH7"
+                 and c.get_attribute_value(AttrID.COLLECTOR_NUMBER) == 120)
+    assert fm.is_card_eventually_legal(expanded.guid, other), "Flapple SWSH7 120 should stay legal"
+
 
 async def test_play_locks():
     rig, e = new_rig()
@@ -2273,6 +2309,7 @@ TESTS = [
     test_on_energy_attached,
     test_play_locks,
     test_set_registry_is_unique,
+    test_expanded_bans_resolve,
     test_usable_from_offers,
     test_prize_hooks,
     test_move_damage_counters,
