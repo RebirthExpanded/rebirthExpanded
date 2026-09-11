@@ -4170,18 +4170,26 @@ class GameSession:
             pokemon.owning_player_id, pokemon, Triggers.ON_MOVE_TO_BENCH)
 
     async def fire_move_to_active_triggers(self, pokemon):
-        """ON_MOVE_TO_ACTIVE (Cinderace Libero), at most once per entity per
-        turn regardless of how often it re-enters the Active spot."""
+        """ON_MOVE_TO_ACTIVE (Cinderace Libero, Wyrdeer V, Iron Valiant ex),
+        at most once per entity per turn regardless of how often it
+        re-enters the Active spot.
+
+        Every printing reads "Once during YOUR turn, when this Pokemon moves
+        from your Bench to the Active Spot", so the owner must be the turn
+        player: an opponent's Boss's Orders, or a promotion after a KO on
+        their turn, moves the Pokemon up without firing it.
+        """
         if pokemon is None:
             return
         ts = self.turn_state
+        owner_id = pokemon.owning_player_id
+        if not owner_id or owner_id != ts.active_player_id:
+            return
         if pokemon.entity_id in ts.on_move_to_active_fired:
             return
         ts.on_move_to_active_fired.add(pokemon.entity_id)
-        owner_id = pokemon.owning_player_id
-        if owner_id:
-            await self._fire_triggered_abilities(
-                owner_id, pokemon, Triggers.ON_MOVE_TO_ACTIVE)
+        await self._fire_triggered_abilities(
+            owner_id, pokemon, Triggers.ON_MOVE_TO_ACTIVE)
 
     async def _execute_attach_energy(self, player_id, card, entry, target_ids):
         """Attaches an energy card underneath the chosen Pokemon, honoring the
