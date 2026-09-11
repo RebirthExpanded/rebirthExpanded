@@ -550,8 +550,10 @@ class EffectContext:
                    *, modify: bool = True) -> int:
         """Heals damage from a Pokemon (default: own Active); returns the healed amount.
 
-        `modify=False` skips heal multipliers (moving damage counters is not
-        the heal keyword, so Legendary Ocean Trench must not inflate it).
+        `modify=False` skips heal multipliers. Moving or removing damage
+        counters is not the heal keyword at all -- that is
+        remove_damage_counters, which neither heal locks nor multipliers
+        touch.
         """
         target = target if target is not None else self.my_active()
         if target is None or amount <= 0 or self._stadium_effect_prevented(target):
@@ -1099,6 +1101,27 @@ class EffectContext:
                 amount=counters * 10, target=by_id[entity_id], as_counters=True,
             )
 
+    async def remove_damage_counters(self, target: Optional[PokemonEntity],
+                                     counters: int) -> int:
+        """Takes up to `counters` damage counters off `target` (HP + 10n,
+        clamped to its damage) and returns how many came off.
+
+        NOT healing: "remove a damage counter" / "move a damage counter"
+        is a different keyword from "heal", so a heal lock (prevents_healing)
+        and heal multipliers do not apply, no heal FX plays and the
+        healed-this-turn ledger is untouched. Only the HP attribute moves.
+        """
+        if target is None or counters <= 0:
+            return 0
+        current = target.get_attribute(AttrID.HP, 0)
+        damage = max(0, self.max_hp(target) - current)
+        removed = min(counters, damage // 10)
+        if removed <= 0:
+            return 0
+        target.set_attribute(AttrID.HP, current + removed * 10)
+        self._queue_hp_update(target)
+        return removed
+
     async def set_damage_counters(self, target: Optional[PokemonEntity],
                                   counters: int) -> None:
         """Sets a Pokemon's damage to exactly `counters` (HP = max - 10n,
@@ -1118,8 +1141,10 @@ class EffectContext:
         max_count: Optional[int] = None,
         prompt: str = "Place the moved damage counters",
     ) -> int:
-        """Moves damage counters off `source` (heal + raw counter placement,
-        atomic), clamped to its actual damage; returns counters moved.
+        """Moves damage counters off `source` (counter removal + raw counter
+        placement, atomic), clamped to its actual damage; returns counters
+        moved. Removal is not healing: a heal lock on the source does not
+        stop the move (see remove_damage_counters).
 
         A single shielded destination fizzles the WHOLE move; in a
         multi-target distribution shielded picks stay legal but their
@@ -1149,10 +1174,10 @@ class EffectContext:
         total = sum(v for v in placement.values() if v > 0)
         if total <= 0:
             return 0
-        healed = await self.heal(total * 10, source, modify=False)
-        if healed <= 0:
+        removed = await self.remove_damage_counters(source, total)
+        if removed <= 0:
             return 0
-        remaining = healed // 10
+        remaining = removed
         by_id = {p.entity_id: p for p in pool}
         for entity_id, n in placement.items():
             if n <= 0 or entity_id not in by_id or remaining <= 0:
@@ -1161,7 +1186,7 @@ class EffectContext:
             remaining -= n
             await self.deal_damage(amount=n * 10, target=by_id[entity_id],
                                    as_counters=True)
-        return healed // 10
+        return removed
 
     # ------------------------------------------------------------------
     # Interactive primitives (resolve inline, before choreography)
@@ -2232,12 +2257,12 @@ class EffectContext:
             if lifted <= 0:
                 break
             # Lift: the counter leaves the source before the destination is
-            # asked for, and both clients see it go.
-            healed = await self.heal(lifted * 10, source, modify=False)
+            # asked for, and both clients see it go. Removal, not healing
+            # -- a heal lock on the source does not stop it.
+            lifted = await self.remove_damage_counters(source, lifted)
             await self.flush_choreography()
-            if healed <= 0:
+            if lifted <= 0:
                 break
-            lifted = healed // 10
             dest = await self.choose_pokemon(dests, dest_prompt)
             if dest is None or self.effects_blocked(dest):
                 dest = source  # fizzle: it lands back where it was lifted from
