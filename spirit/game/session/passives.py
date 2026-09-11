@@ -40,6 +40,8 @@ class TurnDamageModifier:
     opposing_active_only: bool = True
     # None = this turn only; otherwise the last turn number it still applies.
     expires_after_turn: Optional[int] = None
+    # "For the rest of this game" (Altered Creation-GX): never pruned.
+    permanent: bool = False
     # Only while THIS entity attacks (Scyther's next-turn self boost).
     source_entity_id: Optional[str] = None
     # Only while resolving this attack title (Metagross' Fullmetal Impact rider).
@@ -532,6 +534,15 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
         passive = getattr(definition, "passive", None)
         if passive is not None:
             triples.append((passive, stadium, False))
+    # "For the rest of this game" passives (Full Metal Wall-GX): owned by a
+    # PLAYER rather than by a card, so they outlive the Pokemon that made
+    # them and nothing on the board can switch them off. The owner's Active
+    # area stands in as the carrier -- these passives carry their own owner
+    # id and must not read the carrier.
+    for passive, owner_id in getattr(board, "game_passives", None) or []:
+        anchor = board.find_player_area(owner_id, "activePokemonArea")
+        if anchor is not None:
+            triples.append((passive, anchor, False))
     # Effect-granted temporary passives; dead carriers are silently skipped.
     for temp in getattr(board, "temporary_passives", None) or []:
         carrier = board.get_entity(temp.carrier_entity_id)

@@ -3676,6 +3676,7 @@ class GameSession:
             await self._run_player_turn(active_id)
             await self._wait_for_connection_resume()
             await self._run_state_unit(self._fire_end_of_turn_triggers(active_id))
+            await self._run_state_unit(self._resolve_scheduled_knockouts())
             if self.extra_turn_pending:
                 # Star Chronos / Yoga Loop: same player again, no checkup.
                 self.extra_turn_pending = False
@@ -4059,6 +4060,36 @@ class GameSession:
         for pokemon in list(self.board_state.pokemon_in_play(active_id)):
             await self._fire_triggered_abilities(
                 active_id, pokemon, Triggers.END_OF_TURN)
+
+    async def _resolve_scheduled_knockouts(self):
+        """"At the end of your opponent's next turn, the Defending Pokemon
+        will be Knocked Out" (Pale Moon-GX).
+
+        Runs after the end-of-turn triggers and before the checkup, so a
+        Pokemon that was going to faint here does not first heal or retreat
+        its way out at the checkup. The knockout is an EFFECT, not damage:
+        it takes Prizes the ordinary way but no attack-damage watcher reads
+        it, and a Pokemon that has already left play is simply dropped.
+        """
+        state = self.turn_state
+        due = [entity_id for entity_id, turn in state.scheduled_knockouts.items()
+               if turn <= state.turn_number]
+        if not due:
+            return
+        ctx = EffectContext(self, state.active_player_id, None, None)
+        for entity_id in due:
+            state.scheduled_knockouts.pop(entity_id, None)
+            pokemon = self.board_state.get_entity(entity_id)
+            if pokemon is None or pokemon.owning_player_id is None:
+                continue
+            if pokemon not in self.board_state.pokemon_in_play(pokemon.owning_player_id):
+                continue
+            pokemon.set_attribute(AttrID.HP, 0)
+            if pokemon not in ctx.knockouts:
+                ctx.knockouts.append(pokemon)
+        if ctx.knockouts:
+            await self.resolve_knockouts(ctx)
+            await self.enforce_bench_capacity()
 
     async def _fire_stadium_triggers(self, acting_player_id: str, trigger: str,
                                      ctx_setup=None):

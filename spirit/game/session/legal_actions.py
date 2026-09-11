@@ -161,6 +161,11 @@ class TurnState:
     attach_restrictions: Dict[str, int] = field(default_factory=dict)
     # Entities whose ON_MOVE_TO_ACTIVE trigger already fired this turn.
     on_move_to_active_fired: Set[str] = field(default_factory=set)
+    # entity_id -> the turn at whose END this Pokemon is Knocked Out
+    # ("At the end of your opponent's next turn, the Defending Pokemon will
+    # be Knocked Out" -- Pale Moon-GX). Not a per-turn ledger: entries sit
+    # here until they fire or the Pokemon leaves play.
+    scheduled_knockouts: Dict[str, int] = field(default_factory=dict)
     # Pokemon that were devolved this turn: "(That Pokemon can't evolve this
     # turn.)" Kept apart from entered_play_turn, which means "came into play
     # this turn" and is read by cards asking whether this Pokemon EVOLVED
@@ -226,8 +231,9 @@ class TurnState:
         self.used_named_abilities = set()
         self.damage_modifiers = [
             m for m in self.damage_modifiers
-            if getattr(m, "expires_after_turn", None) is not None
-            and m.expires_after_turn >= self.turn_number
+            if getattr(m, "permanent", False)
+            or (getattr(m, "expires_after_turn", None) is not None
+                and m.expires_after_turn >= self.turn_number)
         ]
         self.trainers_played_last_turn = self.trainers_played
         self.trainers_played = []
@@ -265,7 +271,11 @@ class TurnState:
             if entry[0] >= self.turn_number
         }
         self.ignore_target_effects_entities = set()
-        self.extra_prize_watchers = []
+        # "For the rest of this game" watches (Altered Creation-GX) survive
+        # the turn rollover; the rest are this-turn only.
+        self.extra_prize_watchers = [
+            w for w in self.extra_prize_watchers if w.get("permanent")
+        ]
         self.auto_select_attack_entity_id = None
         self.extra_attack_printed_only = False
         if board is not None:
@@ -293,6 +303,12 @@ class TurnState:
 
     def retreat_locked(self, entity_id: str) -> bool:
         return self.turn_number <= self.retreat_locks.get(entity_id, 0)
+
+    def schedule_knockout(self, entity_id: str, at_end_of_turn: int):
+        """Marks a Pokemon to be Knocked Out at the end of `at_end_of_turn`."""
+        current = self.scheduled_knockouts.get(entity_id)
+        if current is None or at_end_of_turn < current:
+            self.scheduled_knockouts[entity_id] = at_end_of_turn
 
     def lock_plays(self, player_id: str, predicate, through_turn: Optional[int] = None):
         """Forbids `player_id` playing hand cards matching `predicate`

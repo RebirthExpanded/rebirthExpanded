@@ -658,8 +658,19 @@ class EffectContext:
         """Registers a TurnDamageModifier (expires_after_turn None = this turn)."""
         self.session.turn_state.damage_modifiers.append(mod)
 
+    def add_game_passive(self, passive, player_id: Optional[str] = None) -> None:
+        """"For the rest of this game ..." (Full Metal Wall-GX).
+
+        The passive belongs to a PLAYER, not to a card: it outlives the
+        Pokemon that made it, nothing on the board switches it off, and it
+        is never pruned. It must carry its own owner id -- the carrier it is
+        handed is only an anchor.
+        """
+        self.board.game_passives.append((passive, player_id or self.player_id))
+
     def add_extra_prize_watcher(self, attacker_predicate=None,
-                                target_predicate=None, prizes: int = 1) -> None:
+                                target_predicate=None, prizes: int = 1,
+                                permanent: bool = False) -> None:
         """This-turn bonus-prize watch (Star Order): when this player's attack
         KOs by damage a Pokemon passing target_predicate and the attacker
         passes attacker_predicate, resolve_knockouts adds `prizes` to the take."""
@@ -668,6 +679,7 @@ class EffectContext:
             "attacker_predicate": attacker_predicate,
             "target_predicate": target_predicate,
             "prizes": prizes,
+            "permanent": permanent,
         })
 
     def add_temporary_passive(self, target, passive,
@@ -696,6 +708,15 @@ class EffectContext:
         turn" (default); pass legal_actions.LOCK_UNTIL_LEAVES_ACTIVE to hold
         the lock until it leaves the Active spot."""
         self.session.turn_state.lock_retreat(target.entity_id, through_turn)
+
+    def schedule_knockout(self, target: PokemonEntity,
+                          turns_ahead: int = 1) -> None:
+        """"At the end of your opponent's next turn, this Pokemon will be
+        Knocked Out" (Pale Moon-GX). turns_ahead=1 is that next turn."""
+        if target is None:
+            return
+        self.session.turn_state.schedule_knockout(
+            target.entity_id, self.session.turn_state.turn_number + turns_ahead)
 
     def lock_plays(self, player_id: str, predicate: Callable[[CardEntity], bool],
                    through_turn: Optional[int] = None) -> None:

@@ -623,6 +623,10 @@ def is_lightning_energy(card) -> bool:
     return energy_provides_type(card, PokemonTypes.LIGHTNING.value)
 
 
+def is_metal_energy(card) -> bool:
+    return energy_provides_type(card, PokemonTypes.METAL.value)
+
+
 def is_pokemon_gx(archetype_id) -> bool:
     return "GX" in subtypes_for(archetype_id)
 

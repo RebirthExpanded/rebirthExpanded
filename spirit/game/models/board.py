@@ -2,7 +2,7 @@ import uuid
 import json
 import random
 import logging
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Tuple, Union
 from spirit.game.attributes import AttrID, CardType, PokemonStage, Rarities, PlayerAttrID
 from spirit.game.models.card import Card
 from spirit.game.scripts.cards import loader as card_loader
@@ -293,6 +293,9 @@ class BoardState:
         }
         # player_id -> prize cards dealt at setup; prizes taken = dealt - remaining.
         self.prizes_dealt: Dict[str, int] = {}
+        # (passive, owner player_id) pairs that last the whole game
+        # (Full Metal Wall-GX); see passives._collect_passives.
+        self.game_passives: List[Tuple[Any, str]] = []
         # player_id -> {"GX": bool, "VSTAR": bool}: which playmat markers the
         # deck earns. Drives gameOptions["tokens"]; the PlayerEntity attributes
         # of the same name mean "spent", which is a different question.
