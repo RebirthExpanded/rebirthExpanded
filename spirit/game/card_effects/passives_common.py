@@ -638,6 +638,25 @@ class TrainerEffectShieldPassive(Passive):
         return True
 
 
+class OmegaBarrierPassive(Passive):
+    """Ancient Trait Omega Barrier: "Whenever your opponent plays a Trainer
+    card (excluding Pokemon Tools and Stadium cards), prevent all effects of
+    that card done to this Pokemon."
+
+    Entity-scoped and opponent-only: the engine already asks this only of a
+    DIFFERENT player's trainer, and the shield answers only for the carrier
+    itself, against Items and Supporters. A gust that names this Pokemon
+    fizzles; a forced switch that names the Active it is not does not.
+    """
+
+    def blocks_trainer_effects(self, affected_player_id, trainer_card,
+                               trainer_type, carrier, affected_entity=None,
+                               board=None):
+        if trainer_type not in (TrainerType.ITEM.value, TrainerType.SUPPORTER.value):
+            return False
+        return affected_entity is not None and affected_entity is carrier
+
+
 def trainer_effect_shield_passive(supporters_only=True, protects=None,
                                   while_active=False, condition=None) -> Passive:
     """Dew Guard shape; the engine already scopes it to effects a DIFFERENT

@@ -2162,17 +2162,24 @@ class EffectContext:
             moved += shifted
         return moved
 
-    async def switch_active(self, player_id: str, new_active: PokemonEntity) -> bool:
+    async def switch_active(self, player_id: str, new_active: PokemonEntity,
+                            object_is_active: bool = False) -> bool:
         """Swaps a player's Active with the given benched Pokemon (gust or
-        self-switch). Special Conditions on the leaving Active are cured."""
-        # Guard on the gusted bench Pokemon: entity-scoped shields (Princess's
-        # Curtain) protect the chosen bencher, not the whole side.
-        if self._trainer_blocked(new_active):
-            return False
+        self-switch). Special Conditions on the leaving Active are cured.
+
+        object_is_active names which Pokemon a trainer's effect is "done to":
+        a gust (Boss's Orders, Guzma) is done to the bencher it drags up, so
+        the shield is asked of that card; a forced switch (Escape Rope) is
+        done to the Active being switched out, so the shield is asked of it
+        and the bencher coming up may be anything, shielded or not."""
         board = self.board
+        old_active = board.active_pokemon(player_id)
+        # Entity-scoped shields (Princess's Curtain, Omega Barrier) protect
+        # the card the effect is done to, not the whole side.
+        if self._trainer_blocked(old_active if object_is_active else new_active):
+            return False
         active_area = board.find_player_area(player_id, "activePokemonArea")
         bench_area = board.find_player_area(player_id, "bench")
-        old_active = board.active_pokemon(player_id)
         if not active_area or not bench_area or old_active is None:
             return False
         if new_active not in bench_area.children:

@@ -571,7 +571,10 @@ async def catcher_switch_both(ctx):
     )
     if target is None:
         return
-    await ctx.switch_active(ctx.opponent_id, target)
+    # "If you do": a gust that a shield turns away (Omega Barrier) ends the
+    # card here, and the player's own switch never happens.
+    if not await ctx.switch_active(ctx.opponent_id, target):
+        return
     my_bench = ctx.my_bench()
     if not my_bench:
         return
@@ -670,7 +673,11 @@ async def escape_rope(ctx):
         target = await ctx.choose_pokemon(
             opp_bench, "Choose your new Active Pokémon", player_id=ctx.opponent_id
         )
-        await ctx.switch_active(ctx.opponent_id, target or opp_bench[0])
+        # The effect is done to their ACTIVE (it is the one switched out), so
+        # an Omega Barrier Active stays put while an Omega Barrier bencher may
+        # still be the one brought up.
+        await ctx.switch_active(ctx.opponent_id, target or opp_bench[0],
+                                object_is_active=True)
         # Flush the opponent's swap so both clients see it land before the
         # Escape Rope player is prompted for their own switch.
         await ctx.flush_choreography()
