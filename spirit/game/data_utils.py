@@ -362,7 +362,9 @@ _MULTI_PRIZE_SUBTYPES = {
     # A TAG TEAM is also a GX; prize_value takes the max, so 3 wins.
     "TAG TEAM": 3,
 }
-_RULE_BOX_SUBTYPES = set(_MULTI_PRIZE_SUBTYPES) | {"Radiant"}
+# BREAK Evolutions print a rule (the BREAK Evolution rule) without being
+# worth extra Prizes, so they count as "Pokemon with a Rule Box" here.
+_RULE_BOX_SUBTYPES = set(_MULTI_PRIZE_SUBTYPES) | {"Radiant", "BREAK"}
 
 
 def is_pokemon_v(archetype_id: Optional[str]) -> bool:

@@ -86,6 +86,7 @@ from spirit.game.attributes import (
     DeckFormat,
     GameSequence,
     PlayerAttrID,
+    PokemonStage,
     SpecialConditions,
     TrainerType,
 )
@@ -1493,6 +1494,11 @@ class GameSession:
         had_conditions = bool(pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS))
         pokemon.set_attribute(AttrID.SPECIAL_CONDITIONS, [])
         self.clear_condition_state(pokemon.entity_id)
+        # A BREAK Evolution leaving play hands back the stats it took over.
+        if pokemon.get_attribute(AttrID.STAGE) == PokemonStage.BREAK.value:
+            for attr in self._BREAK_RETAINED_ATTRS:
+                if attr.value in pokemon.attribute_originals:
+                    pokemon.set_attribute(attr, pokemon.attribute_originals[attr.value])
         # A Pokemon card that was attached "as a Special Energy card"
         # (Buzzap Thunder) is a Pokemon card again once it leaves play.
         if getattr(pokemon, "acts_as_energy", False):
@@ -4327,6 +4333,16 @@ class GameSession:
         dynamic attacks (Ditto, Memory Capsule) deduped by title+text."""
         definition = def_for(pokemon.archetype_id)
         entries = [a.to_dict() for a in (getattr(definition, "abilities", None) or [])]
+        # BREAK Evolution rule: "retains the attacks, Abilities, Weakness,
+        # Resistance, and Retreat Cost of its previous Evolution". The attacks
+        # and Abilities are the previous Evolution's own rows, mirrored onto
+        # the BREAK so the panel offers them and their passives ride the BREAK
+        # (and answer to ability locks like any printed Ability).
+        previous = self._break_previous_evolution(pokemon)
+        if previous is not None:
+            previous_def = def_for(previous.archetype_id)
+            entries.extend(a.to_dict() for a in
+                           (getattr(previous_def, "abilities", None) or []))
         for child in pokemon.children:
             child_def = def_for(child.archetype_id)
             grants = getattr(child_def, "granted_abilities", None) or []
@@ -4357,6 +4373,25 @@ class GameSession:
                 seen.add(key)
                 entries.append(row)
         return entries
+
+    def _break_previous_evolution(self, pokemon: PokemonEntity):
+        """For a BREAK Evolution in play, the tucked card it evolved from
+        (the one its evolves_from names); None for anything else."""
+        if pokemon.get_attribute(AttrID.STAGE) != PokemonStage.BREAK.value:
+            return None
+        wanted = pokemon.get_attribute(AttrID.EVOLUTION_LOGIC_FROM)
+        for child in pokemon.children:
+            if isinstance(child, PokemonEntity)                     and child.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == wanted:
+                return child
+        return None
+
+    # The printed stats a BREAK Evolution takes over from its previous
+    # Evolution the moment it evolves, and gives back when it leaves play.
+    _BREAK_RETAINED_ATTRS = (
+        AttrID.WEAKNESS_TYPES, AttrID.WEAKNESS_AMOUNT,
+        AttrID.RESISTANCE_TYPES, AttrID.RESISTANCE_AMOUNT,
+        AttrID.RETREAT_COST,
+    )
 
     async def refresh_granted_abilities(self, pokemon: PokemonEntity):
         """Rebroadcasts `pokemon`'s canonical PIE_ABILITIES (also sheds any
@@ -4645,6 +4680,16 @@ class GameSession:
         damage_taken = max(
             0, effective_max_hp(self.board_state, target) - target.get_attribute(AttrID.HP, 0)
         )
+
+        # A BREAK Evolution wears its previous Evolution's Weakness,
+        # Resistance and Retreat Cost; set before the intro so both viewers
+        # see them on the card as it lands.
+        if card.get_attribute(AttrID.STAGE) == PokemonStage.BREAK.value:
+            for attr in self._BREAK_RETAINED_ATTRS:
+                # Remember the BREAK's own printed value once, so leaving
+                # play can hand the borrowed stats back.
+                card.attribute_originals.setdefault(attr.value, card.get_attribute(attr))
+                card.set_attribute(attr, target.get_attribute(attr))
 
         moves = []
         if not self.board_state.move_card(card.entity_id, area.entity_id, slot):
