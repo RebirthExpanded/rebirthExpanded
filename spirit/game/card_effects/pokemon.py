@@ -1480,3 +1480,29 @@ def has_printed_ability(card) -> bool:
             continue
         return True
     return False
+
+
+# --- Eeveelution "Effect" abilities (AOR Vaporeon / Jolteon / Flareon) -----
+
+class StageOneTypeGrantPassive(Passive):
+    """"As long as this Pokemon is in play, each of your Stage 1 Pokemon is
+    [T] type in addition to its existing types." The type rides the live
+    type list, so Weakness/Resistance and type predicates (Aqua Patch,
+    Electropower) see it; the printed attribute is left alone."""
+
+    def __init__(self, pokemon_type):
+        self.type_value = getattr(pokemon_type, "value", pokemon_type)
+
+    def modify_pokemon_types(self, types, pokemon, carrier):
+        if pokemon.owning_player_id != carrier.owning_player_id:
+            return types
+        if pokemon.get_attribute(AttrID.STAGE) != PokemonStage.STAGE1.value:
+            return types
+        if self.type_value in types:
+            return types
+        return list(types) + [self.type_value]
+
+
+def stage_one_type_grant(pokemon_type) -> Passive:
+    return StageOneTypeGrantPassive(pokemon_type)
+

@@ -276,6 +276,17 @@ def create_card_entity(card_obj: Card, owning_player_id: Optional[str] = None, e
         return TrainerEntity(card_obj, owning_player_id, entity_id)
 
 
+def board_of(entity: Optional[BoardEntity]) -> Optional["BoardState"]:
+    """The BoardState an entity sits in (None while it is off any board)."""
+    node = entity
+    while node is not None:
+        board = getattr(node, "board", None)
+        if board is not None:
+            return board
+        node = node.parent
+    return None
+
+
 class BoardState:
     """Manages the full tree layout of the Playmat, keeping O(1) cache of all entities for rapid access."""
     def __init__(self, game_id: str, player_ids: List[str]):
@@ -284,6 +295,9 @@ class BoardState:
         
         # Build Playmat Root Entity
         self.playmat = PlayMat()
+        # Back-reference so an entity can find its board through the tree
+        # (board_of), for predicates that only get handed the entity.
+        self.playmat.board = self
         
         # Internal cache map (entityID -> BoardEntity) for O(1) lookups
         self._entity_cache: Dict[str, BoardEntity] = {self.playmat.entity_id: self.playmat}

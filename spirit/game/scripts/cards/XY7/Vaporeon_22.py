@@ -9,28 +9,16 @@ retreat 2.
   Hydro Splash  [WCC] 70
 
 The type is added to the live type list (modify_pokemon_types), which is
-what the damage step reads for Weakness and Resistance: a Stage 1 with [W]
-added hits a Water-weak Pokemon for double, and runs into Water
-Resistance, whichever of its types the printed one is. Vaporeon is a
-Stage 1 too, so it counts itself (already Water).
+what the damage step reads for Weakness and Resistance -- a Stage 1 with
+[W] added hits a Water-weak Pokemon for double and runs into Water
+Resistance, whichever of its types the printed one is -- and what the
+type predicates read, so Aqua Patch takes such a Pokemon as a Water one.
+Vaporeon is a Stage 1 too, so it counts itself (already Water).
 """
 
-from spirit.game.attributes import (AttrID, PokemonStage, PokemonTypes,
-                                    Rarities)
+from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
+from spirit.game.card_effects.pokemon import stage_one_type_grant
 from spirit.game.data_utils import Ability, Attack, PokemonCardDef
-from spirit.game.session.passives import Passive
-
-
-class AquaEffectPassive(Passive):
-    def modify_pokemon_types(self, types, pokemon, carrier):
-        if pokemon.owning_player_id != carrier.owning_player_id:
-            return types
-        if pokemon.get_attribute(AttrID.STAGE) != PokemonStage.STAGE1.value:
-            return types
-        if PokemonTypes.WATER.value in types:
-            return types
-        return list(types) + [PokemonTypes.WATER.value]
-
 
 card = PokemonCardDef(
     guid="ac735f29-b4bb-5a4f-8d65-a0ed8ee5b902",
@@ -53,7 +41,7 @@ card = PokemonCardDef(
         Ability(
             title="Aqua Effect",
             game_text="As long as this Pokémon is in play, each of your Stage 1 Pokémon is [W] type in addition to its existing types.",
-            passive=AquaEffectPassive(),
+            passive=stage_one_type_grant(PokemonTypes.WATER),
         ),
         Attack(title="Hydro Splash", game_text="",
                cost={PokemonTypes.WATER: 1, PokemonTypes.COLORLESS: 2}, damage=70),

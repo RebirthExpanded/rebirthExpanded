@@ -35,7 +35,8 @@ from spirit.game.data_utils import (
     has_rule_box,
     unimplemented,
 )
-from spirit.game.models.board import BoardEntity, CardEntity, EnergyEntity, PokemonEntity
+from spirit.game.models.board import (BoardEntity, CardEntity, EnergyEntity,
+                                      PokemonEntity, board_of)
 from spirit.network.message_names import OutboundMsg
 from spirit.game.game_sequence_packets import NestedSequence
 from .constants import PROMPT_CHOOSE_A_PRIZE, PROMPT_NO, PROMPT_YES
@@ -2522,10 +2523,22 @@ def is_evolution_pokemon(card: CardEntity) -> bool:
     )
 
 
+def live_pokemon_types(card: CardEntity) -> List[Any]:
+    """A Pokemon's types as they stand: the printed list, plus whatever a
+    type-granting passive adds while it is IN PLAY (Vaporeon's Aqua Effect
+    makes your Stage 1 Pokemon Water as well, and Aqua Patch then sees a
+    Water Pokemon). Off the board only the printed types exist."""
+    types = list(card.get_attribute(AttrID.POKEMON_TYPES) or [])
+    if isinstance(card, PokemonEntity)             and card._containing_area_name() in ("activePokemonArea", "bench"):
+        board = board_of(card)
+        if board is not None:
+            return effective_pokemon_types(board, card)
+    return types
+
+
 def is_pokemon_of_type(card: CardEntity, pokemon_type) -> bool:
-    """Whether `card` is a Pokemon carrying the given type."""
-    types = card.get_attribute(AttrID.POKEMON_TYPES) or []
-    return is_pokemon_card(card) and         getattr(pokemon_type, "value", pokemon_type) in types
+    """Whether `card` is a Pokemon carrying the given type (live types)."""
+    return is_pokemon_card(card) and         getattr(pokemon_type, "value", pokemon_type) in live_pokemon_types(card)
 
 
 def is_water_pokemon(card: CardEntity) -> bool:
