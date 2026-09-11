@@ -12,10 +12,12 @@ retreat 3.
                           Resistance.
 
 "As often as you like" is the whole point of the Ability, so one use keeps
-asking for the next counter instead of closing after each one: the new
-ctx.move_damage_counters_freely repeats [pick a damaged Pokemon of theirs,
-declining is Done] -> [pick where the counter goes]. The activation stays
-UNLIMITED as well, so re-opening it is still legal.
+asking for the next counter instead of closing after each one:
+ctx.move_damage_counters_freely repeats [click a damaged Pokemon of theirs
+-- the counter lifts off at once] -> [click where it lands -- it drops at
+once], each half shown on both boards before the next click, and Done on
+the source pick closes it. The activation stays UNLIMITED as well, so
+re-opening it is still legal.
 
 Both ends are the OPPONENT's board -- this shifts damage around their side
 and never touches yours -- and the Ability wants two of their Pokemon in

@@ -2189,20 +2189,33 @@ class EffectContext:
         source_prompt: str = "Choose a Pokémon to move a damage counter from",
         dest_prompt: str = "Choose a Pokémon to move the damage counter to",
     ) -> int:
-        """"As often as you like ... move 1 damage counter": repeats [pick a
-        damaged Pokemon, declining ends it] -> [pick where the counter goes]
-        until the player is done or nothing is left to move. Returns the
-        counters moved.
+        """"As often as you like ... move 1 damage counter": repeats [click a
+        damaged Pokemon -- its counter lifts off at once] -> [click where it
+        lands -- it drops at once] until Done is clicked on the source pick
+        or nothing is left to move. Returns the counters moved.
 
-        move_energy_freely's shape for damage counters, so one use of the
-        Ability shifts as many as the player wants instead of asking them to
-        re-open it per counter.
+        Each half is flushed to both clients before the next click, so the
+        board shows -1 / +1 as the player goes (Sinister Hand) instead of
+        one bulk update when the Ability closes. A destination shielded
+        from this effect puts the lifted counter back where it came from
+        (a single shielded destination fizzles the move, as in
+        move_damage_counters).
         """
         moved = 0
+        if moving_damage_counters_blocked(self.board):
+            return 0
+        # An AIPlayer answers every pick with the first candidate and never
+        # clicks Done, which would shuttle one counter back and forth
+        # forever; it gets a single move per activation.
+        from spirit.game.session.ai_player import AIPlayer
+        if isinstance(self.session.players.get(self.player_id), AIPlayer):
+            max_moves = 1 if max_moves is None else min(max_moves, 1)
         while max_moves is None or moved < max_moves:
+            # A Pokemon already at 0 HP is Knocked Out (resolved when the
+            # Ability closes) and neither gives nor takes another counter.
             damaged = [
                 p for p in sources
-                if self.max_hp(p) - p.get_attribute(AttrID.HP, 0) >= 10
+                if 0 < p.get_attribute(AttrID.HP, 0) <= self.max_hp(p) - 10
             ]
             if not damaged:
                 break
@@ -2210,17 +2223,30 @@ class EffectContext:
                 damaged, source_prompt, optional=True)
             if source is None:
                 break
-            dests = [d for d in dest_candidates if d is not source]
+            dests = [d for d in dest_candidates
+                     if d is not source and d.get_attribute(AttrID.HP, 0) > 0]
             if not dests:
                 break
+            damage = max(0, self.max_hp(source) - source.get_attribute(AttrID.HP, 0))
+            lifted = min(damage // 10, per_move)
+            if lifted <= 0:
+                break
+            # Lift: the counter leaves the source before the destination is
+            # asked for, and both clients see it go.
+            healed = await self.heal(lifted * 10, source, modify=False)
+            await self.flush_choreography()
+            if healed <= 0:
+                break
+            lifted = healed // 10
             dest = await self.choose_pokemon(dests, dest_prompt)
-            if dest is None:
-                break
-            shifted = await self.move_damage_counters(
-                source, dest, max_count=per_move)
-            if shifted <= 0:
-                break
-            moved += shifted
+            if dest is None or self.effects_blocked(dest):
+                dest = source  # fizzle: it lands back where it was lifted from
+            await self.deal_damage(amount=lifted * 10, target=dest, as_counters=True,
+                                   apply_modifiers=False)
+            await self.flush_choreography()
+            if dest is source:
+                continue
+            moved += lifted
         return moved
 
     async def switch_active(self, player_id: str, new_active: PokemonEntity,
