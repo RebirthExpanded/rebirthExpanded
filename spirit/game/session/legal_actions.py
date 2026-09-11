@@ -204,6 +204,13 @@ class TurnState:
     # only an attack the Pokemon HAS: attacks lent by a Tool or an
     # Energy drop off the panel for it. See Passive.extra_attack_printed_only.
     extra_attack_printed_only: bool = False
+    # Which entries of the effect stores above an ATTACK put there
+    # (Pokemon Ranger: "Remove all effects of attacks on each player and each
+    # of their Pokemon"). Filled by resolve_attack from a before/after
+    # snapshot, so every writer -- helper or card script -- is caught;
+    # entries an Ability or Trainer made are never listed and so survive.
+    # (store_name, key) for dict stores, (store_name, object) for lists.
+    attack_effects: List[Tuple[str, Any]] = field(default_factory=list)
 
     def pokemon_lost_last_turn(self, player_id: str) -> List[Dict[str, Any]]:
         """"if any of your Pokemon were Knocked Out during your opponent's
@@ -295,6 +302,97 @@ class TurnState:
                 if tp.expires_after_turn is None
                 or tp.expires_after_turn >= self.turn_number
             ]
+        self._prune_attack_effects()
+
+    # ------------------------------------------------------------------
+    # "Effects of attacks" ledger (Pokemon Ranger)
+    # ------------------------------------------------------------------
+
+    _DICT_EFFECT_STORES = ("attack_locks", "retreat_locks", "attach_restrictions",
+                           "attack_flip_checks", "scheduled_knockouts")
+    _LIST_EFFECT_STORES = ("damage_modifiers", "extra_prize_watchers")
+
+    def _prune_attack_effects(self) -> None:
+        """Forget ledger entries whose store entry already expired, so a
+        later same-keyed entry made by an Ability is not mistaken for it."""
+        def alive(name, key) -> bool:
+            if name in self._DICT_EFFECT_STORES:
+                store = getattr(self, name)
+                if key not in store:
+                    return False
+                # These stores keep expired entries around; an entry whose
+                # "through turn" has passed is spent.
+                value = store[key]
+                through = value[0] if isinstance(value, tuple) else value
+                return not isinstance(through, int) or through >= self.turn_number
+            if name in self._LIST_EFFECT_STORES:
+                return any(x is key for x in getattr(self, name))
+            if name == "play_locks":
+                return any(x is key for locks in self.play_locks.values() for x in locks)
+            return False
+        self.attack_effects = [(n, k) for n, k in self.attack_effects if alive(n, k)]
+
+    def snapshot_effect_stores(self, board: Optional[Any] = None) -> Dict[str, Any]:
+        """What the effect stores hold right now, for record_attack_effects."""
+        snap: Dict[str, Any] = {}
+        for name in self._DICT_EFFECT_STORES:
+            snap[name] = dict(getattr(self, name))
+        for name in self._LIST_EFFECT_STORES:
+            snap[name] = {id(x) for x in getattr(self, name)}
+        snap["play_locks"] = {id(entry) for locks in self.play_locks.values()
+                              for entry in locks}
+        snap["temporary_passives"] = {
+            id(tp) for tp in (getattr(board, "temporary_passives", None) or [])}
+        return snap
+
+    def record_attack_effects(self, snapshot: Dict[str, Any],
+                              board: Optional[Any] = None) -> None:
+        """Everything the stores gained (or changed) since `snapshot` was an
+        attack's doing: list it so Pokemon Ranger can take it away."""
+        for name in self._DICT_EFFECT_STORES:
+            before = snapshot[name]
+            for key, value in getattr(self, name).items():
+                if key not in before or before[key] != value:
+                    self.attack_effects.append((name, key))
+        for name in self._LIST_EFFECT_STORES:
+            for obj in getattr(self, name):
+                if id(obj) not in snapshot[name]:
+                    self.attack_effects.append((name, obj))
+        for locks in self.play_locks.values():
+            for entry in locks:
+                if id(entry) not in snapshot["play_locks"]:
+                    self.attack_effects.append(("play_locks", entry))
+        for tp in (getattr(board, "temporary_passives", None) or []):
+            if id(tp) not in snapshot["temporary_passives"]:
+                tp.from_attack = True
+
+    def clear_attack_effects(self, board: Optional[Any] = None) -> int:
+        """Pokemon Ranger: drops every listed attack effect from the stores
+        (Special Conditions and damage are not effects of attacks and stay).
+        Returns how many entries went."""
+        removed = 0
+        for name, key in self.attack_effects:
+            if name in self._DICT_EFFECT_STORES:
+                if key in getattr(self, name):
+                    del getattr(self, name)[key]
+                    removed += 1
+            elif name in self._LIST_EFFECT_STORES:
+                store = getattr(self, name)
+                if any(x is key for x in store):
+                    setattr(self, name, [x for x in store if x is not key])
+                    removed += 1
+            elif name == "play_locks":
+                for pid, locks in list(self.play_locks.items()):
+                    if any(x is key for x in locks):
+                        self.play_locks[pid] = [x for x in locks if x is not key]
+                        removed += 1
+        self.attack_effects = []
+        if board is not None:
+            kept = [tp for tp in (getattr(board, "temporary_passives", None) or [])
+                    if not getattr(tp, "from_attack", False)]
+            removed += len(board.temporary_passives) - len(kept)
+            board.temporary_passives = kept
+        return removed
 
     def mark_entered_play(self, entity_id: str):
         self.entered_play_turn[entity_id] = self.turn_number

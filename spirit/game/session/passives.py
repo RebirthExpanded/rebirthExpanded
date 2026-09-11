@@ -57,6 +57,8 @@ class TempPassive:
     passive: "Passive"
     carrier_entity_id: str
     expires_after_turn: Optional[int] = None
+    # Granted by an attack (Pokemon Ranger removes these and nothing else).
+    from_attack: bool = False
 
 
 class DamageCalc:

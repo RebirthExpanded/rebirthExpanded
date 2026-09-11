@@ -2610,6 +2610,9 @@ async def resolve_attack(session, player_id: str, attacker: PokemonEntity,
     effect = ability.effect if ability else None
     title = ability.title if ability else action_id
     ctx._copy_chain.append(title)
+    # Whatever the effect stores gain while this attack resolves is an
+    # "effect of an attack" (Pokemon Ranger's ledger).
+    effect_snapshot = session.turn_state.snapshot_effect_stores(session.board_state)
     session.turn_state.attacks_used.append(
         (attacker.entity_id, attacker.archetype_id, title)
     )
@@ -2632,6 +2635,7 @@ async def resolve_attack(session, player_id: str, attacker: PokemonEntity,
     await session.resolve_knockouts(ctx)
     for hook in ctx.deferred_actions:
         await hook()
+    session.turn_state.record_attack_effects(effect_snapshot, session.board_state)
     # A KO'd/removed carrier may have shrunk a bench (Eternatus VMAX leaving).
     await session.enforce_bench_capacity()
     await _run_attack_followups(session, ctx)

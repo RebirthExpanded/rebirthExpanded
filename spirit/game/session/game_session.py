@@ -4924,6 +4924,10 @@ class GameSession:
                 entity_set.add(new_id)
         for key in [k for k in ts.attack_locks if k[0] == old_id]:
             ts.attack_locks[(new_id, key[1])] = ts.attack_locks.pop(key)
+        ts.attack_effects = [
+            (name, (new_id, key[1]) if name == "attack_locks" and key[0] == old_id
+             else key)
+            for name, key in ts.attack_effects]
         for temp in self.board_state.temporary_passives:
             if temp.carrier_entity_id == old_id:
                 temp.carrier_entity_id = new_id
@@ -5362,6 +5366,9 @@ class GameSession:
         if ability is not None:
             if getattr(ability, "locks_next_turn", False):
                 self.turn_state.lock_attack(card.entity_id, action_id)
+                # Locked by the attack itself: an effect of an attack.
+                self.turn_state.attack_effects.append(
+                    ("attack_locks", (card.entity_id, action_id)))
             if ability.vstar:
                 self.turn_state.vstar_used.add(player_id)
                 self._mark_token_spent(player_id, PlayerAttrID.HAS_VSTAR_TOKEN)
