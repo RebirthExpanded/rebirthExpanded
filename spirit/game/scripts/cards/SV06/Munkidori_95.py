@@ -2,18 +2,27 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities, SpecialConditions
 from spirit.game.card_effects.attacks_common import condition_attack
 from spirit.game.card_effects.pokemon import energy_provides_type
+from spirit.game.session.passives import (effective_max_hp,
+                                          moving_damage_counters_blocked)
 
 
-def _has_darkness_energy(board, player_id, pokemon) -> bool:
-    return any(
-        energy_provides_type(e, PokemonTypes.DARKNESS.value)
-        for e in board.attached_energies(pokemon)
-    )
+def _adrena_brain_condition(board, player_id, pokemon) -> bool:
+    """A [D] Energy on Munkidori and a damage counter on one of yours."""
+    if not any(energy_provides_type(e, PokemonTypes.DARKNESS.value)
+               for e in board.attached_energies(pokemon)):
+        return False
+    return any(effective_max_hp(board, p) - p.get_attribute(AttrID.HP, 0) >= 10
+               for p in board.pokemon_in_play(player_id))
 
 
 async def adrena_brain(ctx):
     """Move up to 3 damage counters from 1 of your Pokémon to 1 of your
-    opponent's Pokémon."""
+    opponent's Pokémon.
+
+    Taking the counters off is not healing (Heal Block lets it through);
+    under a move lock (Watchful Eye) the chosen counters come off and the
+    Ability ends there, with no destination asked.
+    """
     damaged = [
         p for p in ctx.my_pokemon_in_play()
         if ctx.max_hp(p) > p.get_attribute(AttrID.HP, 0)
@@ -33,6 +42,9 @@ async def adrena_brain(ctx):
             "How many damage counters will you move?",
             [str(n) for n in range(1, max_move + 1)],
         )
+    if moving_damage_counters_blocked(ctx.board):
+        await ctx.remove_damage_counters(source, count)
+        return
     dest = await ctx.choose_pokemon(
         ctx.opponent_pokemon_in_play(),
         "Choose a Pokémon to move damage counters to",
@@ -69,7 +81,7 @@ card = PokemonCardDef(
                 "Pokémon to 1 of your opponent's Pokémon."
             ),
             activation=Activations.ONCE_PER_TURN,
-            condition=_has_darkness_energy,
+            condition=_adrena_brain_condition,
             effect=adrena_brain,
         ),
         Attack(

@@ -1,6 +1,7 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, AttrID
-from spirit.game.session.passives import effective_max_hp
+from spirit.game.session.passives import (effective_max_hp,
+                                          moving_damage_counters_blocked)
 from spirit.game.card_effects.attacks_common import damage_per, count_hand
 
 
@@ -15,7 +16,14 @@ def painful_spoons_condition(board, player_id, pokemon):
 
 
 async def painful_spoons(ctx):
-    """Move up to 2 damage counters from 1 of your opponent's Pokemon to another."""
+    """Move up to 2 damage counters from 1 of your opponent's Pokemon to
+    another of their Pokemon.
+
+    "Up to 2" is the player's call (1 or 2 when 2 are there). Taking the
+    counters off is not healing (Heal Block lets it through); under a move
+    lock (Watchful Eye) the chosen counters come off and the Ability ends
+    there, with no destination asked.
+    """
     damaged = [
         p for p in ctx.opponent_pokemon_in_play()
         if p.get_attribute(AttrID.HP, 0) < ctx.max_hp(p)
@@ -27,6 +35,16 @@ async def painful_spoons(ctx):
     )
     if source is None:
         return
+    available = (ctx.max_hp(source) - source.get_attribute(AttrID.HP, 0)) // 10
+    count = min(2, available)
+    if count > 1:
+        count = 1 + await ctx.choose(
+            "How many damage counters will you move?",
+            [str(n) for n in range(1, count + 1)],
+        )
+    if moving_damage_counters_blocked(ctx.board):
+        await ctx.remove_damage_counters(source, count)
+        return
     targets = [p for p in ctx.opponent_pokemon_in_play() if p is not source]
     if not targets:
         return
@@ -35,7 +53,7 @@ async def painful_spoons(ctx):
     )
     if dest is None:
         return
-    await ctx.move_damage_counters(source, dest, max_count=2)
+    await ctx.move_damage_counters(source, dest, max_count=count)
 
 
 card = PokemonCardDef(
