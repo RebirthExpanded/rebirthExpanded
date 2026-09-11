@@ -1043,6 +1043,20 @@
     "promo": false
   },
   {
+    "name": "HMC",
+    "externalId": "HMC",
+    "number": 636,
+    "count": 19,
+    "filter": true,
+    "block": "XY",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
+  },
+  {
     "name": "XY4",
     "externalId": "PHF",
     "number": 630,

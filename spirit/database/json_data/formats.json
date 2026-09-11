@@ -122,7 +122,8 @@
         "SL",
         "XY3",
         "GUM",
-        "Promo_BW"
+        "Promo_BW",
+        "HMC"
       ],
       "allSets": false,
       "bannedCards": [
@@ -157,7 +158,7 @@
         "SM10/78",
         "SM5/114",
         "XY9/109",
-        "XY1/124",
+        "XY1/124", "HMC/12",
         "TwentiethAnn/71",
         "SM11/206",
         "SM11/253",
