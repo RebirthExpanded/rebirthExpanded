@@ -28,14 +28,14 @@ async def rush_in(ctx):
 
 
 card = PokemonCardDef(
-    guid="49b0228e-38dd-544c-b1f3-d6ec6da13f87",
-    key="BW6",
+    guid="5e235ef8-1e78-5d72-a024-d83df6a48ef7",
+    key="BW7",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.KeldeoEX.Name",
     display_name="Keldeo-EX",
     searchable_by=["Keldeo-EX", "Basic", "EX", "KeldeoEX"],
     subtypes=["Basic", "EX"],
     collector_number=49,
-    set_code="BW6",
+    set_code="BW7",
     rarity=Rarities.RareHoloEX,
     hp=170,
     elements=[PokemonTypes.WATER],
