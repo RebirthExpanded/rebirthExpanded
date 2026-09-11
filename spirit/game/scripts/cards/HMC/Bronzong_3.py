@@ -51,7 +51,7 @@ card = PokemonCardDef(
     weakness_type=PokemonTypes.FIRE,
     resistance_type=PokemonTypes.PSYCHIC,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Bronzor.Name",
-    family_id=437,
+    family_id=436,
     abilities=[
         Ability(
             title="Metal Links",
