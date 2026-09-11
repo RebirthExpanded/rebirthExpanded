@@ -61,6 +61,7 @@ from .passives import (
     energy_removal_blocked,
     healing_blocked,
     supporter_effect_replacement,
+    discard_recovery_blocked,
     player_attack_effects_blocked,
     trainer_effects_blocked,
     damage_counters_blocked,
@@ -1395,6 +1396,13 @@ class EffectContext:
             if not hand:
                 continue
             if self._energy_removal_blocked(card):
+                continue
+            # Slime Mold Colony: an Ability or Trainer of the pile's owner
+            # can't lift a card out of their own discard pile.
+            if card._containing_area_name() == "discard"                     and owner == self.player_id                     and (self.is_trainer_effect or self.is_ability_effect())                     and discard_recovery_blocked(self.board, owner):
+                logging.info(
+                    f"[Effects {self.game_id}] Recovery of {card.entity_id} from "
+                    f"the discard pile blocked by a passive.")
                 continue
             self._note_visual_source(card)
             position = len(hand.children)

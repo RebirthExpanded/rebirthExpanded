@@ -475,6 +475,12 @@ class Passive:
         """True to keep `card` from being discarded by an opponent's effect."""
         return False
 
+    def blocks_discard_recovery(self, player_id: str, carrier: BoardEntity) -> bool:
+        """True to keep `player_id` from putting cards from THEIR discard
+        pile into their hand with an Ability or Trainer card (Toedscruel's
+        Slime Mold Colony). Attacks are not named, so they still can."""
+        return False
+
     def blocks_tool_attach(self, player_id: str, carrier: BoardEntity) -> bool:
         """True to keep `player_id` from attaching Pokemon Tool cards from
         their hand (Goodra's Slip Trip, both players)."""
@@ -1065,6 +1071,15 @@ def discard_blocked(board: BoardState, card: BoardEntity) -> bool:
     """Whether a passive protects `card` from an opponent-caused discard."""
     return any(
         passive.blocks_discard(card, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def discard_recovery_blocked(board: BoardState, player_id: str) -> bool:
+    """Whether a passive keeps `player_id`'s Abilities/Trainers from
+    returning cards from their discard pile to their hand."""
+    return any(
+        passive.blocks_discard_recovery(player_id, carrier)
         for passive, carrier in active_passives(board)
     )
 
