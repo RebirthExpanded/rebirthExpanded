@@ -63,14 +63,18 @@ async def _attach_all(ctx, cards, target: PokemonEntity):
 
 _PLAYER_ZONES = ("deck", "hand", "discard", "prizePile", "lostZone",
                  "bench", "activePokemonArea")
+# Zones both players can see into: a copy sitting in one of these is known
+# not to be in the deck.
+_PUBLIC_ZONES = ("discard", "lostZone", "bench", "activePokemonArea")
 
 
 def _player_cards_by_archetype(board, player_id):
-    """(owned, in_discard): copies of each archetype the player has anywhere,
-    and how many of them sit in their discard pile. Stacks are walked, so a
-    tucked pre-evolution and an attached card both count."""
+    """(owned, public): copies of each archetype the player has anywhere,
+    and how many of them sit where everyone can see them -- the discard
+    pile, the Lost Zone, or in play. Stacks are walked, so a tucked
+    pre-evolution and an attached card both count."""
     owned: dict = {}
-    trashed: dict = {}
+    public: dict = {}
     for zone in _PLAYER_ZONES:
         area = board.find_player_area(player_id, zone)
         if area is None:
@@ -84,9 +88,9 @@ def _player_cards_by_archetype(board, player_id):
                 continue
             key = str(archetype).lower()
             owned[key] = owned.get(key, 0) + 1
-            if zone == "discard":
-                trashed[key] = trashed.get(key, 0) + 1
-    return owned, trashed
+            if zone in _PUBLIC_ZONES:
+                public[key] = public.get(key, 0) + 1
+    return owned, public
 
 
 def evolution_available(board, player_id, logic_name, def_predicate=None) -> bool:
@@ -95,11 +99,12 @@ def evolution_available(board, player_id, logic_name, def_predicate=None) -> boo
     "You may play this card only if you have a Pokemon in play that can be
     evolved" reads the pool for what evolves from the Pokemon (has_evolution:
     deck contents stay hidden, a whiffed search is legal) -- with one
-    correction the discard pile makes in public: an evolution card of which
-    the player has copies, ALL of them in the discard pile, cannot be found,
-    and if every evolution the pool knows is in that state the effect has
-    nothing to do and is not offered. Copies elsewhere (hand, Prizes) keep
-    the effect usable: they are not public.
+    correction public information makes: when every copy the player has of
+    every such evolution card is somewhere both players can see (the discard
+    pile, the Lost Zone, in play -- three Wobbuffet BREAK in the discard and
+    the fourth on the Bench), none can be in the deck, the effect has
+    nothing to do, and it is not offered. Copies in hand or among the Prizes
+    are not public and keep the effect usable.
 
     def_predicate narrows which evolution definitions count (Grand Tree's
     Stage 1, Salvatore's no-Ability).
@@ -107,10 +112,10 @@ def evolution_available(board, player_id, logic_name, def_predicate=None) -> boo
     from spirit.game.data_utils import CARD_DEFS_BY_GUID, _string_attr
     if not logic_name:
         return False
-    owned, trashed = _player_cards_by_archetype(board, player_id)
+    owned, public = _player_cards_by_archetype(board, player_id)
     matched = False
     have_total = 0
-    trashed_total = 0
+    public_total = 0
     for definition in CARD_DEFS_BY_GUID.values():
         if _string_attr(definition, AttrID.EVOLUTION_LOGIC_FROM) != logic_name:
             continue
@@ -119,13 +124,13 @@ def evolution_available(board, player_id, logic_name, def_predicate=None) -> boo
         matched = True
         key = str(definition.guid).lower()
         have_total += owned.get(key, 0)
-        trashed_total += trashed.get(key, 0)
+        public_total += public.get(key, 0)
     if not matched:
         return False
-    # Counted across every print: the player's Thwackeys are all in the
-    # discard whichever set each came from. Owning none at all leaves the
+    # Counted across every print: the player's Thwackeys are all accounted
+    # for whichever set each came from. Owning none at all leaves the
     # question to the deck, which stays hidden.
-    return have_total == 0 or trashed_total < have_total
+    return have_total == 0 or public_total < have_total
 
 
 def pokemon_can_still_evolve(board, player_id, pokemon, def_predicate=None) -> bool:

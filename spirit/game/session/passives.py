@@ -244,6 +244,13 @@ class Passive:
         """True to let `pokemon` attack even while Asleep/Paralyzed (Windup Arm)."""
         return False
 
+    def mega_evolution_keeps_turn(self, pokemon: PokemonEntity,
+                                  carrier: BoardEntity) -> bool:
+        """True to waive the Mega Evolution rule's "your turn ends" for
+        `pokemon` becoming a Mega Evolution Pokemon (a Spirit Link Tool
+        attached to it). Nothing in the pool says so yet."""
+        return False
+
     def sleep_checkup_coins(self, pokemon: PokemonEntity, carrier: BoardEntity) -> int:
         """How many coins `pokemon` flips to wake up at Checkup under this
         passive (Slumbering Forest: 2). 0 = no opinion; the largest answer
@@ -896,6 +903,16 @@ def can_attack_despite_conditions(board: BoardState, pokemon: PokemonEntity) -> 
         passive.attacks_despite_conditions(pokemon, carrier)
         for passive, carrier in active_passives(board)
     )
+
+
+def mega_evolution_ends_turn(board: BoardState, pokemon: PokemonEntity) -> bool:
+    """The Mega Evolution rule: "When 1 of your Pokemon becomes a Mega
+    Evolution Pokemon, your turn ends" -- unless a passive on that Pokemon
+    (a Spirit Link) waives it. Asked with the Mega already on top."""
+    if "MEGA" not in subtypes_for(pokemon.archetype_id):
+        return False
+    return not any(passive.mega_evolution_keeps_turn(pokemon, carrier)
+                   for passive, carrier in active_passives(board))
 
 
 def sleep_checkup_coin_count(board: BoardState, pokemon: PokemonEntity) -> int:

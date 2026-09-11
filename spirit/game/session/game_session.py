@@ -122,7 +122,8 @@ from .passives import (
     effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, energy_attach_taxer, evolve_heal_amount,
     granted_extra_attacks, player_visualizations,
-    retreat_energy_destination, sleep_checkup_coin_count, tool_slots_free,
+    mega_evolution_ends_turn, retreat_energy_destination,
+    sleep_checkup_coin_count, tool_slots_free,
     tool_suppressed, special_energy_suppressed,
 )
 from .legal_actions import (
@@ -3938,12 +3939,15 @@ class GameSession:
             await self._execute_attach_tool(player_id, card, entry, target_ids)
         elif description == ACTION_EVOLVE:
             await self._execute_evolve(player_id, card, entry, target_ids)
+            return self._take_pending_turn_end()
         elif description == ACTION_USE_TRAINER:
-            return await self._execute_play_trainer(player_id, card)
+            ends = await self._execute_play_trainer(player_id, card)
+            return bool(ends) or self._take_pending_turn_end()
         elif description == ACTION_PLAY_STADIUM:
             await self._execute_play_stadium(player_id, card)
         elif description == ACTION_USE_ABILITY:
-            return await self._execute_use_ability(player_id, card, entry)
+            ends = await self._execute_use_ability(player_id, card, entry)
+            return bool(ends) or self._take_pending_turn_end()
         elif description == ACTION_USE_ATTACK:
             return await self._execute_attack(player_id, card, entry)
         elif description == ACTION_RETREAT:
@@ -4646,6 +4650,13 @@ class GameSession:
         ctx = await resolve_activated_ability(self, player_id, card, ability)
         return ctx is not None and ctx.ends_turn
 
+    def _take_pending_turn_end(self) -> bool:
+        """Whether an effect that ran inside the last action asked for the
+        turn to end (a Mega Evolution arriving); reading it clears it."""
+        pending = getattr(self, "_pending_turn_end", False)
+        self._pending_turn_end = False
+        return pending
+
     async def _execute_evolve(self, player_id, card, entry, target_ids):
         """Evolves the target: the evolution takes its slot, the old stack tucks underneath."""
         target_id = self._validated_target(entry, target_ids)
@@ -4768,6 +4779,12 @@ class GameSession:
                     await self._flush_effect_runs(heal_ctx)
 
         await self._fire_triggered_abilities(player_id, card, Triggers.ON_EVOLVE)
+        # Mega Evolution rule: "When 1 of your Pokemon becomes a Mega Evolution
+        # Pokemon, your turn ends." However it got there -- from the hand, or
+        # through Wally -- the action that brought it ends the turn once it
+        # has finished resolving.
+        if mega_evolution_ends_turn(self.board_state, card):
+            self._pending_turn_end = True
         # Hand-played evolutions also fire the owner's OTHER Pokemon (Eevee's
         # Resonant Evolution); deck-sourced ones aren't "played from hand".
         if not from_zone_intro:
