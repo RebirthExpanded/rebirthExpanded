@@ -4778,7 +4778,13 @@ class GameSession:
                 if await heal_ctx.heal(heal, target=card):
                     await self._flush_effect_runs(heal_ctx)
 
-        await self._fire_triggered_abilities(player_id, card, Triggers.ON_EVOLVE)
+        # The trigger ctx says where the evolution card came from, for the
+        # "when you play this Pokemon from your hand to evolve" wording
+        # (Sparkling Ripples): a Wally/Rare Candy-from-deck evolution rides
+        # from_zone_intro and is not a hand play.
+        await self._fire_triggered_abilities(
+            player_id, card, Triggers.ON_EVOLVE,
+            ctx_setup=lambda c: setattr(c, "evolved_from_hand", not from_zone_intro))
         # Mega Evolution rule: "When 1 of your Pokemon becomes a Mega Evolution
         # Pokemon, your turn ends." However it got there -- from the hand, or
         # through Wally -- the action that brought it ends the turn once it
