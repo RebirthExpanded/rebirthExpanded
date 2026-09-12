@@ -118,7 +118,7 @@ from .effects import (
     resolve_triggered_ability,
 )
 from .passives import (
-    ability_locked, active_passives, active_to_bench_counters,
+    abilities_disabled, ability_locked, active_passives, active_to_bench_counters,
     burn_recovery_blocked, discard_destination_for,
     effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, effective_turn_draw, energy_attach_taxer, evolve_heal_amount,
@@ -2742,33 +2742,33 @@ class GameSession:
             picked = await self._prompt_prize_pick(player_id, prize_ids, count,
                                                    minimum=minimum)
         cards = [self.board_state.get_entity(i) for i in picked]
-        # Both prize-window triggers read "if you took it as a FACE-DOWN
-        # Prize card", so remember which ones were before move_card clears
-        # the flag on the way to hand.
-        was_face_down = {c.entity_id for c in cards
-                         if c is not None and not c.face_up}
-        # Prize-take provenance window (Dream Ball, Jirachi {*}), opened while
-        # the card is still a Prize -- both cards say "before you put it into
-        # your hand", and where it sits decides which ability lock applies:
-        # in hand Garbotoxin would silence it, among the Prizes nothing does.
-        # A Prize already turned face up (Town Map) was not taken face down,
-        # so it opens no window.
+        # Prize-take provenance window (Dream Ball, Jirachi {*}, Greedy Dice):
+        # both texts read "if you took it as a FACE-DOWN Prize card ... before
+        # you put it into your hand". Where the card sits when the question is
+        # asked decides which ability lock applies -- in hand Garbotoxin would
+        # silence it, among the Prizes nothing does -- so the lock is JUDGED
+        # here, while the card is still a Prize, and remembered.
+        #
+        # The window itself only RUNS after the WithOpenPrizeCards flight
+        # below. The client's r.B prize fan (opened by the pick) stays up,
+        # blacked out, until that bracket closes it; a dialog or a second
+        # prize pick sent while it is up never reaches the player and the game
+        # stalls (seen live: Peonia taking Jirachi {*}). A Prize already turned
+        # face up (Town Map) was not taken face down, so it opens no window.
+        window: List[Any] = []
         if destination == "hand":
             for card in cards:
-                if card is not None and card.parent is prize_area                         and card.entity_id in was_face_down:
-                    await self._fire_triggered_abilities(
-                        player_id, card, Triggers.ON_TAKEN_AS_PRIZE)
+                if card is None or card.face_up or card.parent is not prize_area:
+                    continue
+                if not self._has_prize_window(card):
+                    continue
+                if abilities_disabled(self.board_state, card):
+                    continue
+                window.append(card)
         intros = []
         moves = []
-        relocated = 0
         for card in cards:
-            if card is None:
-                continue
-            if card.parent is not prize_area:
-                # The window moved it somewhere else (Jirachi onto the Bench,
-                # Dream Ball onto the trainer slot). Its Prize slot is still
-                # vacated, so it counts as taken.
-                relocated += 1
+            if card is None or card.parent is not prize_area:
                 continue
             position = len(hand_area.children)
             if not self.board_state.move_card(card.entity_id, hand_area.entity_id):
@@ -2777,12 +2777,12 @@ class GameSession:
             moves.append(self._entity_moved_msg(
                 card.entity_id, hand_area.entity_id, position
             ))
-        if not moves and not relocated:
+        if not moves:
             return []
         taken = [c for c in cards
                  if c is not None and c.parent is not prize_area]
         gap_msg = self._refresh_prize_gaps(player_id, prize_area)
-        count_taken = len(moves) + relocated
+        count_taken = len(moves)
         self.turn_state.prizes_taken[player_id] = (
             self.turn_state.prizes_taken.get(player_id, 0) + count_taken
         )
@@ -2799,6 +2799,16 @@ class GameSession:
                 GameSequence.WITH_OPEN_PRIZE_CARDS,
                 ((intros + moves) if pid == player_id else list(moves)) + [gap_msg],
             )
+        # Now the fan is closed and the cards sit in hand on both clients:
+        # open the window. Jirachi {*} benches itself from there and takes
+        # its extra Prize through a fresh fan; Dream Ball / Greedy Dice play
+        # themselves off the hand. The lock was judged above, so the hand
+        # lock (Garbotoxin) is not asked again.
+        for card in window:
+            if card.parent is hand_area:
+                await self._fire_triggered_abilities(
+                    player_id, card, Triggers.ON_TAKEN_AS_PRIZE,
+                    ignore_locks=True)
         if destination != "hand":
             # Reroute the taken prizes: a plain GroupedMove after the reveal
             # flow, with intros to the opponent (public-pile arrival reveals).
@@ -2824,6 +2834,21 @@ class GameSession:
                     list(self.players.values()), GameSequence.GROUPED_MOVE,
                     reroute_moves)
         return taken
+
+    @staticmethod
+    def _has_prize_window(card) -> bool:
+        """True when the card carries an ON_TAKEN_AS_PRIZE ability (PIE slot or
+        definition -- trainers carry no PIE slot)."""
+        for entry in card.get_attribute(AttrID.PIE_ABILITIES) or []:
+            if not isinstance(entry, dict):
+                continue
+            ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
+            if ability is not None and ability.has_trigger(Triggers.ON_TAKEN_AS_PRIZE):
+                return True
+        for ability in getattr(def_for(card.archetype_id), "abilities", None) or []:
+            if ability.has_trigger(Triggers.ON_TAKEN_AS_PRIZE):
+                return True
+        return False
 
     def _refresh_prize_gaps(self, player_id: str, prize_area) -> Dict[str, Any]:
         """Marks taken prize positions in the pile's AREA_EMPTY_SLOTS so the
@@ -4064,7 +4089,8 @@ class GameSession:
         return ends_turn
 
     async def _fire_triggered_abilities(self, player_id: str, card, trigger: str,
-                                        ctx_setup=None) -> bool:
+                                        ctx_setup=None,
+                                        ignore_locks: bool = False) -> bool:
         """Runs a card's abilities matching `trigger` (on-play, on-evolve,
         on-knocked-out, between-turns, turn-drawn, taken-as-prize); scans the
         entity's PIE_ABILITIES plus the definition's declared abilities
@@ -4094,7 +4120,8 @@ class GameSession:
                         and ability.shared_once_per_turn in self.turn_state.used_named_abilities:
                     continue
                 trigger_ctx = await resolve_triggered_ability(
-                    self, player_id, card, ability, ctx_setup=ctx_setup)
+                    self, player_id, card, ability, ctx_setup=ctx_setup,
+                    ignore_locks=ignore_locks)
                 # Only a resolved effect (not a declined "you may") consumes the
                 # shared-name turn limit.
                 if ability.shared_once_per_turn and trigger_ctx is not None \

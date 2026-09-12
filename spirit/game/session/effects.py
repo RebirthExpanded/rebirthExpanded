@@ -2845,14 +2845,19 @@ async def resolve_triggered_ability(
     session, player_id: str, pokemon: PokemonEntity, ability: Ability,
     ctx_setup: Optional[Callable[[EffectContext], None]] = None,
     _ko_depth: int = 0,
+    ignore_locks: bool = False,
 ) -> Optional[EffectContext]:
     """Runs a triggered ability (on-play/on-evolve/on-knocked-out/between-turns)
     with the full activation choreography; returns its ctx, or None when the
-    ability didn't run (locked, or no scripted effect)."""
+    ability didn't run (locked, or no scripted effect).
+
+    ignore_locks skips the lock question when the caller already asked it
+    in the zone that matters: the prize-take window (Jirachi {*}) is judged
+    while the card is still a Prize, but fires once it has reached hand."""
     # A triggered ability can fire from anywhere -- in play, from hand
     # (Dream Ball), from the Prize cards (Jirachi {*}) -- so ask the lock
     # question that belongs to the zone the card is actually in.
-    if abilities_disabled(session.board_state, pokemon) and not ability.is_granted:
+    if not ignore_locks and abilities_disabled(session.board_state, pokemon)             and not ability.is_granted:
         return None
     if ability.effect is None or ability.effect is unimplemented:
         if ability.effect is unimplemented:

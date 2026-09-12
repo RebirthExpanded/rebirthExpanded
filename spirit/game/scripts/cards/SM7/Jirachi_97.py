@@ -27,8 +27,14 @@ it. Peonia does take Prize cards and so does open it.
 NOT AN IN-PLAY ABILITY. Garbotoxin and Silent Lab reach Pokemon in play,
 in hand and in the discard pile; neither names the Prize cards, so neither
 switches this off. This is why "before you put it into your hand" is taken
-literally -- _take_prizes opens the window while the card is still a Prize.
-Fired one step later, from hand, Garbotoxin WOULD silence it.
+literally -- _take_prizes JUDGES the lock while the card is still a Prize.
+Judged one step later, from hand, Garbotoxin WOULD silence it.
+
+The window RUNS after the prizes have flown to hand, though: the client's
+prize fan stays up (blacked out) until the WithOpenPrizeCards bracket
+closes it, and a dialog sent while it is up never reaches the player --
+Peonia taking this card stalled the game live. So the card is benched
+out of the hand, with the lock verdict carried over from the Prizes.
 
 "Your Bench isn't full" is the Bench you actually have, so a Stadium that
 shrinks it fills it sooner; the check goes through
