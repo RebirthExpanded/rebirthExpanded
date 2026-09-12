@@ -34,6 +34,7 @@ from .constants import (
 )
 from .passives import (
     ability_locked,
+    abilities_disabled,
     attack_effects_blocked,
     tool_attach_blocked,
     attacking_blocked,
@@ -671,6 +672,17 @@ def compute_legal_actions(
                     ))
                 continue
 
+            # Swelling Flash (Luxray PAL): a hand Ability that puts this
+            # evolved Pokemon onto the Bench. Same drop target as a Basic.
+            bench_from_hand = getattr(def_for(card.archetype_id), "bench_from_hand", None)
+            if (bench_from_hand is not None and bench_has_space
+                    and not abilities_disabled(board, card)
+                    and bench_from_hand(board, player_id, card)):
+                entries.append(_target_map_entry(
+                    game_id, card.entity_id,
+                    action_id_for(card.entity_id, "play"), ACTION_PLAY_POKEMON,
+                    [entity_list_target_info([bench_area.entity_id])],
+                ))
             evolves_from = card.get_attribute(AttrID.EVOLUTION_LOGIC_FROM)
             if not evolves_from:
                 continue

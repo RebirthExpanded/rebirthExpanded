@@ -149,6 +149,7 @@ def reprint(
             passive=getattr(base, "passive", None),
             unplayable_from_hand=getattr(base, "unplayable_from_hand", False),
             setup_as_active=bool(getattr(base, "setup_as_active", False)),
+            bench_from_hand=getattr(base, "bench_from_hand", None),
         )
 
     if isinstance(base, TrainerCardDef):
@@ -842,6 +843,7 @@ class PokemonCardDef(CardDefinition):
         passive: Optional[Any] = None,
         unplayable_from_hand: Any = False,
         setup_as_active: bool = False,
+        bench_from_hand: Optional[Callable[..., bool]] = None,
         foil: Optional[Foil] = None
     ):
         super().__init__(
@@ -858,6 +860,12 @@ class PokemonCardDef(CardDefinition):
         # Luxray CZ's Explosiveness: may be placed as the opening Active
         # despite its stage (setup only; bench plays stay Basics-only).
         self.setup_as_active = setup_as_active
+        # Luxray PAL's Swelling Flash: an evolved Pokemon whose hand Ability
+        # lets it be PUT onto the Bench -- (board, player_id, card) -> bool,
+        # asked when the legal actions are built. It is an Ability, so a lock
+        # that reaches the hand (Garbotoxin) switches it off; the put is not a
+        # play (no ON_PLAY, benched watchers see from_hand=False).
+        self.bench_from_hand = bench_from_hand
 
         # Add Pokemon-specific defaults to extra_attributes
         self.extra_attributes.update({

@@ -4040,9 +4040,16 @@ class GameSession:
             [self._entity_moved_msg(card.entity_id, bench_area.entity_id, position)],
             [card],
         )
-        await self.fire_pokemon_benched_triggers(player_id, card)
-        ends_turn = await self._fire_triggered_abilities(
-            player_id, card, Triggers.ON_PLAY)
+        # An evolved Pokemon PUT onto the Bench by its own hand Ability
+        # (Swelling Flash) is not "played": no ON_PLAY, and Bench watchers
+        # that read "from their hand" (Gapejaw Bog) do not see a hand play.
+        put_by_ability = card.get_attribute(AttrID.STAGE) != PokemonStage.BASIC.value
+        await self.fire_pokemon_benched_triggers(
+            player_id, card, from_hand=not put_by_ability)
+        ends_turn = False
+        if not put_by_ability:
+            ends_turn = await self._fire_triggered_abilities(
+                player_id, card, Triggers.ON_PLAY)
         # A Pokemon that lowers a Bench cap the moment it arrives (Sudowoodo's
         # Roadblock caps the opponent at 4) has to shrink that Bench now. Every
         # other path that can change capacity settles through
