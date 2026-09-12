@@ -18,7 +18,9 @@ def _ruffian_targets(board, player_id):
     for pokemon in board.pokemon_in_play(opponent):
         tools = [c for c in pokemon.children if _is_pokemon_tool_card(c)]
         specials = [c for c in pokemon.children if is_special_energy(c)]
-        if tools and specials:
+        # Official Q&A: a Pokemon carrying only one of the two is a legal
+        # choice and loses just that one; carrying both, both must go.
+        if tools or specials:
             out.append(pokemon)
     return out
 
@@ -28,7 +30,8 @@ def ruffian_condition(board, player_id):
 
 
 async def ruffian(ctx):
-    """Discard a Pokémon Tool and a Special Energy from 1 of your opponent's Pokémon."""
+    """Discard a Pokémon Tool and a Special Energy from 1 of your opponent's
+    Pokémon -- whichever of the two it carries, both when it carries both."""
     candidates = _ruffian_targets(ctx.board, ctx.player_id)
     if not candidates:
         return
@@ -40,11 +43,11 @@ async def ruffian(ctx):
     tools = [c for c in target.children if _is_pokemon_tool_card(c)]
     specials = [c for c in target.children if is_special_energy(c)]
     tool_picks = await ctx.choose_cards(
-        tools, 1, prompt="Choose a Pokémon Tool to discard.",
-    )
+        tools, 1, minimum=1, prompt="Choose a Pokémon Tool to discard.",
+    ) if tools else []
     energy_picks = await ctx.choose_cards(
-        specials, 1, prompt="Choose a Special Energy to discard.",
-    )
+        specials, 1, minimum=1, prompt="Choose a Special Energy to discard.",
+    ) if specials else []
     await ctx.discard_cards((tool_picks or []) + (energy_picks or []))
 
 
