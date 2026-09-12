@@ -2344,6 +2344,16 @@ class GameSession:
                 _ko_depth=_ko_depth + 1,
             )
 
+        # Special-Energy leave-play hooks (Gift Energy's draw) run BEFORE the
+        # stack moves: with Splash Energy on the same Pokemon the owner
+        # draws up to 7 first and the Pokemon then comes back to hand as an
+        # 8th card, not the other way round.
+        for owner_id, hook in energy_ko_hooks:
+            hook_ctx = EffectContext(self, owner_id, ctx.attacker, None)
+            await hook(hook_ctx)
+            if hook_ctx._messages:
+                await self._flush_effect_runs(hook_ctx)
+
         promotions: List[str] = []
         for pokemon in ctx.knockouts:
             owner_id = pokemon.owning_player_id
@@ -2498,12 +2508,6 @@ class GameSession:
                     )
                     if trigger_ctx is not None:
                         trigger_ctxs.append(trigger_ctx)
-
-        for owner_id, hook in energy_ko_hooks:
-            hook_ctx = EffectContext(self, owner_id, ctx.attacker, None)
-            await hook(hook_ctx)
-            if hook_ctx._messages:
-                await self._flush_effect_runs(hook_ctx)
 
         for (taker_id, mode), count in prize_awards.items():
             await self._take_prizes(taker_id, count, destination=mode)
