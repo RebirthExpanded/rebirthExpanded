@@ -5,18 +5,15 @@ from spirit.game.session.passives import Passive, carrier_pokemon
 
 
 class GravityGemstonePassive(Passive):
-    """Holder's Retreat Cost is [C] more, and the opponent's Active Pokémon's
-    Retreat Cost is [C] more."""
+    """"As long as the Pokemon this card is attached to is in the Active
+    Spot, the Retreat Cost of both Active Pokemon is [C] more." Nothing
+    changes while the holder sits on the Bench."""
 
     def modify_retreat_cost(self, cost, pokemon, carrier, board):
         holder = carrier_pokemon(carrier)
-        if pokemon is holder:
-            return cost + 1
-        if (
-            holder is not None
-            and is_in_active_spot(pokemon)
-            and pokemon.owning_player_id != holder.owning_player_id
-        ):
+        if holder is None or not is_in_active_spot(holder):
+            return cost
+        if pokemon is holder or is_in_active_spot(pokemon):
             return cost + 1
         return cost
 
