@@ -838,31 +838,40 @@ def _locks_abilities_of(
 ) -> bool:
     """Whether any collected passive turns `pokemon`'s Abilities off.
 
-    Stealthy Hood is honoured here: it prevents the effects of the OPPONENT's
-    Abilities on its holder, and Garbotoxin turning an Ability off is such an
-    effect. A lock from a Stadium (Path to the Peak, Silent Lab) or from the
-    holder's own side is not an opponent's Ability and still applies.
-
-    Only a shield that is not itself an Ability can defeat a lock. An Ability
-    cannot keep itself switched on -- Hide 'n' Sneak goes quiet under
-    Garbotoxin like everything else, and shields its Pokemon from Ability
-    effects again only once the lock is gone. Stealthy Hood works because it
-    is a Tool.
+    A shield against the OPPONENT's Ability effects is honoured here:
+    Garbotoxin / Initialize turning an Ability off is such an effect, so
+    Stealthy Hood (a Tool) and a shielding Ability of the Pokemon's own
+    (Hide 'n' Sneak, Mega Clefable ex's Luminous Wings) both defeat an
+    opposing Ability lock -- whichever came first. Official Q&A: evolving
+    into Mega Clefable ex under a working Initialize, Luminous Wings works.
+    A shielding Ability only counts while nothing that is NOT an Ability
+    (Path to the Peak, Silent Lab) has switched its carrier off. A lock
+    from a Stadium or from the holder's own side is not an opponent's
+    Ability and always applies.
     """
-    shielded = any(p.blocks_ability_effects(pokemon, c)
+    def non_ability_locked(target: BoardEntity) -> bool:
+        return any(p.blocks_abilities(target, c)
                    for p, c, from_ability in triples if not from_ability)
+
+    shielded = False
+    for p, c, from_ability in triples:
+        if not p.blocks_ability_effects(pokemon, c):
+            continue
+        if from_ability and non_ability_locked(carrier_pokemon(c) or c):
+            continue
+        shielded = True
+        break
     for passive, carrier, is_ability in triples:
         if not passive.blocks_abilities(pokemon, carrier):
             continue
-        if shielded and is_ability                 and carrier.owning_player_id != pokemon.owning_player_id:
+        if shielded and is_ability \
+                and carrier.owning_player_id != pokemon.owning_player_id:
             continue
         # A lock that is itself an Ability (Cursed Land on a Rule Box
         # Ting-Lu ex) is silent while a lock that is NOT one (Path to the
         # Peak, Silent Lab) reaches its carrier. One level only: those
         # locks have no Ability to switch off, so this cannot recurse.
-        if is_ability and any(
-                p.blocks_abilities(carrier, c)
-                for p, c, from_ability in triples if not from_ability):
+        if is_ability and non_ability_locked(carrier):
             continue
         return True
     return False
