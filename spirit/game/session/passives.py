@@ -19,6 +19,7 @@ from spirit.game.models.board import (
     BoardState,
     CardEntity,
     PokemonEntity,
+    board_of,
 )
 
 WEAKNESS_MULTIPLIER = 2
@@ -676,24 +677,33 @@ for _name, _fn in list(vars(Passive).items()):
         setattr(_StadiumGuard, _name, _make_stadium_guard_hook(_name, _fn))
 
 
-def _stadium_immunity_archetypes() -> Set[str]:
-    """Archetype ids whose Abilities carry a stadium_immunity passive
-    (Lunatone); cached against the size of the card registry."""
+def _stateful_archetypes() -> Tuple[Set[str], Set[str]]:
+    """(stadium-immunity archetypes, Ability-lock archetypes): the cards
+    whose Abilities carry state that must be settled against the board
+    before every change; cached against the size of the card registry."""
     global _IMMUNITY_CACHE
     from spirit.game.data_utils import CARD_DEFS_BY_GUID
     size = len(CARD_DEFS_BY_GUID)
     if _IMMUNITY_CACHE is None or _IMMUNITY_CACHE[0] != size:
-        found = set()
+        immune, locks = set(), set()
         for guid, definition in CARD_DEFS_BY_GUID.items():
             for ability in getattr(definition, "abilities", None) or []:
                 passive = getattr(ability, "passive", None)
-                if passive is not None and                         type(passive).stadium_immunity is not Passive.stadium_immunity:
-                    found.add(guid)
-        _IMMUNITY_CACHE = (size, found)
-    return _IMMUNITY_CACHE[1]
+                if passive is None:
+                    continue
+                if type(passive).stadium_immunity is not Passive.stadium_immunity:
+                    immune.add(guid)
+                if type(passive).blocks_abilities is not Passive.blocks_abilities:
+                    locks.add(guid)
+        _IMMUNITY_CACHE = (size, immune, locks)
+    return _IMMUNITY_CACHE[1], _IMMUNITY_CACHE[2]
 
 
-_IMMUNITY_CACHE: Optional[Tuple[int, Set[str]]] = None
+def _stadium_immunity_archetypes() -> Set[str]:
+    return _stateful_archetypes()[0]
+
+
+_IMMUNITY_CACHE: Optional[Tuple[int, Set[str], Set[str]]] = None
 
 
 def _settle_stadium_shields_before_change(board: BoardState) -> None:
@@ -704,17 +714,20 @@ def _settle_stadium_shields_before_change(board: BoardState) -> None:
     the passives in between."""
     if not getattr(board, "player_ids", None):
         return
-    archetypes = _stadium_immunity_archetypes()
-    if not archetypes:
+    immune, locks = _stateful_archetypes()
+    stateful = immune | locks
+    if not stateful:
         return
     for player_id in board.player_ids:
         for pokemon in board.pokemon_in_play(player_id):
-            if (pokemon.archetype_id or "").lower() in archetypes:
+            if (pokemon.archetype_id or "").lower() in stateful:
                 _collect_passives(board)
                 return
     if getattr(board, "stadium_shields", None):
         board.stadium_shields.clear()
         board.stadium_shield_players = frozenset()
+    if getattr(board, "ability_lock_seq", None):
+        board.ability_lock_seq.clear()
 
 
 BoardState.pre_change_hooks.append(_settle_stadium_shields_before_change)
@@ -814,6 +827,9 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
         if carrier is None or not _carrier_in_play(carrier):
             continue
         triples.append((temp.passive, carrier, False))
+    # Mutual Ability locks (Klefki vs Flutter Mane): the one that started
+    # working first wins, so which locks are live is state.
+    _refresh_ability_lock_seq(board, triples)
     # New Moon: decide the shields on the raw set, then hand out the Stadium
     # passives behind a guard that honours them.
     _refresh_stadium_shields(board, triples, stadium_triples)
@@ -833,6 +849,102 @@ def _carrier_in_play(entity: BoardEntity) -> bool:
         and parent.get_attribute(AttrID.NAME) in _IN_PLAY_AREAS
 
 
+def _non_ability_locked(
+    triples: List[Tuple[Passive, BoardEntity, bool]], target: BoardEntity
+) -> bool:
+    """A lock that is NOT an Ability (Path to the Peak, Silent Lab) reaches
+    `target`; shields against Ability effects do not apply to those."""
+    return any(p.blocks_abilities(target, c)
+               for p, c, from_ability in triples if not from_ability)
+
+
+def _ability_effect_shielded(
+    triples: List[Tuple[Passive, BoardEntity, bool]], pokemon: PokemonEntity
+) -> bool:
+    """`pokemon` is shielded from the OPPONENT's Ability effects: by a Tool
+    (Stealthy Hood) or by an Ability of its own (Hide 'n' Sneak, Luminous
+    Wing) that no non-Ability lock has switched off."""
+    for p, c, from_ability in triples:
+        if not p.blocks_ability_effects(pokemon, c):
+            continue
+        if from_ability and _non_ability_locked(triples, carrier_pokemon(c) or c):
+            continue
+        return True
+    return False
+
+
+def _refresh_ability_lock_seq(
+    board: BoardState, triples: List[Tuple[Passive, BoardEntity, bool]]
+) -> None:
+    """State-based update of board.ability_lock_seq: Pokemon entity id ->
+    the order in which its Ability lock started WORKING (it is switched on
+    and, by position, has something to lock).
+
+    Two Ability locks that would each switch the other off (Klefki's
+    Mischievous Lock vs Flutter Mane's Midnight Fluttering) resolve by that
+    order: the earlier one is live, the later one never comes on. Locks
+    that come on in the same pass are ordered by turn order from the first
+    player -- at setup the Actives are revealed together and the first
+    player's Ability works first (official ruling). A lock that stops
+    working (locked by a non-Ability lock, by an earlier live lock, its
+    carrier leaving play or the Active Spot) loses its place and queues
+    anew if it comes back.
+    """
+    seq = getattr(board, "ability_lock_seq", None)
+    if seq is None:
+        seq = {}
+        board.ability_lock_seq = seq
+    ts = getattr(board, "turn_state", None)
+    if ts is not None and getattr(ts, "turn_number", 0) == 0:
+        # Setup: the opening Actives are revealed together, so nothing
+        # placed before turn 1 is "earlier" -- every pass re-ranks from
+        # scratch and the first player's tie-break decides.
+        seq.clear()
+    in_play = [p for pid in board.player_ids for p in board.pokemon_in_play(pid)]
+    candidates = [(p, c) for p, c, is_ability in triples
+                  if is_ability and isinstance(c, PokemonEntity)
+                  and type(p).blocks_abilities is not Passive.blocks_abilities]
+    if not candidates:
+        seq.clear()
+        return
+
+    def would_lock(p, c, target):
+        return target is not c and p.blocks_abilities(target, c)
+
+    # Turn order from the first player for the ties.
+    first = getattr(ts, "first_player_id", None) or getattr(ts, "active_player_id", None)
+    order = list(board.player_ids)
+    if first in order:
+        order = [first] + [pid for pid in order if pid != first]
+    rank = {pid: i for i, pid in enumerate(order)}
+    candidates.sort(key=lambda pc: (seq.get(pc[1].entity_id, 10 ** 9),
+                                    rank.get(pc[1].owning_player_id, 99)))
+    live: List[Tuple[Passive, PokemonEntity]] = []
+    seen = set()
+    next_seq = max(seq.values(), default=0) + 1
+    for p, c in candidates:
+        seen.add(c.entity_id)
+        working = not _non_ability_locked(triples, c) \
+            and any(would_lock(p, c, x) for x in in_play)
+        if working:
+            shielded = _ability_effect_shielded(triples, c)
+            for lp, lc in live:
+                if lc.owning_player_id != c.owning_player_id and shielded:
+                    continue
+                if would_lock(lp, lc, c):
+                    working = False
+                    break
+        if working:
+            if c.entity_id not in seq:
+                seq[c.entity_id] = next_seq
+                next_seq += 1
+            live.append((p, c))
+        else:
+            seq.pop(c.entity_id, None)
+    for key in [k for k in seq if k not in seen]:
+        del seq[key]
+
+
 def _locks_abilities_of(
     triples: List[Tuple[Passive, BoardEntity, bool]], pokemon: PokemonEntity
 ) -> bool:
@@ -841,38 +953,33 @@ def _locks_abilities_of(
     A shield against the OPPONENT's Ability effects is honoured here:
     Garbotoxin / Initialize turning an Ability off is such an effect, so
     Stealthy Hood (a Tool) and a shielding Ability of the Pokemon's own
-    (Hide 'n' Sneak, Mega Clefable ex's Luminous Wings) both defeat an
+    (Hide 'n' Sneak, Mega Clefable ex's Luminous Wing) both defeat an
     opposing Ability lock -- whichever came first. Official Q&A: evolving
     into Mega Clefable ex under a working Initialize, Luminous Wings works.
     A shielding Ability only counts while nothing that is NOT an Ability
     (Path to the Peak, Silent Lab) has switched its carrier off. A lock
     from a Stadium or from the holder's own side is not an opponent's
     Ability and always applies.
-    """
-    def non_ability_locked(target: BoardEntity) -> bool:
-        return any(p.blocks_abilities(target, c)
-                   for p, c, from_ability in triples if not from_ability)
 
-    shielded = False
-    for p, c, from_ability in triples:
-        if not p.blocks_ability_effects(pokemon, c):
-            continue
-        if from_ability and non_ability_locked(carrier_pokemon(c) or c):
-            continue
-        shielded = True
-        break
+    A lock that is itself an Ability counts only while it is LIVE per
+    board.ability_lock_seq (see _refresh_ability_lock_seq): silent under a
+    non-Ability lock, and silent when an earlier live Ability lock reaches
+    its carrier (Klefki vs Flutter Mane).
+    """
+    shielded = _ability_effect_shielded(triples, pokemon)
+    board = board_of(pokemon)
+    seq = getattr(board, "ability_lock_seq", None) if board is not None else None
     for passive, carrier, is_ability in triples:
         if not passive.blocks_abilities(pokemon, carrier):
             continue
         if shielded and is_ability \
                 and carrier.owning_player_id != pokemon.owning_player_id:
             continue
-        # A lock that is itself an Ability (Cursed Land on a Rule Box
-        # Ting-Lu ex) is silent while a lock that is NOT one (Path to the
-        # Peak, Silent Lab) reaches its carrier. One level only: those
-        # locks have no Ability to switch off, so this cannot recurse.
-        if is_ability and non_ability_locked(carrier):
-            continue
+        if is_ability:
+            if _non_ability_locked(triples, carrier):
+                continue
+            if seq is not None and carrier.entity_id not in seq:
+                continue
         return True
     return False
 

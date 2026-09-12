@@ -5909,6 +5909,7 @@ class GameSession:
 
         first_player = self.players[first_player_id]
         self.first_player_id = first_player_id
+        self.turn_state.first_player_id = first_player_id
         logging.info(f"[Session {self.game_id}] {first_player.screen_name} will go first.")
 
         # 6. Announce the active player. The ActivePlayerSet sequence command

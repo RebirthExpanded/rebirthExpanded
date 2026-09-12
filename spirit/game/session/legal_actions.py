@@ -100,6 +100,9 @@ class TurnState:
     """Per-game turn bookkeeping consumed by the legality rules."""
 
     turn_number: int = 0
+    # Who goes first (set once the opening coin is decided): breaks ties
+    # between Ability locks that start working in the same pass.
+    first_player_id: Optional[str] = None
     active_player_id: Optional[str] = None
     supporter_played: bool = False
     # How many Supporters the turn player has played; the limit is 1 unless
