@@ -1639,8 +1639,12 @@ def peonia_playable(board, player_id) -> bool:
 
 async def peonia(ctx):
     """Put up to 3 Prize cards into your hand. Then, for each Prize card put
-    into your hand this way, put a card from your hand face down as a Prize."""
-    taken = await ctx.take_prizes(3, minimum=1, check_win=False)
+    into your hand this way, put a card from your hand face down as a Prize.
+
+    "Put into your hand", not "take": Jirachi {*}, Dream Ball and Greedy
+    Dice get no window here (official ruling), the same as Gladion."""
+    taken = await ctx.take_prizes(3, minimum=1, check_win=False,
+                                  opens_window=False)
     if not taken:
         return
     picks = await ctx.choose_cards(

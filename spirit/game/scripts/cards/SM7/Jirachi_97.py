@@ -19,10 +19,12 @@ opens no window at all. _take_prizes now remembers which picks were face
 down before move_card clears the flag -- Dream Ball reads the same way
 ("you took it as a face-down Prize card"), so both cards get this.
 
-TAKEN AS A PRIZE. The window belongs to the prize-take path, so it does
-not open for the cards that merely put a Prize into your hand -- Hisuian
-Heavy Ball and Gladion go through look_at_prizes_take, which never touches
-it. Peonia does take Prize cards and so does open it.
+TAKEN AS A PRIZE. The window belongs to TAKING a Prize card (a Knock Out,
+"take 1 more Prize card"), so it does not open for the cards that merely
+put a Prize into your hand -- Hisuian Heavy Ball and Gladion go through
+look_at_prizes_take, which never touches it, and Peonia ("put up to 3 of
+your Prize cards into your hand") takes them with opens_window=False.
+Official ruling: no Wish Upon a Star off Peonia.
 
 NOT AN IN-PLAY ABILITY. Garbotoxin and Silent Lab reach Pokemon in play,
 in hand and in the discard pile; neither names the Prize cards, so neither
@@ -33,7 +35,8 @@ Judged one step later, from hand, Garbotoxin WOULD silence it.
 The window RUNS after the prizes have flown to hand, though: the client's
 prize fan stays up (blacked out) until the WithOpenPrizeCards bracket
 closes it, and a dialog sent while it is up never reaches the player --
-Peonia taking this card stalled the game live. So the card is benched
+found when Peonia (then still opening the window) stalled the game live
+on this card. So the card is benched
 out of the hand, with the lock verdict carried over from the Prizes.
 
 "Your Bench isn't full" is the Bench you actually have, so a Stadium that

@@ -2721,12 +2721,18 @@ class GameSession:
 
     async def _take_prizes(self, player_id: str, count: int,
                            destination: str = "hand",
-                           minimum: Optional[int] = None) -> List[Any]:
+                           minimum: Optional[int] = None,
+                           opens_window: bool = True) -> List[Any]:
         """The player picks `count` face-down prizes and takes them to hand;
         a non-hand `destination` (Billowing Smoke's discard, Barbaracle's
         lostZone) reroutes the picked prizes there after the reveal.
         minimum<count makes the pick "up to count" (Peonia); returns the
-        cards actually taken."""
+        cards actually taken.
+
+        opens_window=False keeps the ON_TAKEN_AS_PRIZE window shut: it
+        belongs to TAKING a Prize card (a Knock Out, "take 1 more Prize
+        card"), not to an effect that merely puts Prize cards into your hand
+        -- Peonia, like Gladion, gives no Jirachi {*} / Greedy Dice window."""
         prize_area = self.board_state.find_player_area(player_id, "prizePile")
         hand_area = self.board_state.find_player_area(player_id, "hand")
         if not prize_area or not hand_area:
@@ -2756,7 +2762,7 @@ class GameSession:
         # stalls (seen live: Peonia taking Jirachi {*}). A Prize already turned
         # face up (Town Map) was not taken face down, so it opens no window.
         window: List[Any] = []
-        if destination == "hand":
+        if destination == "hand" and opens_window:
             for card in cards:
                 if card is None or card.face_up or card.parent is not prize_area:
                     continue

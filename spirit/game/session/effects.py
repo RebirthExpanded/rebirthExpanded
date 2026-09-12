@@ -2399,17 +2399,22 @@ class EffectContext:
 
     async def take_prizes(self, count: int, player_id: Optional[str] = None,
                           minimum: Optional[int] = None,
-                          check_win: bool = True) -> List[CardEntity]:
+                          check_win: bool = True,
+                          opens_window: bool = True) -> List[CardEntity]:
         """Takes prize cards outside the KO flow (Slowbro PGO): flushes the
         queued choreography first so the prize fan never interleaves, then
         runs the standard pick + WithOpenPrizeCards flow and the win check.
         minimum<count makes it "up to count"; check_win=False skips the
-        all-prizes win (Peonia refills the pile). Returns the taken cards."""
+        all-prizes win (Peonia refills the pile); opens_window=False is for
+        effects that PUT Prize cards into your hand rather than take them
+        (Peonia) -- no Jirachi {*} / Dream Ball / Greedy Dice window.
+        Returns the taken cards."""
         pid = player_id or self.player_id
         if count <= 0:
             return []
         await self.flush_choreography()
-        taken = await self.session._take_prizes(pid, count, minimum=minimum)
+        taken = await self.session._take_prizes(pid, count, minimum=minimum,
+                                                opens_window=opens_window)
         prizes = self.board.find_player_area(pid, "prizePile")
         if check_win and prizes is not None and self.board.prizes_dealt.get(pid) \
                 and not prizes.children:
