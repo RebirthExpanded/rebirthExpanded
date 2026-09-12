@@ -42,7 +42,7 @@ card = PokemonToolCardDef(
         Ability(
             title="Powerglass",
             game_text="At the end of your turn (after your attack), if the Pokémon this card is attached to is in the Active Spot, you may attach a Basic Energy card from your discard pile to it.",
-            trigger=Triggers.BETWEEN_TURNS,
+            trigger=Triggers.END_OF_TURN,  # "at the end of your turn": before the checkup, not at it
             effect=_powerglass,
         ),
     ],
