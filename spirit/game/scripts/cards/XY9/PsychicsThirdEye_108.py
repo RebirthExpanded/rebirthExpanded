@@ -5,8 +5,9 @@ Supporter.
   "Your opponent reveals his or her hand. Discard as many cards as you
    like from your hand. Then, draw that many cards."
 
-The reveal shows their hand to the user only; the discard is any number
-(0 is fine), and the draw matches what was discarded.
+The reveal shows their hand to the user only. "As many as you like" is
+at least 1 while any other card is in hand (official ruling); the draw
+matches what was discarded.
 """
 
 from spirit.game.attributes import Rarities
@@ -15,11 +16,13 @@ from spirit.game.data_utils import SupporterCardDef
 
 async def psychics_third_eye(ctx):
     await ctx.reveal_hand(ctx.opponent_id, ctx.player_id)
-    hand = list(ctx.hand())
+    # The Supporter itself is still in hand while it resolves: not a pick.
+    hand = [c for c in ctx.hand() if c is not ctx.source]
     if not hand:
         return
     discarded = await ctx.discard_from_hand(
-        len(hand), minimum=0, prompt="Discard as many cards as you like")
+        len(hand), minimum=1, exclude=[ctx.source],
+        prompt="Discard as many cards as you like (at least 1)")
     if discarded:
         await ctx.draw_cards(len(discarded))
 

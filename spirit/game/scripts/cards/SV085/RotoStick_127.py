@@ -5,6 +5,9 @@ Item.
   "Look at the top 4 cards of your deck. You may reveal any number of
    Supporter cards you find there and put them into your hand. Shuffle
    the other cards back into your deck."
+
+No "other cards" (all 4 taken) means no shuffle -- the deck order is
+left as it is (official ruling).
 """
 
 from spirit.game.attributes import Rarities
@@ -24,7 +27,8 @@ async def roto_stick(ctx):
         display_cards=top if len(supporters) < len(top) else None)
     if picks:
         await ctx.put_in_hand(picks, reveal=True)
-    await ctx.shuffle_deck()
+    if len(picks) < len(top):
+        await ctx.shuffle_deck()
 
 
 card = ItemCardDef(
