@@ -1,14 +1,13 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
-from spirit.game.session.constants import BENCH_CAPACITY
+from spirit.game.session.passives import bench_space
 from spirit.game.session.effects import is_basic_pokemon
 
 
 def _borne_ashore_candidates(board):
     candidates = []
     for pid in board.player_ids:
-        bench = board.find_player_area(pid, "bench")
-        if bench is None or len(bench.children) >= BENCH_CAPACITY:
+        if bench_space(board, pid) <= 0:
             continue
         discard = board.find_player_area(pid, "discard")
         if discard:

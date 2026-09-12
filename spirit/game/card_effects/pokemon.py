@@ -12,7 +12,6 @@ from spirit.game.data_utils import (
     ABILITIES_BY_ID, Ability, Attack, ability_id_for, def_for, has_rule_box,
     is_pokemon_v, subtypes_for,
 )
-from spirit.game.session.constants import BENCH_CAPACITY
 from spirit.game.card_effects.passives_common import prevent_damage_when
 from spirit.game.session.effects import (
     full_stack,
@@ -25,6 +24,7 @@ from spirit.game.session.effects import (
     is_trainer_card,
 )
 from spirit.game.session.passives import (
+    bench_space,
     Passive, carrier_pokemon, effective_bench_capacity,
 )
 from spirit.game.models.board import PokemonEntity
@@ -61,8 +61,7 @@ async def aero_dive(ctx):
 
 def summoning_star_condition(board, player_id, pokemon):
     """Offerable only with a valid discard target and a free bench slot."""
-    bench = board.find_player_area(player_id, "bench")
-    if not bench or len(bench.children) >= BENCH_CAPACITY:
+    if bench_space(board, player_id) <= 0:
         return False
     discard = board.find_player_area(player_id, "discard")
     return bool(discard) and any(
@@ -74,7 +73,7 @@ async def summoning_star(ctx):
     """VSTAR Power: up to 2 Colorless Pokemon without a Rule Box from the
     discard pile onto the Bench."""
     candidates = [c for c in ctx.discard_pile() if is_colorless_no_rule_box(c)]
-    count = min(2, BENCH_CAPACITY - len(ctx.my_bench()))
+    count = min(2, ctx.bench_space())
     if not candidates or count <= 0:
         return
     # The discard pile is public: once used, the pick may not choose zero.
@@ -938,7 +937,7 @@ async def dragon_energy(ctx):
 
 async def regi_gate(ctx):
     """Search your deck for a Basic Pokemon, put it onto your Bench, shuffle."""
-    if BENCH_CAPACITY - len(ctx.my_bench()) > 0:
+    if ctx.bench_space() > 0:
         picks = await ctx.search_deck(
             is_basic_pokemon, count=1, minimum=0,
             prompt="Choose a Basic Pokémon to put onto your Bench.",

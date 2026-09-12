@@ -1,12 +1,11 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.session.effects import is_basic_pokemon
-from spirit.game.session.constants import BENCH_CAPACITY
 
 
 async def dark_guidance(ctx):
     """Put a Basic Pokemon from your discard pile onto your Bench."""
-    if len(ctx.my_bench()) >= BENCH_CAPACITY:
+    if ctx.bench_space() <= 0:
         return
     candidates = [c for c in ctx.discard_pile() if is_basic_pokemon(c)]
     if not candidates:

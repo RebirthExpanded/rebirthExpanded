@@ -10,7 +10,7 @@ from spirit.game.data_utils import (
     Ability, Activations, Attack, def_for, has_rule_box, is_pokemon_v,
     subtypes_for, Triggers,
 )
-from spirit.game.session.constants import BENCH_CAPACITY, PROMPT_CHOOSE_A_PRIZE
+from spirit.game.session.constants import PROMPT_CHOOSE_A_PRIZE
 from spirit.game.session.effects import (
     full_stack,
     is_basic_pokemon,
@@ -30,6 +30,7 @@ from spirit.game.session.effects import (
 from spirit.game.card_effects.pokemon import energy_provides_type
 from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.session.passives import (
+    bench_space,
     Passive,
     trainer_targeting_blocked,
     TurnDamageModifier,
@@ -94,8 +95,7 @@ def battle_vip_pass_playable(board, player_id):
     turn_state = getattr(board, "turn_state", None)
     if turn_state is None or turn_state.turn_number > 2:
         return False
-    bench = board.find_player_area(player_id, "bench")
-    return bool(bench) and len(bench.children) < BENCH_CAPACITY
+    return bench_space(board, player_id) > 0
 
 
 def has_other_item_in_hand(board, player_id):
@@ -753,9 +753,9 @@ async def field_blower(ctx):
 async def battle_vip_pass(ctx):
     """First turn only: search the deck for up to 2 Basic Pokemon and put
     them onto your Bench."""
-    bench = ctx.board.find_player_area(ctx.player_id, "bench")
-    space = BENCH_CAPACITY - len(bench.children) if bench else 0
-    count = min(2, space)
+    # Live capacity: under Sky Field the Bench holds 8, so the Pass fills
+    # up to it, not to the flat 5.
+    count = min(2, ctx.bench_space())
     if count <= 0:
         return
     picks = await ctx.search_deck(

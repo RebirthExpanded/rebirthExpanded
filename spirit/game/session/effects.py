@@ -54,6 +54,7 @@ from .passives import (
     conditions_blocked,
     discard_blocked,
     discard_destination_for,
+    bench_space,
     effective_bench_capacity,
     effective_heal_amount,
     effective_max_hp,
@@ -200,6 +201,11 @@ class EffectContext:
 
     def my_bench(self) -> List[PokemonEntity]:
         return self._bench(self.player_id)
+
+    def bench_space(self, player_id: Optional[str] = None) -> int:
+        """Free Bench slots under the live capacity (Sky Field 8, Collapsed
+        Stadium 4): how many a "put onto your Bench" search may take."""
+        return bench_space(self.board, player_id or self.player_id)
 
     def opponent_bench(self) -> List[PokemonEntity]:
         return self._bench(self.opponent_id)

@@ -1,14 +1,13 @@
 from spirit.game.data_utils import PokemonCardDef, Ability, Attack, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
-from spirit.game.session.constants import BENCH_CAPACITY
+from spirit.game.session.passives import bench_space
 
 
 DUSKULL_GUID = "eb9fd2e6-7cf4-4523-a899-61f45834ac12"
 
 
 def _come_and_get_you_condition(board, player_id, pokemon) -> bool:
-    bench = board.find_player_area(player_id, "bench")
-    if not bench or len(bench.children) >= BENCH_CAPACITY:
+    if bench_space(board, player_id) <= 0:
         return False
     discard = board.find_player_area(player_id, "discard")
     if not discard:
@@ -25,7 +24,7 @@ async def come_and_get_you(ctx):
     candidates = [c for c in ctx.discard_pile() if c.archetype_id == DUSKULL_GUID]
     if not candidates:
         return
-    space = BENCH_CAPACITY - len(ctx.my_bench())
+    space = ctx.bench_space()
     if space <= 0:
         return
     count = min(3, space)

@@ -32,7 +32,6 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.pokemon import energy_provides_type
 from spirit.game.card_effects.support_common import search_to_bench
 from spirit.game.card_effects.trainers import is_basic_energy_card
-from spirit.game.session.constants import BENCH_CAPACITY
 from spirit.game.session.effects import is_basic_pokemon
 
 
@@ -105,7 +104,9 @@ card = PokemonCardDef(
             cost={PokemonTypes.COLORLESS: 1},
             gx=True,
             effect=search_to_bench(
-                predicate=is_basic_pokemon, count=BENCH_CAPACITY,
+                # "any number": search_to_bench caps at the live free space
+                # (8 under Sky Field), so offer more than the flat 5.
+                predicate=is_basic_pokemon, count=8,
                 prompt="Choose Basic Pokémon to put onto your Bench.",
             ),
         ),

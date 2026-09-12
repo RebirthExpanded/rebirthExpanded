@@ -12,7 +12,6 @@ from typing import Callable, List, Optional
 from spirit.game.attributes import AttrID
 from spirit.game.data_utils import def_for
 from spirit.game.models.board import CardEntity, PokemonEntity
-from spirit.game.session.constants import BENCH_CAPACITY
 from spirit.game.session.effects import (
     full_stack,
     is_basic_pokemon,

@@ -1598,6 +1598,16 @@ def effective_bench_capacity(board: BoardState, player_id: str) -> int:
     return max(1, min(values)) if values else BENCH_SLOT_COUNT
 
 
+def bench_space(board: BoardState, player_id: str) -> int:
+    """Free Bench slots for `player_id` under the live capacity (Sky Field's
+    8, Collapsed Stadium's 4) -- the number every "put onto your Bench"
+    search may take. Never the flat BENCH_CAPACITY constant."""
+    bench = board.find_player_area(player_id, "bench")
+    if bench is None:
+        return 0
+    return max(0, effective_bench_capacity(board, player_id) - len(bench.children))
+
+
 def player_visualizations(board: BoardState, player_id: str) -> List[Dict[str, Any]]:
     """Every active passive's status rows for `player_id`, in passive order.
 

@@ -2,7 +2,7 @@
 
 from spirit.game.attributes import AttrID, PokemonTypes
 from spirit.game.data_utils import def_for, is_pokemon_v
-from spirit.game.session.constants import BENCH_CAPACITY
+from spirit.game.session.passives import bench_space
 from spirit.game.session.effects import is_basic_pokemon
 from spirit.game.session.passives import Passive, carrier_pokemon
 
@@ -76,9 +76,9 @@ async def aurora_attach_cost(ctx) -> bool:
 
 async def capture_on_attach(ctx):
     """On attach from hand: search the deck for a Basic onto the Bench."""
-    if len(ctx.my_bench()) == BENCH_CAPACITY:
+    if ctx.bench_space() <= 0:
         return
-    
+
     picks = await ctx.search_deck(
         is_basic_pokemon, count=1, minimum=0,
         prompt="Choose a Basic Pokémon to put onto your Bench.",
@@ -96,8 +96,8 @@ async def telepathic_psychic_on_attach(ctx):
     """On attach from hand to a Psychic Pokemon: bench up to 2 Basic Psychic."""
     if not _pokemon_has_type(ctx.attached_to, PokemonTypes.PSYCHIC):
         return
-    space = BENCH_CAPACITY - len(ctx.my_bench())
-    take = min(2, space)
+    # Live capacity (Sky Field: 8), like Battle VIP Pass.
+    take = min(2, ctx.bench_space())
     if take <= 0:
         return
     picks = await ctx.search_deck(
