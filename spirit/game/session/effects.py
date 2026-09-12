@@ -124,6 +124,13 @@ class EffectContext:
         # Async callables run AFTER the choreography flushes (promotions and
         # anything else that must not interleave with the pending brackets).
         self.deferred_actions: List[Callable[[], Any]] = []
+        # Async callables that belong to the attack itself and run right
+        # after its damage and effects -- BEFORE the "when damaged" triggers
+        # (rulebook step 6) and the KO check. Boomerang Energy comes back
+        # here, so a Handheld Fan hit by the attack can move it (official
+        # ruling); anything queued here outside an attack runs with the
+        # deferred actions.
+        self.after_effect_actions: List[Callable[[], Any]] = []
         # Set by the effect (or auto-set from Ability.ends_turn) to end the
         # acting player's turn once this effect resolves (Rotom Bike).
         self.ends_turn: bool = False
@@ -1568,7 +1575,7 @@ class EffectContext:
                     pending.append((hook, card, holder))
         await self._move_to_public_pile(cards, "discard")
         for hook, card, holder in pending:
-            self.deferred_actions.append(
+            self.after_effect_actions.append(
                 lambda h=hook, e=card, p=holder: h(self, e, p)
             )
 
@@ -2764,12 +2771,20 @@ async def resolve_attack(session, player_id: str, attacker: PokemonEntity,
         await effect(ctx)
 
     await _send_attack_bracket(session, ctx, action_id, title)
+    # "After the attack's damage and effects" (Boomerang Energy's return):
+    # before the "when damaged" triggers below, so a Handheld Fan on the
+    # damaged Pokemon finds the Energy back on the attacker.
+    if ctx.after_effect_actions:
+        for hook in ctx.after_effect_actions:
+            await hook()
+        ctx.after_effect_actions = []
+        await ctx.flush_choreography()
     # ON_DAMAGED_BY_ATTACK fires after the attack choreography but BEFORE the
     # knockout stacks move ("even if this Pokemon is Knocked Out").
     await _fire_damaged_by_attack_triggers(session, ctx)
     ctx.knockouts_resolved = list(ctx.knockouts)
     await session.resolve_knockouts(ctx)
-    for hook in ctx.deferred_actions:
+    for hook in ctx.after_effect_actions + ctx.deferred_actions:
         await hook()
     session.turn_state.record_attack_effects(effect_snapshot, session.board_state)
     # A KO'd/removed carrier may have shrunk a bench (Eternatus VMAX leaving).
