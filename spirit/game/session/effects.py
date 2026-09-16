@@ -1716,10 +1716,10 @@ class EffectContext:
             intro = self.session._entity_introduced_msg(card)
             # Entering a public pile reveals the card to the opponent.
             self._queue(intro, viewer_id=opponent,
-                        bracket=GameSequence.SERIAL_SEQUENCE.value)
+                        bracket=GameSequence.GROUPED_MOVE.value)
             if owner_blind:
                 self._queue(intro, viewer_id=owner,
-                            bracket=GameSequence.SERIAL_SEQUENCE.value)
+                            bracket=GameSequence.GROUPED_MOVE.value)
             move = self.session._entity_moved_msg(card.entity_id, pile.entity_id, position)
             self._queue(move, bracket=GameSequence.GROUPED_MOVE.value)
             if holder is not None:
