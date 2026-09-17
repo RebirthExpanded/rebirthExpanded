@@ -298,8 +298,14 @@ def snipe_attack(amount: int, pool="bench", count: int = 1,
             text = prompt or (f"Choose a Pokémon to take {amount} damage"
                               if count == 1 else
                               f"Choose {count} Pokémon to take {amount} damage")
-            picks = await ctx.choose_cards(
-                candidates, count, minimum=0 if optional else None, prompt=text)
+            if not optional and len(candidates) <= count:
+                # No choice to make (Trifrost into an Active + 2 Benched):
+                # every candidate is hit, so skip the picker.
+                picks = list(candidates)
+            else:
+                picks = await ctx.choose_cards(
+                    candidates, count, minimum=0 if optional else None,
+                    prompt=text)
             for target in picks:
                 await ctx.deal_damage(amount, target=target,
                                       apply_modifiers=apply_modifiers)
