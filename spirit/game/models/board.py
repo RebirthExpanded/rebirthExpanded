@@ -604,10 +604,14 @@ class BoardState:
         if not bench:
             return 0
         occupied = {self.bench_slot_of(c) for c in bench.children}
-        for slot in range(BENCH_SLOT_COUNT):
-            if slot not in occupied:
-                return slot
-        return len(bench.children)
+        # Lowest free stamp, with no ceiling: under Sky Field the bench runs
+        # to slot 7, and a gap there (slot 5 emptied while slot 6 is still
+        # taken) must be refilled rather than stacking a second card on a
+        # taken slot past the flat five.
+        slot = 0
+        while slot in occupied:
+            slot += 1
+        return slot
 
     @staticmethod
     def bench_slot_of(entity: 'BoardEntity') -> int:
