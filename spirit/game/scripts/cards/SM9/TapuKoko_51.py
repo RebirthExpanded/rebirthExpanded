@@ -17,23 +17,31 @@ whole stack: _move_to_public_pile asks discard_area_name per card, so the
 attachments land in the discard and this card, being a Prism Star, lands in
 the Lost Zone. The card's two sentences fall out of one rule.
 
-The condition demands everything the effect needs -- this Pokemon benched,
-two Benched Pokemon to choose, and two [L] Energy in the discard -- so the
-Ability is never offered as a play that cannot be completed.
+How much of it must happen is settled by the official Q&A on せんじんのまい:
 
-Tapu Koko itself is a legal choice for one of the two: it is a Benched
-Pokemon, the text does not exclude it, and the Energy simply leaves with it.
+  * Only Tapu Koko on the Bench: the Ability CAN be used -- one [L] goes
+    onto Tapu Koko itself, then it leaves for the Lost Zone with the Energy
+    discarded. So two Benched Pokemon are not a requirement; Tapu Koko is a
+    legal choice for either slot.
+  * No [L] Energy in the discard pile: it cannot be used. One is enough.
+
+So the Ability does as much as it can: min(2, Benched Pokemon, [L] in the
+discard) attachments, each to a different Benched Pokemon, and the pick is
+forced to that many. "[L] Energy card" is the basic Lightning Energy, not
+a Special Energy that happens to provide [L].
+
+Path to the Peak switches it off (Q&A) -- a Prism Star carries a rule box.
 """
 
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
-from spirit.game.session.effects import full_stack, is_energy_of_type
+from spirit.game.session.effects import full_stack, is_basic_energy, is_energy_of_type
 
 
 def _lightning_in_discard(board, player_id):
     discard = board.find_player_area(player_id, "discard")
     return [c for c in (discard.children if discard else [])
-            if is_energy_of_type(c, PokemonTypes.LIGHTNING)]
+            if is_basic_energy(c) and is_energy_of_type(c, PokemonTypes.LIGHTNING)]
 
 
 def _dance_condition(board, player_id, pokemon=None) -> bool:
@@ -41,19 +49,26 @@ def _dance_condition(board, player_id, pokemon=None) -> bool:
     benched = list(bench.children) if bench else []
     if pokemon is not None and pokemon not in benched:
         return False
-    return len(benched) >= 2 and len(_lightning_in_discard(board, player_id)) >= 2
+    return bool(benched) and bool(_lightning_in_discard(board, player_id))
 
 
 async def dance_of_the_ancients(ctx):
-    """Two [L] out of the discard onto two Benched Pokemon; this card leaves."""
+    """As many [L] out of the discard as there are Benched Pokemon and
+    Energy, up to 2, each onto a different Benched Pokemon; this card
+    leaves."""
     koko = ctx.source
-    targets = await ctx.choose_cards(
-        ctx.my_bench(), 2, minimum=2,
-        prompt="Choose 2 of your Benched Pokémon to attach a {L} Energy to.",
-    )
-    if len(targets) < 2:
-        return
     energies = _lightning_in_discard(ctx.board, ctx.player_id)
+    bench = ctx.my_bench()
+    count = min(2, len(bench), len(energies))
+    if count <= 0:
+        return
+    targets = await ctx.choose_cards(
+        bench, count, minimum=count,
+        prompt=(f"Choose {count} of your Benched Pokémon to attach a {{L}} "
+                "Energy to."),
+    )
+    if len(targets) < count:
+        return
     for target, energy in zip(targets, energies):
         await ctx.attach_energy(energy, target)
     # One call: the attachments go to the discard, this card to the Lost Zone.

@@ -365,7 +365,9 @@ _MULTI_PRIZE_SUBTYPES = {
 }
 # BREAK Evolutions print a rule (the BREAK Evolution rule) without being
 # worth extra Prizes, so they count as "Pokemon with a Rule Box" here.
-_RULE_BOX_SUBTYPES = set(_MULTI_PRIZE_SUBTYPES) | {"Radiant", "BREAK"}
+# A Prism Star's "special rule" box counts (Q&A: Path to the Peak switches
+# off Tapu Koko {*}; Emperor's Eyes, which spares rule-box Pokemon, does not).
+_RULE_BOX_SUBTYPES = set(_MULTI_PRIZE_SUBTYPES) | {"Radiant", "BREAK", "Prism Star"}
 
 
 def unplayable_from_hand_now(board, player_id: str, card) -> bool:
