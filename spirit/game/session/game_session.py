@@ -4838,6 +4838,16 @@ class GameSession:
         area = target.parent if target is not None else None
         if not target or not area:
             return False
+        # Evolving puts the evolution card into play: Eternal Zone refuses a
+        # non-Darkness one however the evolution is driven (hand play, Rare
+        # Candy, an Ability).
+        owner = target.owning_player_id or player_id
+        if putting_into_play_blocked(self.board_state, owner, card):
+            logging.info(
+                f"[Session {self.game_id}] {card.entity_id} may not be put into "
+                f"play (Eternal Zone); evolution refused."
+            )
+            return False
 
         slot = self.board_state.bench_slot_of(target)
 

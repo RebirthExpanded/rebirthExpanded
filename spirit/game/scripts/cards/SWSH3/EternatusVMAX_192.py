@@ -29,8 +29,12 @@ class EternalZonePassive(Passive):
     does not. A card being put into play is read as it sits off the board:
     a fossil is a Colorless Pokemon and is refused; so is a non-Darkness
     Basic coming from a search, a Bench-putting Ability (Ho-Oh-EX's
-    Rebirth) or an identity swap (Thorton). Evolving and promoting are not
-    "putting into play"."""
+    Rebirth) or an identity swap (Thorton). Evolving puts the evolution
+    card into play, so a Darkness Pokemon may not evolve into a
+    non-Darkness one while the zone works; devolving (Devolution Spray,
+    the opponent's Devolution) is not restricted -- the pre-evolution was
+    already in play -- and a non-Darkness Pokemon left standing simply
+    ends the zone. Promoting is never "putting into play"."""
 
     def bench_capacity(self, player_id, carrier):
         if player_id != carrier.owning_player_id:

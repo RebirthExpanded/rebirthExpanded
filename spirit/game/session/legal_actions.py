@@ -696,6 +696,11 @@ def compute_legal_actions(
             evolves_from = card.get_attribute(AttrID.EVOLUTION_LOGIC_FROM)
             if not evolves_from:
                 continue
+            # Eternal Zone: evolving puts the evolution card into play, so a
+            # non-Darkness evolution is refused (devolving is not: the
+            # pre-evolution was already in play).
+            if putting_into_play_blocked(board, player_id, card):
+                continue
             evolve_targets = [
                 p.entity_id for p in in_play
                 if (p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == evolves_from
