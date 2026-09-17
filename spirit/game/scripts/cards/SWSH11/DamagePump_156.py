@@ -24,7 +24,8 @@ async def damage_pump(ctx):
     targets = [p for p in ctx.my_pokemon_in_play() if p is not source]
     if not targets:
         return
-    await ctx.move_damage_counters(source, targets, max_count=2)
+    # "Up to 2": the player may stop after moving 1.
+    await ctx.move_damage_counters(source, targets, max_count=2, minimum=1)
 
 
 card = ItemCardDef(

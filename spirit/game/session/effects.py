@@ -1153,11 +1153,16 @@ class EffectContext:
         dest_or_targets,
         max_count: Optional[int] = None,
         prompt: str = "Place the moved damage counters",
+        minimum: Optional[int] = None,
     ) -> int:
         """Moves damage counters off `source` (counter removal + raw counter
         placement, atomic), clamped to its actual damage; returns counters
         moved. Removal is not healing: a heal lock on the source does not
         stop the move (see remove_damage_counters).
+
+        minimum<count makes a multi-target distribution "up to count"
+        (Damage Pump: the player may stop after 1); a single destination
+        always takes count.
 
         A single shielded destination fizzles the WHOLE move; in a
         multi-target distribution shielded picks stay legal but their
@@ -1187,6 +1192,7 @@ class EffectContext:
                 return 0
             placement = await self.session.prompt_damage_counter_placement(
                 self.player_id, self.source.entity_id, pool, count, prompt=prompt,
+                minimum=minimum,
             )
         total = sum(v for v in placement.values() if v > 0)
         if total <= 0:

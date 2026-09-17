@@ -2032,11 +2032,13 @@ class GameSession:
         count: int,
         amount_per_click: int = 10,
         prompt: str = "Place damage counters",
+        minimum: Optional[int] = None,
     ) -> Dict[str, int]:
         """Native click-to-place picker (MultiSelectEntityListTargetInformation,
         command Q.N): the player clicks a valid target repeatedly, each click
-        stamping a live +amount_per_click damage bubble; Done gates on exactly
-        `count` total clicks (min == max == count).
+        stamping a live +amount_per_click damage bubble; Done gates on
+        `count` total clicks, or on `minimum` when given ("move up to 2":
+        Damage Pump lets the player stop after 1).
 
         Returns entity_id -> counters placed (zero-click targets omitted).
         """
@@ -2046,6 +2048,7 @@ class GameSession:
             return {}
         if isinstance(player, AIPlayer):
             return {valid[0]: count}
+        needed = count if minimum is None else max(0, min(minimum, count))
 
         node = {
             "name": SelectionKind.MULTI_SELECT_ENTITY_LIST.value,
@@ -2053,8 +2056,8 @@ class GameSession:
             "targetPrompt": {"id": prompt},
             "validTargets": valid,
             "numberToSelect": count,
-            "minimumToSelect": count,
-            "forced": True,
+            "minimumToSelect": needed,
+            "forced": needed > 0,
             "amountPerClick": amount_per_click,
             # Q.m.HintStrength only feeds CheckHintStrength's b.w reveal-composite
             # branch (this node isn't b.w), so an empty map still renders the
@@ -2071,7 +2074,7 @@ class GameSession:
                     "prompt": None,
                     "offerLength": 60000,
                     "startingTimestamp": int(time.time() * 1000),
-                    "forced": True,
+                    "forced": needed > 0,
                     "targetType": SelectionKind.MULTI_SELECT_ENTITY_LIST.value,
                     "ignoreFirst": True,
                     "selectionParams": {},
@@ -2087,6 +2090,8 @@ class GameSession:
                 )
                 selection = reply.get("selection") if isinstance(reply, dict) else None
                 if not isinstance(selection, dict):
+                    if needed <= 0:
+                        return {}
                     logging.warning(
                         f"[Session {self.game_id}] Damage counter placement got no "
                         f"selection; re-offering."
@@ -2107,13 +2112,19 @@ class GameSession:
                         clicks = min(clicks, count - total)
                         tally[target] = tally.get(target, 0) + clicks
                         total += clicks
-                if total != count:
+                if total <= 0 < needed:
+                    logging.warning(
+                        f"[Session {self.game_id}] Damage counter placement placed "
+                        f"nothing of {needed}; re-offering."
+                    )
+                    continue
+                if total < needed:
                     logging.warning(
                         f"[Session {self.game_id}] Damage counter placement totaled "
-                        f"{total}/{count}; applying as sent."
+                        f"{total}/{needed}; applying as sent."
                     )
                 return tally
-            return {valid[0]: count}
+            return {valid[0]: needed} if needed > 0 else {}
         finally:
             await self._set_opponents_waiting(player_id, False)
 
