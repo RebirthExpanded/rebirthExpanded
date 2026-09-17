@@ -874,8 +874,7 @@ def _out_of_zone_ability_entries(
     for zone in ("hand", "discard"):
         area = board.find_player_area(player_id, zone)
         for card in (area.children if area else []):
-            if out_of_play_ability_locked(board, card):
-                continue
+            locked = out_of_play_ability_locked(board, card)
             for entry in card.get_attribute(AttrID.PIE_ABILITIES) or []:
                 if not isinstance(entry, dict):
                     continue
@@ -884,6 +883,9 @@ def _out_of_zone_ability_entries(
                 if ability is None or ability.usable_from != zone:
                     continue
                 if ability.effect is None:
+                    continue
+                # A Trainer's own rules text (Grant) is no Ability: no lock.
+                if locked and not ability.rules_text:
                     continue
                 if ability.activation not in (
                         Activations.ONCE_PER_TURN, Activations.UNLIMITED):

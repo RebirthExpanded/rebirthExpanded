@@ -1,12 +1,13 @@
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import AttrID, PokemonTypes, Rarities
 from spirit.game.session.passives import TurnDamageModifier
+from spirit.game.card_effects.trainers import grant_recovery_ability
 
 
 async def grant(ctx):
     """This turn, your Fighting Pokemon's attacks do 30 more damage to the
-    opponent's Active Pokemon (before W/R). (Discard-pile self-recovery
-    clause needs Trainer PIE_ABILITIES support -- unscripted.)"""
+    opponent's Active Pokemon (before W/R). The discard-pile clause is the
+    card's grant_recovery_ability, offered from the discard."""
     ctx.add_turn_damage_modifier(TurnDamageModifier(
         30, ctx.player_id,
         source_predicate=lambda p: PokemonTypes.FIGHTING.value in (
@@ -24,5 +25,6 @@ card = SupporterCardDef(
     collector_number=185,
     set_code="SWSH10",
     rarity=Rarities.RareUltra,
-    effect=grant
+    effect=grant,
+    abilities=[grant_recovery_ability()],
 )

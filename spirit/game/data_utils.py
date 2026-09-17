@@ -991,6 +991,16 @@ class TrainerCardDef(CardDefinition):
             str(AttrID.CARD_TYPE.value): {"type": "int", "value": CardType.TRAINER.value},
             str(AttrID.TRAINER_TYPE.value): {"type": "int", "value": trainer_type.value},
         })
+        # A Trainer whose own text is used from the hand or the discard pile
+        # (Grant's "if this Grant is in your discard pile, you may...") is
+        # offered the way an out-of-zone Ability is, which needs the PIE
+        # slot the offer path reads; only those abilities go in it.
+        offered = [a for a in self.abilities if a.usable_from]
+        if offered:
+            self.extra_attributes[str(AttrID.PIE_ABILITIES.value)] = {
+                "type": "json",
+                "value": json.dumps([a.to_dict() for a in offered]),
+            }
 
 class ItemCardDef(TrainerCardDef):
     def __init__(self, **kwargs):

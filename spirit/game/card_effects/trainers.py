@@ -1928,6 +1928,51 @@ def bench_has_room(board, player_id):
         and len(bench.children) < effective_bench_capacity(board, player_id)
 
 
+# --- Grant (ASR): the discard-pile clause -----------------------------------
+
+def _is_grant(card) -> bool:
+    return getattr(def_for(card.archetype_id), "display_name", None) == "Grant"
+
+
+def grant_recovery_condition(board, player_id, card) -> bool:
+    """Two cards other than a Grant in hand to pay with."""
+    hand = board.find_player_area(player_id, "hand")
+    others = [c for c in (hand.children if hand else []) if not _is_grant(c)]
+    return len(others) >= 2
+
+
+async def grant_recovery(ctx):
+    """"During your turn, if this Grant is in your discard pile, you may
+    discard 2 cards, except any Grant, from your hand. If you do, put this
+    Grant into your hand." Clicking it in the discard is the "you may"."""
+    grants = [c for c in ctx.hand() if _is_grant(c)]
+    picks = await ctx.discard_from_hand(
+        2, minimum=2, exclude=grants,
+        prompt="Choose 2 cards (except any Grant) to discard",
+    )
+    if len(picks) < 2:
+        return
+    await ctx.put_in_hand([ctx.source], reveal=False)
+
+
+def grant_recovery_ability() -> Ability:
+    """Fresh instance per print (ability_id derives from the card GUID).
+    Not an Ability: Garbotoxin does not reach it; no once-per-turn -- the
+    card says "during your turn", and each Grant leaves the discard when
+    it is used, so the copy itself cannot repeat."""
+    return Ability(
+        "Grant",
+        "During your turn, if this Grant is in your discard pile, you may "
+        "discard 2 cards, except any Grant, from your hand. If you do, put "
+        "this Grant into your hand.",
+        activation=Activations.UNLIMITED,
+        usable_from="discard",
+        condition=grant_recovery_condition,
+        effect=grant_recovery,
+        rules_text=True,
+    )
+
+
 # --- Brandon (SWSH12) -------------------------------------------------------
 
 def brandon_playable(board, player_id) -> bool:
