@@ -69,23 +69,29 @@ class ScriptLoader:
         return os.path.splitext(rel)[0].replace(os.path.sep, "/")
 
     def _resolve_legends(self):
-        """Bind each LEGEND half to its combined definition; a pair must be
-        one top and one bottom with distinct GUIDs, else both stay out."""
+        """Bind each composite part (a LEGEND half, a V-UNION piece) to its
+        combined definition; a LEGEND needs one top and one bottom, a V-UNION
+        all four corners, all with distinct GUIDs, else the set stays out."""
         invalid = set()
-        pairs: Dict[str, list] = {}
+        legend_pairs: Dict[str, list] = {}
+        vunion_sets: Dict[str, list] = {}
         for reference, definition in self.definitions.items():
-            if not hasattr(definition, "resolve_legend"):
-                continue
             try:
-                if definition.legend not in self.definitions:
-                    raise ValueError(f"Missing LEGEND definition: {definition.legend}")
-                definition.resolve_legend(self.definitions[definition.legend])
-                pairs.setdefault(definition.legend, []).append((reference, definition))
+                if hasattr(definition, "resolve_legend"):
+                    if definition.legend not in self.definitions:
+                        raise ValueError(f"Missing LEGEND definition: {definition.legend}")
+                    definition.resolve_legend(self.definitions[definition.legend])
+                    legend_pairs.setdefault(definition.legend, []).append((reference, definition))
+                elif hasattr(definition, "resolve_composite"):
+                    if definition.vunion not in self.definitions:
+                        raise ValueError(f"Missing V-UNION definition: {definition.vunion}")
+                    definition.resolve_composite(self.definitions[definition.vunion])
+                    vunion_sets.setdefault(definition.vunion, []).append((reference, definition))
             except (ValueError, TypeError) as error:
                 invalid.add(reference)
                 self.last_errors.append(f"{reference}: {error}")
-                logging.error(f"[Scripts] LEGEND half {reference}: {error}")
-        for reference, halves in pairs.items():
+                logging.error(f"[Scripts] composite part {reference}: {error}")
+        for reference, halves in legend_pairs.items():
             problem = None
             if {half.half for _, half in halves} != {"top", "bottom"}:
                 problem = "LEGEND requires both top and bottom printings"
@@ -97,6 +103,19 @@ class ScriptLoader:
                     invalid.add(path)
                 self.last_errors.append(f"{reference}: {problem}")
                 logging.error(f"[Scripts] LEGEND {reference}: {problem}")
+        for reference, pieces in vunion_sets.items():
+            problem = None
+            positions = [piece.position for _, piece in pieces]
+            if sorted(positions) != sorted(("top-left", "top-right", "bottom-left", "bottom-right")):
+                problem = "V-UNION requires exactly the four corner pieces"
+            elif len({piece.guid.lower() for _, piece in pieces}) != len(pieces):
+                problem = "V-UNION pieces must have distinct GUIDs"
+            if problem:
+                for path, piece in pieces:
+                    piece.vunion_definition = None
+                    invalid.add(path)
+                self.last_errors.append(f"{reference}: {problem}")
+                logging.error(f"[Scripts] V-UNION {reference}: {problem}")
         return invalid
 
     def _load_script(self, file_path: str):

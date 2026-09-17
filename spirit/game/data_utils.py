@@ -893,6 +893,10 @@ class PokemonCardDef(CardDefinition):
             raise ValueError(
                 "Use LegendHalfCardDef for the physical halves and "
                 "LegendPokemonDef for the combined Pokemon")
+        if stage == PokemonStage.VUNION and not self.runtime_only:
+            raise ValueError(
+                "Use VUnionPieceCardDef for the physical pieces and "
+                "VUnionPokemonDef for the combined Pokemon")
 
         # Add Pokemon-specific defaults to extra_attributes
         self.extra_attributes.update({
@@ -1102,6 +1106,76 @@ class LegendHalfCardDef(CardDefinition):
         if self.guid.lower() == definition.guid.lower():
             raise ValueError("A LEGEND half must have its own GUID")
         self.legend_definition = definition
+
+
+# --- Pokemon V-UNION: four pieces combined from the discard pile ------------
+
+VUNION_POSITIONS = ("top-left", "top-right", "bottom-left", "bottom-right")
+
+
+class VUnionPokemonDef(PokemonCardDef):
+    """The Pokemon V-UNION standing on the board once combined: HP, types,
+    every attack of the four pieces, and its 3-Prize rule. Runtime-only --
+    never a collectible card."""
+
+    runtime_only = True
+
+    def __init__(self, **kwargs):
+        kwargs["stage"] = PokemonStage.VUNION
+        kwargs["unplayable_from_hand"] = True
+        super().__init__(**kwargs)
+        self.prize_count = 3
+
+
+class VUnionPieceCardDef(PokemonCardDef):
+    """One of the four physical V-UNION cards. `vunion` is the
+    scripts-relative path of the VUnionPokemonDef, `position` which corner
+    this is. It is a Pokemon card (stage V-UNION, a Pokemon V) that can't be
+    played from hand; the loader binds the four to their combined
+    definition."""
+
+    composite_part = "vunion"
+
+    def __init__(self, *, vunion: str, position: str, **kwargs):
+        path = PurePosixPath(vunion)
+        if (not vunion or "\\" in vunion or path.is_absolute() or ".." in path.parts
+                or path.suffix or ":" in vunion or str(path) != vunion):
+            raise ValueError("vunion must be a scripts-relative path without .py")
+        if position not in VUNION_POSITIONS:
+            raise ValueError(f"position must be one of {VUNION_POSITIONS}")
+        self.vunion = vunion
+        self.position = position
+        self.vunion_definition: Optional[VUnionPokemonDef] = None
+        kwargs["stage"] = PokemonStage.VUNION
+        kwargs["unplayable_from_hand"] = True
+        # runtime_only is checked by PokemonCardDef for the V-UNION stage;
+        # a piece is collectible, so the flag is lifted for the base init.
+        self.runtime_only = True
+        super().__init__(**kwargs)
+        self.runtime_only = False
+
+    def resolve_composite(self, definition):
+        if not isinstance(definition, VUnionPokemonDef):
+            raise TypeError(f"{self.vunion}: expected VUnionPokemonDef")
+        if self.name != definition.name:
+            raise ValueError("Every V-UNION piece must use the combined Pokemon's name")
+        if self.guid.lower() == definition.guid.lower():
+            raise ValueError("A V-UNION piece must have its own GUID")
+        self.vunion_definition = definition
+
+
+def vunion_pieces_in(cards, definition: "VUnionPokemonDef"):
+    """One card per corner of `definition` found among `cards`, in corner
+    order, or None when a corner is missing."""
+    by_position = {}
+    for card in cards:
+        d = def_for(card.archetype_id)
+        if isinstance(d, VUnionPieceCardDef) and d.vunion_definition is definition \
+                and d.position not in by_position:
+            by_position[d.position] = card
+    if len(by_position) != len(VUNION_POSITIONS):
+        return None
+    return [by_position[pos] for pos in VUNION_POSITIONS]
 
 
 def matching_legend_halves(first, second) -> bool:

@@ -23,6 +23,7 @@ from spirit.game.data_utils import (ABILITIES_BY_ID, Activations, def_for,
                                     unplayable_from_hand_now,
                                     searches_deck)
 from spirit.game.models.board import (
+    CompositePokemonEntity,
     LegendHalfEntity,
     LegendPokemonEntity,
     BoardState,
@@ -737,7 +738,7 @@ def compute_legal_actions(
                 continue
             evolve_targets = [
                 p.entity_id for p in in_play
-                if not isinstance(p, LegendPokemonEntity)
+                if not isinstance(p, CompositePokemonEntity)
                 and (p.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == evolves_from
                     or can_evolve_onto(board, p, card))
                 and not evolution_blocked(board, player_id, p)

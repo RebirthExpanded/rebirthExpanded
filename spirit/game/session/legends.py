@@ -14,8 +14,13 @@ Ported from Spirit-PTCGO (9f5d7eef) onto this engine's helpers.
 from typing import Any, Dict, List, Optional
 
 from spirit.game.attributes import GameSequence
-from spirit.game.data_utils import LegendHalf, Triggers, def_for, matching_legend_halves
-from spirit.game.models.board import LegendHalfEntity, LegendPokemonEntity
+from spirit.game.data_utils import (
+    LegendHalf, Triggers, def_for, matching_legend_halves, vunion_pieces_in,
+)
+from spirit.game.models.board import (
+    CompositePartEntity, CompositePokemonEntity, LegendHalfEntity, LegendPokemonEntity,
+    VUnionPieceEntity, VUnionPokemonEntity,
+)
 from spirit.game.models.card import Card
 from spirit.game.session.passives import (
     effective_bench_capacity, putting_into_play_blocked,
@@ -145,7 +150,7 @@ def legend_members(legend: LegendPokemonEntity) -> List[Any]:
 
 def depart_legend(session, legend, destination, *, move_with=None, position=None,
                   destinations: Optional[Dict[str, Any]] = None):
-    """The combined Pokemon leaves play: its halves go to `destination`,
+    """The combined Pokemon (a LEGEND or a V-UNION) leaves play: its parts go to `destination`,
     every other member to the owner's discard -- or, when `destinations`
     maps an entity id to an area (the Knock Out path's per-card routing:
     Lost City, U-Turn Board, a Prism Star), there. `move_with` names
@@ -173,7 +178,7 @@ def depart_legend(session, legend, destination, *, move_with=None, position=None
         legend.entity_id, staging.entity_id, len(board.client_out_of_play_children())))
     board.move_card(legend.entity_id, staging.entity_id)
     legend.owning_player_id = owner
-    halves = (legend.top_half, legend.bottom_half)
+    halves = tuple(legend.parts)
     for member in members:
         if member in halves or member.entity_id in move_with:
             area = destination
@@ -194,3 +199,83 @@ def depart_legend(session, legend, destination, *, move_with=None, position=None
         "gameID": session.game_id, "entityID": legend.entity_id,
     }))
     return messages, members
+
+
+# --- Pokemon V-UNION ----------------------------------------------------------
+
+def vunion_used(board, player_id: str, definition) -> bool:
+    """Whether `player_id` has already combined this V-UNION this game
+    (kept on the board, where the offer's condition can read it)."""
+    used = getattr(board, "vunion_assembled", None) or {}
+    return definition.guid.lower() in used.get(player_id, set())
+
+
+def vunion_assembly_pieces(board, player_id: str, piece) -> Optional[List[Any]]:
+    """The four pieces of `piece`'s V-UNION sitting in `player_id`'s discard
+    pile (corner order), when the assembly is possible right now: once per
+    game for that V-UNION, a Bench slot free, and a Bench the combined
+    Pokemon may be put onto. None otherwise."""
+    definition = getattr(def_for(piece.archetype_id), "vunion_definition", None)
+    if definition is None:
+        return None
+    if vunion_used(board, player_id, definition):
+        return None
+    discard = board.find_player_area(player_id, "discard")
+    bench = board.find_player_area(player_id, "bench")
+    if discard is None or bench is None:
+        return None
+    if piece.parent is not discard or piece.owning_player_id != player_id:
+        return None
+    if len(bench.children) >= effective_bench_capacity(board, player_id):
+        return None
+    if putting_into_play_blocked(board, player_id, piece):
+        return None
+    return vunion_pieces_in(discard.children, definition)
+
+
+async def assemble_vunion(session, player_id: str, piece) -> Optional[VUnionPokemonEntity]:
+    """Combine the four pieces from the discard pile onto the Bench as one
+    Pokemon V-UNION. Once per game per V-UNION; not an Ability, so no
+    Ability lock reaches it."""
+    board = session.board_state
+    pieces = vunion_assembly_pieces(board, player_id, piece)
+    if pieces is None:
+        return None
+    definition = def_for(piece.archetype_id).vunion_definition
+    union = VUnionPokemonEntity(build_legend_model(definition), pieces, player_id)
+    bench = board.find_player_area(player_id, "bench")
+    staging = board.find_global_area("outOfPlay")
+    position = board.free_bench_slot(player_id)
+    staging.add_child(union)
+    board._register_entity(union)
+    added = session._build_msg(OutboundMsg.ENTITY_ADDED.value, {
+        "gameID": session.game_id, "entityID": union.entity_id,
+        "owningPlayerID": player_id, "parentEntityID": staging.entity_id,
+    })
+    for part in pieces:
+        board.attach_card(part.entity_id, union.entity_id)
+    board.move_card(union.entity_id, bench.entity_id)
+    union.owning_player_id = player_id
+    session.turn_state.mark_entered_play(union.entity_id)
+    used = getattr(board, "vunion_assembled", None)
+    if used is None:
+        used = board.vunion_assembled = {}
+    used.setdefault(player_id, set()).add(definition.guid.lower())
+    viewers = list(session.players.values())
+    # The pieces are public already (discard pile); the combined Pokemon is
+    # a new entity both viewers learn, then the four fly into the join slots
+    # and the combined card lands on the Bench (the client's CreateVUnion
+    # executor reads the moves of this bracket).
+    await session.send_game_sequence(
+        viewers, GameSequence.SERIAL_SEQUENCE,
+        [added, session._entity_introduced_msg(union)])
+    client_staging = board.client_out_of_play_children()
+    moves = [
+        session._entity_moved_msg(part.entity_id, staging.entity_id,
+                                  client_staging.index(part), stamp_slot=False)
+        for part in pieces
+    ]
+    moves.append(session._entity_moved_msg(union.entity_id, bench.entity_id, position))
+    await session.send_game_sequence(viewers, GameSequence.CREATE_VUNION, moves)
+    await session.fire_pokemon_benched_triggers(player_id, union)
+    return union

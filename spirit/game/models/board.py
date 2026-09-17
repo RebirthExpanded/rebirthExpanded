@@ -249,22 +249,36 @@ class PokemonEntity(CardEntity):
         return "com.direwolfdigital.cake.rules.entities.Pokemon"
 
 
-class LegendHalfEntity(CardEntity):
-    """One physical LEGEND half: a card, never a Pokemon on the board by
-    itself. On the board it is a component of a LegendPokemonEntity."""
+class CompositePartEntity(CardEntity):
+    """One physical part of a composite Pokemon (a LEGEND half, a V-UNION
+    piece): a card, never a Pokemon on the board by itself. On the board it
+    rides under a CompositePokemonEntity."""
+
+
+class CompositePokemonEntity(PokemonEntity):
+    """A runtime-only Pokemon made of several physical cards (LEGEND,
+    V-UNION): created by an assembly, destroyed when it leaves play. Its
+    parts are children the client renders as the combined card, never as
+    attachments."""
+
+    def __init__(self, card_obj, parts, owning_player_id):
+        super().__init__(card_obj, owning_player_id)
+        self.parts = list(parts)
+
+
+class LegendHalfEntity(CompositePartEntity):
+    """One physical LEGEND half."""
 
     def get_entity_name(self) -> str:
         return "com.direwolfdigital.cake.rules.entities.HalfLegend"
 
 
-class LegendPokemonEntity(PokemonEntity):
-    """The Pokemon the two halves make together. Runtime-only: created by
-    assemble_legend, destroyed when it leaves play; its halves ride under it
-    as children the client renders as the combined card, not as
-    attachments."""
+class LegendPokemonEntity(CompositePokemonEntity):
+    """The Pokemon the two halves make together; the client's
+    LegendaryCardRenderer follows the two half ids."""
 
     def __init__(self, card_obj, top, bottom, owning_player_id):
-        super().__init__(card_obj, owning_player_id)
+        super().__init__(card_obj, [top, bottom], owning_player_id)
         self.top_half = top
         self.bottom_half = bottom
         self.set_attribute(AttrID.LEGEND_TOP_HALF, top.entity_id)
@@ -272,6 +286,24 @@ class LegendPokemonEntity(PokemonEntity):
 
     def get_entity_name(self) -> str:
         return "com.direwolfdigital.cake.rules.entities.LegendPokemon"
+
+
+class VUnionPieceEntity(CompositePartEntity):
+    """One of the four physical Pokemon V-UNION cards. A Pokemon card for
+    searches (CARD_TYPE Pokemon, stage V-UNION), but never a Pokemon on the
+    board by itself -- the four combine from the discard pile."""
+
+    def get_entity_name(self) -> str:
+        return "com.direwolfdigital.cake.rules.entities.Pokemon"
+
+
+class VUnionPokemonEntity(CompositePokemonEntity):
+    """The Pokemon V-UNION standing on the board once its four pieces are
+    combined; rendered by the client as an ordinary Pokemon whose pieces
+    sit in the staging pile."""
+
+    def get_entity_name(self) -> str:
+        return "com.direwolfdigital.cake.rules.entities.Pokemon"
 
 
 class EnergyEntity(CardEntity):
@@ -291,8 +323,11 @@ def create_card_entity(card_obj: Card, owning_player_id: Optional[str] = None, e
     c_type = card_obj.get_attribute_value(AttrID.CARD_TYPE)
     if c_type == CardType.POKEMON.value:
         from spirit.game.data_utils import def_for  # circular-import guard
-        if getattr(def_for(card_obj.guid), "runtime_only", False):
-            raise ValueError("A combined LEGEND must be created through assemble_legend")
+        definition = def_for(card_obj.guid)
+        if getattr(definition, "runtime_only", False):
+            raise ValueError("A combined Pokemon must be created through its assembly")
+        if getattr(definition, "composite_part", None) == "vunion":
+            return VUnionPieceEntity(card_obj, owning_player_id, entity_id)
         return PokemonEntity(card_obj, owning_player_id, entity_id)
     elif c_type == CardType.LEGEND_HALF.value:
         return LegendHalfEntity(card_obj, owning_player_id, entity_id)
@@ -449,12 +484,12 @@ class BoardState:
         # way in and out); a half never stands on the board by itself, and a
         # half under its LEGEND leaves only through depart_legend.
         area_name = to_area.get_attribute(AttrID.NAME)
-        if isinstance(card, LegendPokemonEntity) and area_name not in (
+        if isinstance(card, CompositePokemonEntity) and area_name not in (
                 "bench", "activePokemonArea", "outOfPlay"):
             return False
-        if isinstance(card, LegendHalfEntity) and area_name in ("bench", "activePokemonArea"):
+        if isinstance(card, CompositePartEntity) and area_name in ("bench", "activePokemonArea"):
             return False
-        if isinstance(card, LegendHalfEntity) and isinstance(card.parent, LegendPokemonEntity):
+        if isinstance(card, CompositePartEntity) and isinstance(card.parent, CompositePokemonEntity):
             return False
         self._before_change()
 
@@ -489,11 +524,10 @@ class BoardState:
             return False
         # A combined LEGEND is never an attachment; a half attaches only
         # under its own LEGEND (assemble_legend).
-        if isinstance(card, LegendPokemonEntity):
+        if isinstance(card, CompositePokemonEntity):
             return False
-        if isinstance(card, LegendHalfEntity):
-            if not isinstance(target, LegendPokemonEntity) \
-                    or card not in (target.top_half, target.bottom_half):
+        if isinstance(card, CompositePartEntity):
+            if not isinstance(target, CompositePokemonEntity) or card not in target.parts:
                 return False
         self._before_change()
 
@@ -814,8 +848,8 @@ class BoardState:
         staging = self.find_global_area("outOfPlay")
         children = list(staging.children) if staging else []
         children.extend(entity for entity in self._entity_cache.values()
-                        if isinstance(entity, LegendHalfEntity)
-                        and isinstance(entity.parent, LegendPokemonEntity))
+                        if isinstance(entity, CompositePartEntity)
+                        and isinstance(entity.parent, CompositePokemonEntity))
         return children
 
     def _serialize_client_playmat(self, viewer_id: Optional[str]) -> Dict[str, Any]:
@@ -833,8 +867,8 @@ class BoardState:
             by_id[node["entityID"]] = node
             pending.extend(node.get("children") or [])
         for half in self.client_out_of_play_children():
-            if not isinstance(half, LegendHalfEntity) \
-                    or not isinstance(half.parent, LegendPokemonEntity):
+            if not isinstance(half, CompositePartEntity) \
+                    or not isinstance(half.parent, CompositePokemonEntity):
                 continue
             node = by_id.get(half.entity_id)
             parent_node = by_id.get(half.parent_id)

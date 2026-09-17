@@ -109,6 +109,7 @@ def _persist_match_result(account_id: str, coins: int, is_winner: bool,
         award_match_points(account_id, is_winner)
 from spirit.game.models.board import (
     BoardEntity, BoardState, EnergyEntity, PokemonEntity, LegendHalfEntity, LegendPokemonEntity,
+    CompositePartEntity, CompositePokemonEntity,
 )
 from spirit.game.session import legends
 from spirit.game.visualizations import (
@@ -1473,10 +1474,10 @@ class GameSession:
             # Mirror the client: every EntityMoved stamps A.m = positionInParent.
             entity.board_slot = position
         destination = self.board_state.get_entity(destination_id)
-        if isinstance(destination, LegendPokemonEntity):
+        if isinstance(destination, CompositePokemonEntity):
             # A LEGEND's halves take server child slots but are not client
             # attachments: an attachment's client position skips them.
-            position -= sum(isinstance(child, LegendHalfEntity)
+            position -= sum(isinstance(child, CompositePartEntity)
                             for child in destination.children[:position])
         return self._build_msg(
             OutboundMsg.ENTITY_MOVED.value,
@@ -2452,7 +2453,7 @@ class GameSession:
                             owner_id, own) or area
                 destinations[entity.entity_id] = area
             moves = []
-            if isinstance(pokemon, LegendPokemonEntity):
+            if isinstance(pokemon, CompositePokemonEntity):
                 # The halves go where the Pokemon would; every other member
                 # keeps the destination decided above.
                 moves, _ = legends.depart_legend(
@@ -2765,7 +2766,7 @@ class GameSession:
             return
         stack = [pokemon] + _stack_descendants(pokemon)
         moves = []
-        if isinstance(pokemon, LegendPokemonEntity):
+        if isinstance(pokemon, CompositePokemonEntity):
             moves, _ = legends.depart_legend(self, pokemon, discard)
             stack = [m for m in stack if m is not pokemon]
         else:
@@ -3164,8 +3165,8 @@ class GameSession:
     def credit_card_damage(self, player_id: str, entity, amount: int):
         """Accumulates damage per attacking card for the EOG MVP pick."""
         guid = getattr(entity, "archetype_id", None)
-        if isinstance(entity, LegendPokemonEntity):
-            guid = entity.top_half.archetype_id
+        if isinstance(entity, CompositePokemonEntity):
+            guid = entity.parts[0].archetype_id
         if not guid or amount <= 0:
             return
         name = entity.get_attribute(AttrID.NAME)
@@ -4977,8 +4978,8 @@ class GameSession:
             return False
         # A LEGEND neither evolves nor is evolved into; a half is not a card
         # that evolves anything.
-        if isinstance(card, (LegendHalfEntity, LegendPokemonEntity)) \
-                or isinstance(target, LegendPokemonEntity):
+        if isinstance(card, (CompositePartEntity, CompositePokemonEntity)) \
+                or isinstance(target, CompositePokemonEntity):
             return False
         # Evolving puts the evolution card into play: Eternal Zone refuses a
         # non-Darkness one however the evolution is driven (hand play, Rare
@@ -5258,8 +5259,8 @@ class GameSession:
         (so the ability announce/orb bracket plays first) instead of sent.
         Returns `incoming`, or None on failure.
         """
-        if isinstance(outgoing, LegendPokemonEntity) \
-                or isinstance(incoming, (LegendHalfEntity, LegendPokemonEntity)):
+        if isinstance(outgoing, CompositePokemonEntity) \
+                or isinstance(incoming, (CompositePartEntity, CompositePokemonEntity)):
             return None
         area = outgoing.parent
         owner_id = outgoing.owning_player_id

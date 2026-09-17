@@ -36,6 +36,7 @@ from spirit.game.data_utils import (
     unimplemented,
 )
 from spirit.game.models.board import (BoardEntity, CardEntity, EnergyEntity,
+                                      CompositePartEntity, CompositePokemonEntity,
                                       LegendHalfEntity, LegendPokemonEntity,
                                       PokemonEntity, board_of)
 from spirit.game.session import legends
@@ -2017,7 +2018,7 @@ class EffectContext:
         deck = self.board.find_player_area(owner, "deck")
         if not deck or self._energy_removal_blocked(card):
             return False
-        if isinstance(card, LegendPokemonEntity):
+        if isinstance(card, CompositePokemonEntity):
             return not self._depart_legends([card], "deck")
         same_pile = card.parent_id == deck.entity_id
         position = len(deck.children)
@@ -2040,7 +2041,7 @@ class EffectContext:
         deck = self.board.find_player_area(owner, "deck")
         if not deck or self._energy_removal_blocked(card):
             return False
-        if isinstance(card, LegendPokemonEntity):
+        if isinstance(card, CompositePokemonEntity):
             return not self._depart_legends([card], "deck", position=0)
         same_pile = card.parent_id == deck.entity_id
         if not self.board.move_card(card.entity_id, deck.entity_id, 0):
@@ -2064,7 +2065,7 @@ class EffectContext:
         """
         # A LEGEND half never stands alone, and the combined Pokemon only
         # exists in play: neither is a card an effect can put down.
-        if isinstance(card, (LegendHalfEntity, LegendPokemonEntity)):
+        if isinstance(card, (CompositePartEntity, CompositePokemonEntity)):
             return False
         owner = card.owning_player_id or self.player_id
         bench = self.board.find_player_area(owner, "bench")
@@ -2165,6 +2166,13 @@ class EffectContext:
             self.knockouts.append(incoming)
         return True
 
+    async def assemble_vunion(self, piece):
+        """Combine a Pokemon V-UNION from the discard pile onto the Bench
+        (all four pieces; once per game). Not an Ability: an Ability lock
+        does not stop it."""
+        await self.flush_choreography()
+        return await legends.assemble_vunion(self.session, self.player_id, piece)
+
     def _queue_departed_visualizations(self, card):
         """Clears the managed PiPs on a card that has just left play (and on
         any stage tucked under it) so nothing stale rides it into the hand,
@@ -2184,7 +2192,7 @@ class EffectContext:
         for card in cards:
             if card.entity_id in departed:
                 continue
-            if isinstance(card, LegendPokemonEntity):
+            if isinstance(card, CompositePokemonEntity):
                 owner = card.owning_player_id or self.player_id
                 area = self.board.find_player_area(owner, area_name)
                 if area is None:
@@ -2875,8 +2883,7 @@ def full_stack(pokemon: PokemonEntity) -> List[CardEntity]:
     queue: List[BoardEntity] = list(pokemon.children)
     while queue:
         entity = queue.pop(0)
-        if isinstance(pokemon, LegendPokemonEntity) \
-                and entity in (pokemon.top_half, pokemon.bottom_half):
+        if isinstance(pokemon, CompositePokemonEntity) and entity in pokemon.parts:
             continue
         if isinstance(entity, CardEntity):
             out.append(entity)

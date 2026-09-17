@@ -9,7 +9,7 @@ from spirit.game.attributes import (
     SpecialConditions,
 )
 from spirit.game.data_utils import (
-    ABILITIES_BY_ID, Ability, Attack, ability_id_for, def_for, has_rule_box,
+    ABILITIES_BY_ID, Ability, Activations, Attack, ability_id_for, def_for, has_rule_box,
     is_pokemon_v, subtypes_for,
 )
 from spirit.game.card_effects.passives_common import prevent_damage_when
@@ -1522,3 +1522,37 @@ class StageOneTypeGrantPassive(Passive):
 def stage_one_type_grant(pokemon_type) -> Passive:
     return StageOneTypeGrantPassive(pokemon_type)
 
+
+
+# --- Pokemon V-UNION: the assembly rule printed on every piece --------------
+
+def vunion_assembly_ability(display_name: str):
+    """"Once per game, during your turn, you may put 4 different <name>
+    cards from your discard pile onto your Bench to form a Pokemon
+    V-UNION." Offered on each piece in the discard pile, through the
+    ability panel like Prehistoric Call; it is the card's own rule, not an
+    Ability, so no Ability lock reaches it (rules_text). Once per game is
+    tracked on the board per player and V-UNION; the four pieces all show
+    the offer, any one of them assembles all four."""
+    from spirit.game.session import legends
+
+    def condition(board, player_id, card) -> bool:
+        return legends.vunion_assembly_pieces(board, player_id, card) is not None
+
+    async def effect(ctx):
+        # A rule, not an Ability: no PokeAbility announcement rides it; the
+        # assembly sends its own CreateVUnion bracket.
+        ctx.suppress_announce = True
+        await ctx.assemble_vunion(ctx.source)
+
+    return Ability(
+        title="Pokémon V-UNION Rule",
+        game_text=(f"Once per game, during your turn, you may put 4 different "
+                   f"{display_name} cards from your discard pile onto your Bench "
+                   f"to form a Pokémon V-UNION."),
+        activation=Activations.UNLIMITED,
+        usable_from="discard",
+        condition=condition,
+        effect=effect,
+        rules_text=True,
+    )
