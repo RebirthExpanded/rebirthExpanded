@@ -47,7 +47,7 @@ effective_bench_capacity rather than the raw constant.
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.pokemon import delayed_knockout
-from spirit.game.session.passives import effective_bench_capacity
+from spirit.game.session.passives import effective_bench_capacity, putting_into_play_blocked
 
 
 async def wish_upon_a_star(ctx):
@@ -57,6 +57,10 @@ async def wish_upon_a_star(ctx):
     # that shrinks it (Collapsed Stadium, Parallel City) fills it sooner.
     if bench is None or len(bench.children) >= effective_bench_capacity(
             ctx.board, ctx.player_id):
+        return
+    # A Bench it may not be put onto (Eternal Zone: Jirachi is Metal) is
+    # no offer either -- no question, straight to hand.
+    if putting_into_play_blocked(ctx.board, ctx.player_id, ctx.source):
         return
     if not await ctx.ask_yes_no(
             "Put this Pokémon onto your Bench and take 1 more Prize card?"):
