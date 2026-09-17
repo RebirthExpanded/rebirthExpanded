@@ -7,6 +7,9 @@ import types
 import uuid
 from typing import Any, Callable, Optional, List, Dict, Set
 from spirit.game.attributes import AttrID, CardType, TrainerType, PokemonStage, PokemonTypes, ProductType, AbilityTypes, Rarities, CLIENT_POKEMON_TYPE_NAMES, FoilMasks, FoilEffects
+from spirit.game.visualizations import (  # noqa: F401 -- re-exported for card scripts
+    VisualizationArrow, VisualizationLifetime, VisualizationType,
+)
 from spirit.game.text_encoding import fix_mojibake, fix_mojibake_list, with_ascii_aliases
 
 _ABILITY_ID_NAMESPACE = uuid.UUID("a3f2c6e8-9d41-4d7a-8b5f-2e7c90d13a64")

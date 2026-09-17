@@ -39,6 +39,9 @@ from spirit.game.models.board import (BoardEntity, CardEntity, EnergyEntity,
                                       LegendHalfEntity, LegendPokemonEntity,
                                       PokemonEntity, board_of)
 from spirit.game.session import legends
+from spirit.game.visualizations import (
+    VisualizationArrow, VisualizationLifetime, VisualizationType,
+)
 from spirit.network.message_names import OutboundMsg
 from spirit.game.game_sequence_packets import NestedSequence
 from .constants import PROMPT_CHOOSE_A_PRIZE, PROMPT_NO, PROMPT_YES
@@ -898,7 +901,8 @@ class EffectContext:
         )
 
     async def add_stat_visualization(
-        self, pokemon: PokemonEntity, arrow: str, display_type: str,
+        self, pokemon: PokemonEntity, arrow: "VisualizationArrow | str",
+        display_type: "VisualizationType | str",
         card_text: Optional[str] = None,
     ) -> None:
         """Shows a stat-modifier PiP on `pokemon` for the rest of the turn
@@ -907,6 +911,23 @@ class EffectContext:
         await self.session.add_turn_stat_visualization(
             pokemon, arrow, display_type, _display_name(self.source), card_text
         )
+
+    async def add_visualization(
+        self, pokemon: PokemonEntity, arrow: "VisualizationArrow | str",
+        display_type: "VisualizationType | str",
+        lifetime: VisualizationLifetime, card_text: Optional[str] = None,
+    ) -> str:
+        """Shows a PiP on `pokemon` with an explicit lifetime (until your /
+        the opponent's next turn starts or ends, while in play); returns a
+        handle remove_visualization takes back."""
+        return await self.session.add_visualization(
+            pokemon, arrow, display_type, _display_name(self.source),
+            lifetime, self.player_id, card_text,
+        )
+
+    async def remove_visualization(self, handle: str) -> bool:
+        """Removes only the PiP behind `handle`."""
+        return await self.session.remove_visualization(handle)
 
     async def choose_attack_to_copy(self, candidates, prompt: str = ""):
         """Presents (pokemon, attack) candidates as full attack rows in the
@@ -1500,6 +1521,7 @@ class EffectContext:
             position = len(hand.children)
             if not self.board.move_card(card.entity_id, hand.entity_id):
                 continue
+            self._queue_departed_visualizations(card)
             if isinstance(card, PokemonEntity):
                 # Special Conditions/attack locks don't survive leaving play;
                 # no bracket needed, the move itself clears the on-board marker.
@@ -1730,6 +1752,7 @@ class EffectContext:
             position = len(pile.children)
             if not self.board.move_card(card.entity_id, pile.entity_id):
                 continue
+            self._queue_departed_visualizations(card)
             if isinstance(card, PokemonEntity):
                 self.session.clear_pokemon_effects(card)
                 self.session.reset_pokemon_damage(card)
@@ -1870,6 +1893,7 @@ class EffectContext:
             holder = self._tool_holder_before_move(card)
             position = len(deck.children)
             if self.board.move_card(card.entity_id, deck.entity_id):
+                self._queue_departed_visualizations(card)
                 if isinstance(card, PokemonEntity):
                     # A shuffled-in Pokemon must not carry stale Special
                     # Conditions or damage when it's later drawn/re-introduced
@@ -1999,6 +2023,8 @@ class EffectContext:
         position = len(deck.children)
         if not self.board.move_card(card.entity_id, deck.entity_id):
             return False
+        if not same_pile:
+            self._queue_departed_visualizations(card)
         if same_pile:
             self._queue_pile_reordered(deck)
             return True
@@ -2019,6 +2045,8 @@ class EffectContext:
         same_pile = card.parent_id == deck.entity_id
         if not self.board.move_card(card.entity_id, deck.entity_id, 0):
             return False
+        if not same_pile:
+            self._queue_departed_visualizations(card)
         if same_pile:
             self._queue_pile_reordered(deck)
             return True
@@ -2136,6 +2164,14 @@ class EffectContext:
                 and incoming not in self.knockouts:
             self.knockouts.append(incoming)
         return True
+
+    def _queue_departed_visualizations(self, card):
+        """Clears the managed PiPs on a card that has just left play (and on
+        any stage tucked under it) so nothing stale rides it into the hand,
+        the deck or a pile; call it AFTER the move -- a card still in play is
+        left alone (a retreat keeps its PiPs)."""
+        for msg in self.session._clear_departed_visualizations(card):
+            self._queue(msg, bracket=GameSequence.SERIAL_SEQUENCE.value)
 
     def _depart_legends(self, cards, area_name: str, position=None) -> List[CardEntity]:
         """A combined LEGEND among `cards` leaves play here: its halves go
