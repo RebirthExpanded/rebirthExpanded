@@ -2742,7 +2742,10 @@ class GameSession:
             return []
         player = self.players[player_id]
         prize_ids = [c.entity_id for c in prize_area.children]
-        if isinstance(player, AIPlayer):
+        needed = count if minimum is None else min(minimum, count)
+        if isinstance(player, AIPlayer) or needed >= len(prize_ids):
+            # Nothing to choose: every remaining Prize is coming (the last
+            # KO of the game, a 2-prize KO with 2 left), so no fan.
             picked = prize_ids[:count]
         else:
             picked = await self._prompt_prize_pick(player_id, prize_ids, count,
