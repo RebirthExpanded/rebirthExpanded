@@ -5,8 +5,15 @@ from spirit.game.session.passives import Passive, carrier_pokemon
 
 
 class _LegacyEnergyPassive(Passive):
-    """If the holder is Knocked Out by an opponent attack, reduce prizes by 1
-    once per game."""
+    """If the holder is Knocked Out by damage from an opponent's attack, that
+    player takes 1 fewer Prize card -- and "you can't apply more than 1
+    Legacy Energy effect in a game".
+
+    The once-per-game is the OWNER's, tracked on the session by player id:
+    it survives the card itself leaving and coming back (Special Charge
+    shuffling it into the deck, Energy Retrieval), so a recycled Legacy
+    Energy reduces nothing the second time -- and it does not spend the
+    opponent's own Legacy Energy, which is a separate "you"."""
 
     def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
         # Apply only to knockouts by damage from an attack, and only the
@@ -18,11 +25,15 @@ class _LegacyEnergyPassive(Passive):
         if carrier_pokemon(carrier) is not pokemon:
             return count
 
-        if getattr(ctx.session, "legacy_energy_prize_reduced", False):
+        owner = pokemon.owning_player_id
+        applied = getattr(ctx.session, "legacy_energy_applied", None)
+        if applied is None:
+            applied = ctx.session.legacy_energy_applied = set()
+        if owner in applied or count <= 0:
             return count
 
-        ctx.session.legacy_energy_prize_reduced = True
-        return max(0, count - 1)
+        applied.add(owner)
+        return count - 1
 
 
 card = EnergyCardDef(
