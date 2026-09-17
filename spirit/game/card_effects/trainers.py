@@ -1834,6 +1834,8 @@ def fossil_discard_ability() -> Ability:
         "At any time during your turn, you may discard this card from play.",
         activation=Activations.ONCE_PER_TURN,
         effect=fossil_discard,
+        # Rules text, not an Ability: usable under Garbotoxin and friends.
+        rules_text=True,
     )
 
 
@@ -1884,6 +1886,9 @@ def doll_bottom_of_deck_ability() -> Ability:
         condition=lambda board, player_id, pokemon=None: (
             pokemon is not None and board.active_pokemon(player_id) is pokemon),
         effect=doll_to_bottom_of_deck,
+        # Rules text, not an Ability: an Ability lock (Garbotoxin, Path to
+        # the Peak, Silent Lab) does not stop the doll going back.
+        rules_text=True,
     )
 
 

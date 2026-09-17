@@ -829,8 +829,10 @@ def _ability_entries(
                 continue
             # Path to the Peak locks a Pokemon's own Abilities, but a Tool-
             # granted ability (Forest Seal Stone) lives on the tool, not the
-            # Pokemon, so it stays usable.
-            if locked and not ability.is_granted:
+            # Pokemon, so it stays usable; a card's own rules text (a
+            # fossil's discard, Lillie's Poke Doll's return) is no Ability
+            # at all, so no lock reaches it.
+            if locked and not ability.is_granted and not ability.rules_text:
                 continue
             if ability.activation != Activations.UNLIMITED \
                     and (pokemon.entity_id, ability_id) in state.used_abilities:

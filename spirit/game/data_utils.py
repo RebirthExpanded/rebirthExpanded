@@ -76,6 +76,7 @@ def _clone_ability(ability: "Ability") -> "Ability":
             shared_once_per_turn=ability.shared_once_per_turn,
             ends_turn=ability.ends_turn,
             usable_from=ability.usable_from,
+            rules_text=ability.rules_text,
         )
     clone.is_granted = ability.is_granted
     return clone
@@ -568,9 +569,16 @@ class Ability:
         condition: Optional[Callable] = None,
         shared_once_per_turn: Optional[str] = None,
         ends_turn: bool = False,
-        usable_from: Optional[str] = None
+        usable_from: Optional[str] = None,
+        rules_text: bool = False,
     ):
         self.title = title
+        # True for a card's own rules text that is offered LIKE an Ability
+        # but is not one (a fossil's "you may discard this card", Lillie's
+        # Poke Doll's return to the deck): Ability locks -- Garbotoxin, Path
+        # to the Peak, Silent Lab -- only switch off Abilities, so they
+        # never reach these.
+        self.rules_text = rules_text
         # 'hand' | 'discard': offered while the card sits in that zone instead
         # of in play (Pyukumuku, Beedrill, Gengar). Hand gets AbilitySelection
         # + OutOfPlay; discard uses OutOfPlay.
