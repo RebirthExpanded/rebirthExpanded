@@ -622,6 +622,20 @@ def is_lightning_energy(card) -> bool:
     return energy_provides_type(card, PokemonTypes.LIGHTNING.value)
 
 
+def energy_units_of_type(board, card, type_value) -> int:
+    """How many Energy of `type_value` one attached card provides on THIS
+    board -- the live reading, so Rainbow Energy's every-type passive, a
+    suppressed Special Energy and a doubled one (Counter Energy) all count
+    the way the Q&A says (Electro Rain: a Rainbow is one [L], a live
+    Counter Energy two). The largest option holding the type decides."""
+    if not is_energy_card(card):
+        return 0
+    from spirit.game.session.passives import energy_provided_options
+    return max((option.count(type_value)
+                for option in energy_provided_options(board, card)
+                if type_value in option), default=0)
+
+
 def is_metal_energy(card) -> bool:
     return energy_provides_type(card, PokemonTypes.METAL.value)
 

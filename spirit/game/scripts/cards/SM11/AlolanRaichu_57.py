@@ -15,7 +15,14 @@ Electro Rain is a free-aim spread: the player picks the Energy, then aims
 each discarded Energy separately, and the same target may be chosen again.
 The picks are tallied first and each Pokemon is dealt its total in one hit
 rather than 30 at a time, so an aimed 60 kills a 60 HP Pokemon in one blow
-and a shield that reads a single hit reads it once.
+and a shield that reads a single hit reads it once (Q&A: three picks on
+one Pokemon-GX with a Choice Band is 120, not 3 x 60).
+
+"Lightning Energy" is read live off the board, not off the card's printed
+type: a Rainbow Energy on this Pokemon is a [L] Energy and may be
+discarded (Q&A), a Unit Energy LPM likewise. And the aims go by the
+number of [L] the discarded cards PROVIDED, not by the number of cards --
+Counter Energy providing two is two picks (Q&A).
 
 "Isn't affected by Weakness or Resistance" is the printed ignore on both,
 and the damage goes wherever it is aimed -- the opponent's Active included,
@@ -24,19 +31,20 @@ snipe factory.
 """
 
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
-from spirit.game.card_effects.pokemon import is_lightning_energy
+from spirit.game.card_effects.pokemon import energy_units_of_type
 from spirit.game.data_utils import Attack, PokemonCardDef
 
 PER_ENERGY = 30
 
 
 async def electro_rain(ctx):
-    """Discard any amount of [L], then aim 30 per Energy, repeats allowed."""
+    """Discard any amount of [L] (live reading: Rainbow counts), then aim
+    30 per [L] the discarded cards provided, repeats allowed."""
     attacker = ctx.attacker
     if attacker is None:
         return
     lightning = [e for e in ctx.board.attached_energies(attacker)
-                 if is_lightning_energy(e)]
+                 if energy_units_of_type(ctx.board, e, PokemonTypes.LIGHTNING.value) > 0]
     if not lightning:
         return
     picks = await ctx.choose_cards(
@@ -45,14 +53,18 @@ async def electro_rain(ctx):
     )
     if not picks:
         return
+    # Count the [L] provided while the cards are still attached: Rainbow
+    # provides [L] only on a Pokemon, and a doubling reads the board.
+    aims = sum(energy_units_of_type(ctx.board, e, PokemonTypes.LIGHTNING.value)
+               for e in picks)
     await ctx.discard_cards(picks)
     targets = ctx.opponent_pokemon_in_play()
-    if not targets:
+    if not targets or aims <= 0:
         return
     tally = {}
-    for _ in picks:
+    for n in range(aims):
         chosen = await ctx.choose_pokemon(
-            targets, "Choose 1 of your opponent's Pokémon to damage.")
+            targets, f"Choose 1 of your opponent's Pokémon to damage ({n + 1}/{aims}).")
         if chosen is None:
             chosen = targets[0]
         tally[chosen.entity_id] = tally.get(chosen.entity_id, 0) + 1

@@ -14,6 +14,7 @@ from spirit.game.attributes import (AbilityTypes, AttrID, PokemonTypes,
                                     TrainerType)
 from spirit.game.data_utils import ABILITIES_BY_ID, def_for, subtypes_for
 from spirit.game.models.board import (
+    EnergyEntity,
     BENCH_SLOT_COUNT,
     BoardEntity,
     BoardState,
@@ -1584,6 +1585,13 @@ def energy_provided_options(board: Optional[BoardState], energy: BoardEntity) ->
         options = [[PokemonTypes.COLORLESS.value]]
     holder = carrier_pokemon(energy)
     for passive, carrier in active_passives(board):
+        # A Special Energy's own passive (Rainbow, Unit, Counter, Beast...)
+        # rewrites what THAT card provides and nothing else -- without this
+        # gate one Rainbow Energy in play made every attached Energy on both
+        # sides provide every type. Pokemon-carried rewrites (Charizard
+        # PGO's doubling) still reach every Energy they name.
+        if isinstance(carrier, EnergyEntity) and carrier is not energy:
+            continue
         options = passive.modify_energy_provided(options, energy, holder, board)
     return options
 
