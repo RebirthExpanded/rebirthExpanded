@@ -1647,11 +1647,31 @@ async def peonia(ctx):
                                   opens_window=False)
     if not taken:
         return
-    picks = await ctx.choose_cards(
-        list(ctx.hand()), len(taken), minimum=len(taken),
-        prompt=f"Choose {len(taken)} card(s) to put face down as Prize cards",
-    )
-    await ctx.put_in_prizes(picks)
+    # One card at a time, each into a slot of the player's choosing, and
+    # each flight flushed before the next pick -- so the player sees (and
+    # decides) exactly which card sits where, which matters the next time
+    # a Prize is picked.
+    total = len(taken)
+    for n in range(1, total + 1):
+        hand = list(ctx.hand())
+        if not hand:
+            break
+        picks = await ctx.choose_cards(
+            hand, 1, minimum=1,
+            prompt=f"Choose a card to put face down as a Prize card ({n}/{total})",
+        )
+        if not picks:
+            break
+        free = ctx.empty_prize_slots()
+        slot = free[0] if free else None
+        if len(free) > 1:
+            idx = await ctx.choose(
+                "Choose the Prize slot to put this card into",
+                [f"Prize slot {s + 1}" for s in free], use_panel=False,
+            )
+            slot = free[idx] if 0 <= idx < len(free) else free[0]
+        await ctx.put_in_prizes(picks, slots=[slot] if slot is not None else None)
+        await ctx.flush_choreography()
 
 
 # --- Escape Board (UPR, Pokemon Tool) ------------------------------------

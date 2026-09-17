@@ -2427,23 +2427,41 @@ class EffectContext:
             await self.session.end_game(pid, "Took all Prize cards")
         return taken or []
 
+    def empty_prize_slots(self, player_id: Optional[str] = None) -> List[int]:
+        """The vacated Prize slots (0-based client grid slots) a card could be
+        put back into, lowest first."""
+        pid = player_id or self.player_id
+        prize_area = self.board.find_player_area(pid, "prizePile")
+        if prize_area is None:
+            return []
+        dealt = self.board.prizes_dealt.get(pid, 0)
+        occupied = {c.board_slot if c.board_slot is not None else i
+                    for i, c in enumerate(prize_area.children)}
+        return [s for s in range(dealt) if s not in occupied]
+
     async def put_in_prizes(self, cards: List[CardEntity],
-                            player_id: Optional[str] = None) -> int:
+                            player_id: Optional[str] = None,
+                            slots: Optional[List[int]] = None) -> int:
         """Puts hand cards face down into the player's empty Prize slots
         (Peonia): queues the moves, AttributesReset re-hides (the owner knows
-        the faces) and the pile's gap refresh; returns how many were placed."""
+        the faces) and the pile's gap refresh; returns how many were placed.
+        `slots` names the slot for each card in order (the player's choice);
+        otherwise the lowest free slots are filled first."""
         pid = player_id or self.player_id
         session = self.session
         prize_area = self.board.find_player_area(pid, "prizePile")
         if prize_area is None or not cards:
             return 0
         dealt = self.board.prizes_dealt.get(pid, 0)
-        occupied = {c.board_slot if c.board_slot is not None else i
-                    for i, c in enumerate(prize_area.children)}
-        slots = [s for s in range(dealt) if s not in occupied]
+        free = self.empty_prize_slots(pid)
+        chosen = list(slots or [])
         placed = 0
         for card in cards:
-            slot = slots.pop(0) if slots else dealt + placed
+            if chosen and chosen[0] in free:
+                slot = chosen.pop(0)
+                free.remove(slot)
+            else:
+                slot = free.pop(0) if free else dealt + placed
             if not self.board.move_card(card.entity_id, prize_area.entity_id, slot):
                 continue
             self._queue(session._entity_moved_msg(
