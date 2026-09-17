@@ -2526,6 +2526,21 @@ class GameSession:
                     if trigger_ctx is not None:
                         trigger_ctxs.append(trigger_ctx)
 
+        # A player left with no Pokemon in play has lost the game right
+        # here; the Prize fan and flight for that Knock Out are skipped and
+        # the game ends on "no Pokemon left" (the KO triggers above have
+        # already had their chance to bench something).
+        wiped_out = [
+            owner_id for owner_id in promotions
+            if not self.board_state.pokemon_in_play(owner_id)
+        ]
+        if len(wiped_out) == 1:
+            loser = wiped_out[0]
+            await self.end_game(
+                self._opponent_id(loser),
+                f"{self.players[loser].screen_name} has no Pok\u00e9mon left",
+            )
+            return
         for (taker_id, mode), count in prize_awards.items():
             await self._take_prizes(taker_id, count, destination=mode)
         for taker_id in {t for t, _ in prize_awards}:
