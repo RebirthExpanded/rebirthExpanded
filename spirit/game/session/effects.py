@@ -41,6 +41,7 @@ from spirit.network.message_names import OutboundMsg
 from spirit.game.game_sequence_packets import NestedSequence
 from .constants import PROMPT_CHOOSE_A_PRIZE, PROMPT_NO, PROMPT_YES
 from .passives import (
+    putting_into_play_blocked,
     TempPassive,
     ability_effects_blocked,
     abilities_disabled,
@@ -2010,6 +2011,9 @@ class EffectContext:
         bench = self.board.find_player_area(owner, "bench")
         if not bench or len(bench.children) >= effective_bench_capacity(self.board, owner):
             return False
+        # "You can't put non-Darkness Pokemon into play" (Eternal Zone).
+        if putting_into_play_blocked(self.board, owner, card):
+            return False
         self._note_visual_source(card)
         # Lowest free SLOT (client stamp), not list length -- gaps left by
         # promoted/KO'd Pokemon must be filled or cards render overlapped.
@@ -2084,6 +2088,10 @@ class EffectContext:
         choreography queues on this ctx so the announce/orb bracket (aimed at
         the pile the card came from) plays before the shine."""
         if outgoing is None or incoming is None:
+            return False
+        # The incoming card is put into play: Eternal Zone can refuse it.
+        owner = incoming.owning_player_id or outgoing.owning_player_id or self.player_id
+        if putting_into_play_blocked(self.board, owner, incoming):
             return False
         self._note_visual_source(incoming)
         result = await self.session.perform_identity_swap(

@@ -33,6 +33,7 @@ from .constants import (
     SelectionKind,
 )
 from .passives import (
+    putting_into_play_blocked,
     granted_extra_attacks_with_owner,
     ability_locked,
     abilities_disabled,
@@ -666,6 +667,10 @@ def compute_legal_actions(
                 if (card.get_attribute(AttrID.TRAINER_TYPE) is not None
                         and trainer_play_blocked(board, player_id, card)):
                     continue
+                # Eternal Zone: no non-Darkness Pokemon (fossils included)
+                # may be put into play.
+                if putting_into_play_blocked(board, player_id, card):
+                    continue
                 if bench_has_space:
                     # The bench area is the drop target; without it the drag
                     # dead-ends at the ActionsNode and nothing highlights.
@@ -681,6 +686,7 @@ def compute_legal_actions(
             bench_from_hand = getattr(def_for(card.archetype_id), "bench_from_hand", None)
             if (bench_from_hand is not None and bench_has_space
                     and not abilities_disabled(board, card)
+                    and not putting_into_play_blocked(board, player_id, card)
                     and bench_from_hand(board, player_id, card)):
                 entries.append(_target_map_entry(
                     game_id, card.entity_id,

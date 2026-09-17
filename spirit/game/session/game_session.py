@@ -118,6 +118,7 @@ from .effects import (
     resolve_triggered_ability,
 )
 from .passives import (
+    putting_into_play_blocked,
     abilities_disabled, ability_locked, active_passives, active_to_bench_counters,
     burn_recovery_blocked, discard_destination_for,
     effective_bench_capacity, effective_max_hp,
@@ -4073,6 +4074,12 @@ class GameSession:
         if not bench_area or len(bench_area.children) >= \
                 effective_bench_capacity(self.board_state, player_id):
             logging.warning(f"[Session {self.game_id}] Bench unavailable; re-offering.")
+            return
+        if putting_into_play_blocked(self.board_state, player_id, card):
+            logging.warning(
+                f"[Session {self.game_id}] {card.entity_id} may not be put into "
+                f"play (Eternal Zone); re-offering."
+            )
             return
         # Lowest free SLOT, not list length: the client never renumbers bench
         # slots, so a promoted/KO'd Pokemon leaves a gap new arrivals must fill.

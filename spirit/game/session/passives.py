@@ -380,6 +380,16 @@ class Passive:
         (Memory Energy gives back its own line's attacks)."""
         return [(pokemon, a) for a in (self.granted_attacks(board, pokemon, carrier) or [])]
 
+    def blocks_putting_into_play(
+        self, card: BoardEntity, player_id: str, carrier: BoardEntity
+    ) -> bool:
+        """"You can't put <cards> into play" (Eternal Zone): asked of every
+        way a Pokemon enters play from outside it -- a Basic or fossil
+        played from hand, a Bench put by a search or an Ability, an
+        identity swap (Thorton) -- never of evolving or promoting, which
+        happen to a Pokemon already in play."""
+        return False
+
     def blocks_trainer_play(
         self, card: BoardEntity, player_id: str, carrier: BoardEntity
     ) -> bool:
@@ -1393,6 +1403,15 @@ def moving_damage_counters_blocked(board: BoardState) -> bool:
     """Whether a passive forbids moving damage counters between Pokémon."""
     return any(
         passive.blocks_moving_damage_counters(carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def putting_into_play_blocked(board: BoardState, player_id: str, card: BoardEntity) -> bool:
+    """Whether a continuous passive forbids `player_id` putting `card` into
+    play (Eternal Zone and a non-Darkness Pokemon)."""
+    return any(
+        passive.blocks_putting_into_play(card, player_id, carrier)
         for passive, carrier in active_passives(board)
     )
 

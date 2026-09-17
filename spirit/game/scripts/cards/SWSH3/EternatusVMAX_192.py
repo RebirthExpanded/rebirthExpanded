@@ -20,15 +20,29 @@ def _all_darkness_in_play(carrier) -> bool:
 
 class EternalZonePassive(Passive):
     """While every one of the owner's in-play Pokemon is Darkness type, Bench
-    capacity is 8 (auto-enforced back down to 5 when it stops applying). The
-    accompanying "can't put non-Darkness Pokemon into play" restriction has no
-    engine hook for Pokemon-from-hand plays yet (play_locked only gates
-    Energy/Trainer offers) and is not enforced here."""
+    capacity is 8 (auto-enforced back down to 5 when it stops applying), and
+    the owner can't put a non-Darkness Pokemon into play.
+
+    "Darkness type" is the live reading (is_darkness_pokemon): a dual-type
+    Pokemon carrying [D] counts, Kecleon counts while Chromashift has it
+    holding a [D] Energy and stops counting -- Bench back to 5 -- when it
+    does not. A card being put into play is read as it sits off the board:
+    a fossil is a Colorless Pokemon and is refused; so is a non-Darkness
+    Basic coming from a search, a Bench-putting Ability (Ho-Oh-EX's
+    Rebirth) or an identity swap (Thorton). Evolving and promoting are not
+    "putting into play"."""
 
     def bench_capacity(self, player_id, carrier):
         if player_id != carrier.owning_player_id:
             return None
         return 8 if _all_darkness_in_play(carrier) else None
+
+    def blocks_putting_into_play(self, card, player_id, carrier):
+        if player_id != carrier.owning_player_id:
+            return False
+        if not _all_darkness_in_play(carrier):
+            return False
+        return not is_darkness_pokemon(card)
 
 
 card = PokemonCardDef(
