@@ -418,6 +418,10 @@ def check_and_generate_bundles() -> int:
                         continue
                     
                     card_def = module.card
+                    # A combined LEGEND is a runtime-only definition with no
+                    # card face of its own: its halves carry the art.
+                    if getattr(card_def, "runtime_only", False):
+                        continue
                     set_code = card_def.set_code
                     asset_name = str(card_def.collector_number).zfill(3)
                     

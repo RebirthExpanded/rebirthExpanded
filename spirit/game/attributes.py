@@ -44,6 +44,11 @@ class AttrID(IntEnum):
     RETREAT_COST = 200800
     ABILITIES = 200720
     PIE_ABILITIES = 200740
+    # LEGEND (HGSS): the combined Pokemon flags itself, and names its two
+    # physical halves for LegendaryCardRenderer.
+    IS_LEGEND = 201030
+    LEGEND_TOP_HALF = 201670
+    LEGEND_BOTTOM_HALF = 201680
     # Playmat attr: EntityID[] of the acting attack/ability source; the client's
     # Attack executor reads element [0] and the orb FX shoots from it.
     ATTACK_SOURCES = 201870

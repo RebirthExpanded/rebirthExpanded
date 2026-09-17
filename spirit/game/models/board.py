@@ -249,6 +249,31 @@ class PokemonEntity(CardEntity):
         return "com.direwolfdigital.cake.rules.entities.Pokemon"
 
 
+class LegendHalfEntity(CardEntity):
+    """One physical LEGEND half: a card, never a Pokemon on the board by
+    itself. On the board it is a component of a LegendPokemonEntity."""
+
+    def get_entity_name(self) -> str:
+        return "com.direwolfdigital.cake.rules.entities.HalfLegend"
+
+
+class LegendPokemonEntity(PokemonEntity):
+    """The Pokemon the two halves make together. Runtime-only: created by
+    assemble_legend, destroyed when it leaves play; its halves ride under it
+    as children the client renders as the combined card, not as
+    attachments."""
+
+    def __init__(self, card_obj, top, bottom, owning_player_id):
+        super().__init__(card_obj, owning_player_id)
+        self.top_half = top
+        self.bottom_half = bottom
+        self.set_attribute(AttrID.LEGEND_TOP_HALF, top.entity_id)
+        self.set_attribute(AttrID.LEGEND_BOTTOM_HALF, bottom.entity_id)
+
+    def get_entity_name(self) -> str:
+        return "com.direwolfdigital.cake.rules.entities.LegendPokemon"
+
+
 class EnergyEntity(CardEntity):
     """Represents an Energy card entity on the board."""
     def get_entity_name(self) -> str:
@@ -265,7 +290,12 @@ def create_card_entity(card_obj: Card, owning_player_id: Optional[str] = None, e
     """Factory function to build the correct subclass of CardEntity based on its card type."""
     c_type = card_obj.get_attribute_value(AttrID.CARD_TYPE)
     if c_type == CardType.POKEMON.value:
+        from spirit.game.data_utils import def_for  # circular-import guard
+        if getattr(def_for(card_obj.guid), "runtime_only", False):
+            raise ValueError("A combined LEGEND must be created through assemble_legend")
         return PokemonEntity(card_obj, owning_player_id, entity_id)
+    elif c_type == CardType.LEGEND_HALF.value:
+        return LegendHalfEntity(card_obj, owning_player_id, entity_id)
     elif c_type == CardType.ENERGY.value:
         return EnergyEntity(card_obj, owning_player_id, entity_id)
     else:
@@ -415,6 +445,17 @@ class BoardState:
 
         if not isinstance(card, CardEntity) or not isinstance(to_area, PlayArea):
             return False
+        # A combined LEGEND exists only in play (and the staging pile on its
+        # way in and out); a half never stands on the board by itself, and a
+        # half under its LEGEND leaves only through depart_legend.
+        area_name = to_area.get_attribute(AttrID.NAME)
+        if isinstance(card, LegendPokemonEntity) and area_name not in (
+                "bench", "activePokemonArea", "outOfPlay"):
+            return False
+        if isinstance(card, LegendHalfEntity) and area_name in ("bench", "activePokemonArea"):
+            return False
+        if isinstance(card, LegendHalfEntity) and isinstance(card.parent, LegendPokemonEntity):
+            return False
         self._before_change()
 
         # "Turned face up where it lies" ends when it stops lying there: a
@@ -446,6 +487,14 @@ class BoardState:
             return False
         if card is target:
             return False
+        # A combined LEGEND is never an attachment; a half attaches only
+        # under its own LEGEND (assemble_legend).
+        if isinstance(card, LegendPokemonEntity):
+            return False
+        if isinstance(card, LegendHalfEntity):
+            if not isinstance(target, LegendPokemonEntity) \
+                    or card not in (target.top_half, target.bottom_half):
+                return False
         self._before_change()
 
         if card.parent_id:
@@ -755,5 +804,44 @@ class BoardState:
             "gameID": self.game_id,
             "playerAccounts": self.player_ids,
             "gameOptions": self.game_options,
-            "entities": self.playmat.serialize(viewer_id)
+            "entities": self._serialize_client_playmat(viewer_id)
         }
+
+    def client_out_of_play_children(self) -> List[BoardEntity]:
+        """The staging pile as the client sees it: its own children plus every
+        LEGEND half riding under a combined Pokemon -- the renderer follows
+        the half ids from there, never as attachments."""
+        staging = self.find_global_area("outOfPlay")
+        children = list(staging.children) if staging else []
+        children.extend(entity for entity in self._entity_cache.values()
+                        if isinstance(entity, LegendHalfEntity)
+                        and isinstance(entity.parent, LegendPokemonEntity))
+        return children
+
+    def _serialize_client_playmat(self, viewer_id: Optional[str]) -> Dict[str, Any]:
+        """The snapshot with LEGEND halves re-parented to the staging pile:
+        ordinary child links would list them in the zoom stack and break the
+        two-position LEGEND render."""
+        snapshot = self.playmat.serialize(viewer_id)
+        staging = self.find_global_area("outOfPlay")
+        if staging is None:
+            return snapshot
+        by_id = {}
+        pending = [snapshot]
+        while pending:
+            node = pending.pop()
+            by_id[node["entityID"]] = node
+            pending.extend(node.get("children") or [])
+        for half in self.client_out_of_play_children():
+            if not isinstance(half, LegendHalfEntity) \
+                    or not isinstance(half.parent, LegendPokemonEntity):
+                continue
+            node = by_id.get(half.entity_id)
+            parent_node = by_id.get(half.parent_id)
+            staging_node = by_id.get(staging.entity_id)
+            if node is None or parent_node is None or staging_node is None:
+                continue
+            parent_node["children"].remove(node)
+            node["parentID"] = staging.entity_id
+            staging_node["children"].append(node)
+        return snapshot

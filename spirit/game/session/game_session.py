@@ -107,7 +107,10 @@ def _persist_match_result(account_id: str, coins: int, is_winner: bool,
         grant_coins(account_id, coins)
     if award_ladder:
         award_match_points(account_id, is_winner)
-from spirit.game.models.board import BoardEntity, BoardState, EnergyEntity, PokemonEntity
+from spirit.game.models.board import (
+    BoardEntity, BoardState, EnergyEntity, PokemonEntity, LegendHalfEntity, LegendPokemonEntity,
+)
+from spirit.game.session import legends
 from .effects import (
     EffectContext,
     resolve_activated_ability,
@@ -130,6 +133,7 @@ from .passives import (
     tool_suppressed, special_energy_suppressed,
 )
 from .legal_actions import (
+    ACTION_PLAY_LEGEND,
     _active_immobilized,
     PANEL_ROW_LIMIT,
     borrowed_attacks_action_id,
@@ -1462,6 +1466,12 @@ class GameSession:
         if entity is not None and stamp_slot:
             # Mirror the client: every EntityMoved stamps A.m = positionInParent.
             entity.board_slot = position
+        destination = self.board_state.get_entity(destination_id)
+        if isinstance(destination, LegendPokemonEntity):
+            # A LEGEND's halves take server child slots but are not client
+            # attachments: an attachment's client position skips them.
+            position -= sum(isinstance(child, LegendHalfEntity)
+                            for child in destination.children[:position])
         return self._build_msg(
             OutboundMsg.ENTITY_MOVED.value,
             {
@@ -2436,13 +2446,21 @@ class GameSession:
                             owner_id, own) or area
                 destinations[entity.entity_id] = area
             moves = []
-            for entity in stack:
-                area = destinations[entity.entity_id]
-                position = len(area.children)
-                if self.board_state.move_card(entity.entity_id, area.entity_id):
-                    moves.append(self._entity_moved_msg(
-                        entity.entity_id, area.entity_id, position
-                    ))
+            if isinstance(pokemon, LegendPokemonEntity):
+                # The halves go where the Pokemon would; every other member
+                # keeps the destination decided above.
+                moves, _ = legends.depart_legend(
+                    self, pokemon, destinations[pokemon.entity_id],
+                    destinations=destinations)
+                stack = [m for m in stack if m is not pokemon]
+            else:
+                for entity in stack:
+                    area = destinations[entity.entity_id]
+                    position = len(area.children)
+                    if self.board_state.move_card(entity.entity_id, area.entity_id):
+                        moves.append(self._entity_moved_msg(
+                            entity.entity_id, area.entity_id, position
+                        ))
             # Every Pokemon in the stack (the KO'd top plus any tucked
             # pre-evolutions) sheds Special Conditions, attack locks, and any
             # turn-scoped stat-modifier PiPs (Power Tablet) -- it has left play.
@@ -2741,12 +2759,16 @@ class GameSession:
             return
         stack = [pokemon] + _stack_descendants(pokemon)
         moves = []
-        for entity in stack:
-            position = len(discard.children)
-            if self.board_state.move_card(entity.entity_id, discard.entity_id):
-                moves.append(self._entity_moved_msg(
-                    entity.entity_id, discard.entity_id, position
-                ))
+        if isinstance(pokemon, LegendPokemonEntity):
+            moves, _ = legends.depart_legend(self, pokemon, discard)
+            stack = [m for m in stack if m is not pokemon]
+        else:
+            for entity in stack:
+                position = len(discard.children)
+                if self.board_state.move_card(entity.entity_id, discard.entity_id):
+                    moves.append(self._entity_moved_msg(
+                        entity.entity_id, discard.entity_id, position
+                    ))
         for member in stack:
             if isinstance(member, PokemonEntity):
                 self.clear_pokemon_effects(member)
@@ -3136,6 +3158,8 @@ class GameSession:
     def credit_card_damage(self, player_id: str, entity, amount: int):
         """Accumulates damage per attacking card for the EOG MVP pick."""
         guid = getattr(entity, "archetype_id", None)
+        if isinstance(entity, LegendPokemonEntity):
+            guid = entity.top_half.archetype_id
         if not guid or amount <= 0:
             return
         name = entity.get_attribute(AttrID.NAME)
@@ -4062,6 +4086,8 @@ class GameSession:
         description = entry["selectableAction"]["description"]
         if description == ACTION_PLAY_POKEMON:
             return bool(await self._execute_play_basic(player_id, card))
+        elif description == ACTION_PLAY_LEGEND:
+            return bool(await legends.execute_play(self, player_id, card, entry, target_ids))
         elif description == ACTION_PLAY_ENERGY:
             await self._execute_attach_energy(player_id, card, entry, target_ids)
         elif description == ACTION_ATTACH_TOOL:
@@ -4858,6 +4884,11 @@ class GameSession:
         area = target.parent if target is not None else None
         if not target or not area:
             return False
+        # A LEGEND neither evolves nor is evolved into; a half is not a card
+        # that evolves anything.
+        if isinstance(card, (LegendHalfEntity, LegendPokemonEntity)) \
+                or isinstance(target, LegendPokemonEntity):
+            return False
         # Evolving puts the evolution card into play: Eternal Zone refuses a
         # non-Darkness one however the evolution is driven (hand play, Rare
         # Candy, an Ability).
@@ -5135,6 +5166,9 @@ class GameSession:
         (so the ability announce/orb bracket plays first) instead of sent.
         Returns `incoming`, or None on failure.
         """
+        if isinstance(outgoing, LegendPokemonEntity) \
+                or isinstance(incoming, (LegendHalfEntity, LegendPokemonEntity)):
+            return None
         area = outgoing.parent
         owner_id = outgoing.owning_player_id
         if area is None or owner_id is None or incoming is None \
