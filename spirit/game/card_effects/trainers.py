@@ -268,9 +268,16 @@ async def marnie(ctx):
     await ctx.draw_cards(4, ctx.opponent_id)
 
 
+def opponent_bench_play_targets(board, player_id, card):
+    """Play targets of a single-target gust: the opponent's Benched Pokemon
+    (drag the card onto the one to switch in)."""
+    opponent = _other_player(board, player_id)
+    return _bench_pokemon(board, opponent) if opponent else []
+
+
 async def bosss_orders(ctx):
     """Switch 1 of the opponent's Benched Pokemon with their Active."""
-    target = await ctx.choose_pokemon(
+    target = await ctx.choose_play_target(
         ctx.opponent_bench(), "Choose the opponent's new Active Pokémon"
     )
     if target is not None:

@@ -14,7 +14,8 @@ one is Boss's Orders (Ghetsis), which this pool does not carry. There
 has never been an English "Boss's Orders (Lysandre)".
 """
 
-from spirit.game.card_effects.trainers import bosss_orders, opponent_has_bench
+from spirit.game.card_effects.trainers import (bosss_orders, opponent_has_bench,
+                                               opponent_bench_play_targets)
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import Rarities
 
@@ -30,4 +31,6 @@ card = SupporterCardDef(
     rarity=Rarities.Uncommon,
     effect=bosss_orders,
     condition=opponent_has_bench,
+    play_targets=opponent_bench_play_targets,
+    play_target_prompt="Choose the opponent's new Active Pokémon",
 )

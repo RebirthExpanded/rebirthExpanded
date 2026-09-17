@@ -133,6 +133,7 @@ from .passives import (
     tool_suppressed, special_energy_suppressed,
 )
 from .legal_actions import (
+    trainer_play_target_ids,
     ACTION_PLAY_LEGEND,
     _active_immobilized,
     PANEL_ROW_LIMIT,
@@ -4055,7 +4056,11 @@ class GameSession:
         if len(selection) > 1 and isinstance(selection[1], (list, tuple)):
             for response in selection[1]:
                 if isinstance(response, dict):
-                    target_ids.extend(response.get("entityList") or [])
+                    entities = response.get("entityList") or []
+                    if not isinstance(entities, list) or any(
+                            not isinstance(entity_id, str) for entity_id in entities):
+                        return None
+                    target_ids.extend(entities)
         return entry, target_ids
 
     def _validated_target(
@@ -4096,7 +4101,19 @@ class GameSession:
             await self._execute_evolve(player_id, card, entry, target_ids)
             return self._take_pending_turn_end()
         elif description == ACTION_USE_TRAINER:
-            ends = await self._execute_play_trainer(player_id, card)
+            # A Trainer with play targets may have been dropped on one: the
+            # drop must be one of the declared targets (or absent).
+            targets = trainer_play_target_ids(self.board_state, player_id, card)
+            play_target = None
+            if targets is not None:
+                if not targets or len(target_ids) > 1:
+                    return False
+                if target_ids:
+                    if (not isinstance(target_ids[0], str) or target_ids[0] not in targets
+                            or self._validated_target(entry, target_ids) != target_ids[0]):
+                        return False
+                    play_target = self.board_state.get_entity(target_ids[0])
+            ends = await self._execute_play_trainer(player_id, card, play_target)
             return bool(ends) or self._take_pending_turn_end()
         elif description == ACTION_PLAY_STADIUM:
             await self._execute_play_stadium(player_id, card)
@@ -5272,7 +5289,7 @@ class GameSession:
         )
         return incoming
 
-    async def _execute_play_trainer(self, player_id, card) -> bool:
+    async def _execute_play_trainer(self, player_id, card, play_target=None) -> bool:
         """Plays an Item/Supporter: revealed onto activeTrainer, effect resolves,
         then discarded. Returns True when the effect ended the turn (Rotom Bike)."""
         trainer_area = self.board_state.find_global_area("activeTrainer")
@@ -5309,7 +5326,7 @@ class GameSession:
 
         # Effect dialogs run after placement so both viewers see the card on
         # the trainer slot while the player decides.
-        ctx = await resolve_trainer_effect(self, player_id, card)
+        ctx = await resolve_trainer_effect(self, player_id, card, play_target=play_target)
         logging.info(
             f"[Session {self.game_id}] {self.players[player_id].screen_name} "
             f"played trainer {card.entity_id}."

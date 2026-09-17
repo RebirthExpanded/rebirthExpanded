@@ -981,6 +981,8 @@ class TrainerCardDef(CardDefinition):
         regulation_mark: Optional[str] = None,
         usable_first_turn: bool = False,
         foil: Optional[Foil] = None,
+        play_targets: Optional[Callable] = None,
+        play_target_prompt: str = "Choose a target",
     ):
         super().__init__(
             guid, key, name, collector_number, set_code, rarity,
@@ -990,6 +992,13 @@ class TrainerCardDef(CardDefinition):
         )
         self.effect = effect
         self.condition = condition
+        # Play targets (Spirit-PTCGO 45b14992): (board, player_id, card) ->
+        # the entities the card may be dragged straight onto (Boss's Orders
+        # onto the Benched Pokemon it gusts). The drop decides the target
+        # and the effect reads it through ctx.choose_play_target; dropping
+        # the card on the playmat instead still asks the way it always did.
+        self.play_targets = play_targets
+        self.play_target_prompt = play_target_prompt
         # Exempt from the "no Supporters on turn 1" rule (Team Rocket's Proton).
         self.usable_first_turn = usable_first_turn
         # Trainers have no PIE_ABILITIES slot; declared abilities register for

@@ -633,6 +633,18 @@ def _active_immobilized(board: BoardState, player_id: str) -> bool:
     return any(c in _IMMOBILIZING_CONDITIONS for c in (conditions or []))
 
 
+def trainer_play_target_ids(board: BoardState, player_id: str, card) -> Optional[List[str]]:
+    """The declared play targets of a Trainer as entity ids, or None for a
+    Trainer without targeting (Spirit-PTCGO 45b14992)."""
+    selector = getattr(def_for(card.archetype_id), "play_targets", None)
+    if selector is None:
+        return None
+    return list(dict.fromkeys(
+        target.entity_id for target in selector(board, player_id, card)
+        if board.get_entity(target.entity_id) is target
+    ))
+
+
 def compute_legal_actions(
     board: BoardState,
     state: TurnState,
@@ -779,10 +791,23 @@ def compute_legal_actions(
             # here is the count the search itself would see.
             if searches_deck(definition) and not deck_cards:
                 continue
+            # A Trainer with play targets is dragged onto one of them; the
+            # node is optional (minimum 0) so the playmat drop still works
+            # and the effect asks instead.
+            target_infos = []
+            if trainer_type in (TrainerType.ITEM.value, TrainerType.SUPPORTER.value):
+                targets = trainer_play_target_ids(board, player_id, card)
+                if targets is not None:
+                    if not targets:
+                        continue
+                    node = entity_list_target_info(targets, minimum_to_select=0, forced=False)
+                    node["targetPrompt"] = {"id": definition.play_target_prompt}
+                    target_infos = [node]
             if trainer_type == TrainerType.ITEM.value:
                 entries.append(_target_map_entry(
                     game_id, card.entity_id,
                     action_id_for(card.entity_id, "item"), ACTION_USE_TRAINER,
+                    target_infos,
                 ))
             elif trainer_type == TrainerType.SUPPORTER.value:
                 # Normally Supporters are illegal on turn 1 (going first).
@@ -794,6 +819,7 @@ def compute_legal_actions(
                     entries.append(_target_map_entry(
                         game_id, card.entity_id,
                         action_id_for(card.entity_id, "supporter"), ACTION_USE_TRAINER,
+                        target_infos,
                     ))
             elif trainer_type == TrainerType.STADIUM.value:
                 if not state.stadium_played and not _same_stadium_in_play(board, card):

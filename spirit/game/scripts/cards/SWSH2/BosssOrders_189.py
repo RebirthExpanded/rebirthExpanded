@@ -1,4 +1,5 @@
-from spirit.game.card_effects.trainers import bosss_orders, opponent_has_bench
+from spirit.game.card_effects.trainers import (bosss_orders, opponent_has_bench,
+                                               opponent_bench_play_targets)
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import Rarities
 
@@ -13,5 +14,7 @@ card = SupporterCardDef(
     set_code="SWSH2",
     rarity=Rarities.RareUltra,
     effect=bosss_orders,
-    condition=opponent_has_bench
+    condition=opponent_has_bench,
+    play_targets=opponent_bench_play_targets,
+    play_target_prompt="Choose the opponent's new Active Pokémon",
 )
