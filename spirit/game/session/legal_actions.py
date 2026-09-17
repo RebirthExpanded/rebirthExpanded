@@ -33,6 +33,7 @@ from .constants import (
     SelectionKind,
 )
 from .passives import (
+    granted_extra_attacks_with_owner,
     ability_locked,
     abilities_disabled,
     attack_effects_blocked,
@@ -1012,6 +1013,96 @@ def _same_stadium_in_play(board: BoardState, card: TrainerEntity) -> bool:
     )
 
 
+# The floating attack panel is a fixed list, not a scroll list: past this
+# many rows it runs off the screen. Borrowed attacks (Mew ex's Memory
+# Spiral, Ditto's Sudden Transformation) that would push a Pokemon past it
+# collapse into one "Borrowed Attacks" row that opens the scrollable
+# attack-choice list (the Genome Hacking picker) instead.
+PANEL_ROW_LIMIT = 5
+BORROWED_ATTACKS_VERB = "borrowed-attacks"
+BORROWED_ATTACKS_TITLE = "Borrowed Attacks"
+
+
+def borrowed_attacks_action_id(pokemon_entity_id: str) -> str:
+    """The synthetic attack row's abilityID for `pokemon`."""
+    return action_id_for(pokemon_entity_id, BORROWED_ATTACKS_VERB)
+
+
+def borrowed_attacks_row(pokemon_entity_id: str, count: int) -> Dict[str, Any]:
+    """The PIE_ABILITIES row standing in for `count` borrowed attacks."""
+    return {
+        "abilityType": "Attack",
+        "title": {"id": BORROWED_ATTACKS_TITLE},
+        "gameText": {"id": f"Choose 1 of the {count} attacks this Pok\u00e9mon can "
+                           "use from other cards."},
+        "abilityID": borrowed_attacks_action_id(pokemon_entity_id),
+        "cost": {},
+        "damage": 0,
+        "amountOperator": "",
+    }
+
+
+def attack_usable(
+    board: BoardState, state: TurnState, player_id: str, active: PokemonEntity,
+    ability_id: str, cost_dict: Dict[str, int], energies, immobilized: bool,
+    first_turn_ok: bool,
+) -> bool:
+    """Every gate one attack row of the Active passes before it is offered:
+    locks, Festival Lead's printed-only repeat, Special Conditions, the
+    turn-1 ban, VSTAR/GX usage, the attack's own condition, and the Energy
+    cost after cost-modifying passives."""
+    if state.attack_locked(active.entity_id, ability_id):
+        return False
+    definition = ABILITIES_BY_ID.get(ability_id)
+    # Festival Lead's extra attack repeats an attack this Pokemon HAS, so
+    # one lent by a Tool or an Energy is not on offer for it.
+    if state.attacks_used and state.extra_attack_printed_only \
+            and getattr(definition, "is_granted", False):
+        return False
+    # Asleep/Paralyzed suppression, per-attack exemptable (Windup Arm).
+    if immobilized and not getattr(definition, "usable_despite_conditions", False):
+        return False
+    # The player going first cannot attack on turn 1 unless the attack
+    # explicitly allows it (Indeedee's Watch Over).
+    if not (first_turn_ok or getattr(definition, "usable_first_turn", False)):
+        return False
+    if definition is not None and definition.vstar \
+            and player_id in state.vstar_used:
+        return False
+    if definition is not None and definition.gx \
+            and not state.gx_available(player_id, active, board):
+        return False
+    # Attack usage restriction ("You can use this attack only if...").
+    if definition is not None and definition.condition is not None \
+            and not definition.condition(board, player_id, active):
+        return False
+    # Cost-modifying passives (e.g. Excited Heart) apply here.
+    cost = effective_attack_cost(board, active, cost_dict or {})
+    return attack_cost_satisfied(cost, energies, board)
+
+
+def usable_borrowed_attacks(
+    board: BoardState, state: TurnState, player_id: str, active: PokemonEntity,
+    immobilized: bool = False,
+) -> List[Tuple[Any, Any]]:
+    """The (owner, attack) pairs behind the Borrowed Attacks row that the
+    Active could declare right now."""
+    if attacking_blocked(board, active):
+        return []
+    if immobilized and can_attack_despite_conditions(board, active):
+        immobilized = False
+    first_turn_ok = state.turn_number > 1 or can_attack_first_turn(board, active)
+    energies = board.attached_energies(active)
+    return [
+        (owner, attack)
+        for owner, attack in granted_extra_attacks_with_owner(board, active)
+        if attack.ability_id and attack_usable(
+            board, state, player_id, active, attack.ability_id,
+            attack.to_dict().get("cost") or {}, energies, immobilized,
+            first_turn_ok)
+    ]
+
+
 def _attack_entries(
     board: BoardState, state: TurnState, player_id: str, game_id: str,
     immobilized: bool = False,
@@ -1037,6 +1128,7 @@ def _attack_entries(
         return []
 
     energies = board.attached_energies(active)
+    grouped_id = borrowed_attacks_action_id(active.entity_id)
     entries = []
     for ability in abilities:
         # abilityType carries the PieAbilityDescription class-name hint string.
@@ -1045,33 +1137,15 @@ def _attack_entries(
         ability_id = ability.get("abilityID")
         if not ability_id:
             continue  # legacy scripts without ability IDs can't be offered
-        if state.attack_locked(active.entity_id, ability_id):
-            continue
-        definition = ABILITIES_BY_ID.get(ability_id)
-        # Festival Lead's extra attack repeats an attack this Pokemon HAS, so
-        # one lent by a Tool or an Energy is not on offer for it.
-        if state.attacks_used and state.extra_attack_printed_only                 and getattr(definition, "is_granted", False):
-            continue
-        # Asleep/Paralyzed suppression, per-attack exemptable (Windup Arm).
-        if immobilized and not getattr(definition, "usable_despite_conditions", False):
-            continue
-        # The player going first cannot attack on turn 1 unless the attack
-        # explicitly allows it (Indeedee's Watch Over).
-        if not (first_turn_ok or getattr(definition, "usable_first_turn", False)):
-            continue
-        if definition is not None and definition.vstar \
-                and player_id in state.vstar_used:
-            continue
-        if definition is not None and definition.gx \
-                and not state.gx_available(player_id, active, board):
-            continue
-        # Attack usage restriction ("You can use this attack only if...").
-        if definition is not None and definition.condition is not None \
-                and not definition.condition(board, player_id, active):
-            continue
-        # Cost-modifying passives (e.g. Excited Heart) apply here.
-        cost = effective_attack_cost(board, active, ability.get("cost") or {})
-        if attack_cost_satisfied(cost, energies, board):
+        if ability_id == grouped_id:
+            # The stand-in row: on offer while any attack behind it is.
+            usable = bool(usable_borrowed_attacks(
+                board, state, player_id, active, immobilized))
+        else:
+            usable = attack_usable(
+                board, state, player_id, active, ability_id,
+                ability.get("cost") or {}, energies, immobilized, first_turn_ok)
+        if usable:
             entries.append(_target_map_entry(
                 game_id, active.entity_id, ability_id, ACTION_USE_ATTACK,
                 selection_type=SELECTION_TYPE_PANEL,

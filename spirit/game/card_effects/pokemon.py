@@ -243,16 +243,19 @@ class BorrowedAttacksPassive(Passive):
         self.predicate = predicate
 
     def granted_attacks(self, board, pokemon, carrier):
+        return [a for _, a in self.granted_attacks_with_owner(board, pokemon, carrier)]
+
+    def granted_attacks_with_owner(self, board, pokemon, carrier):
         if carrier is not pokemon:
             return []
-        attacks = []
+        pairs = []
         for card in self.source(board, pokemon):
             if card is pokemon:
                 continue
             if self.predicate is not None and not self.predicate(card):
                 continue
-            attacks.extend(printed_attacks(card))
-        return attacks
+            pairs.extend((card, a) for a in printed_attacks(card))
+        return pairs
 
 
 class SuddenTransformationPassive(BorrowedAttacksPassive):

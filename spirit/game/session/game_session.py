@@ -128,6 +128,11 @@ from .passives import (
     tool_suppressed, special_energy_suppressed,
 )
 from .legal_actions import (
+    _active_immobilized,
+    PANEL_ROW_LIMIT,
+    borrowed_attacks_action_id,
+    borrowed_attacks_row,
+    usable_borrowed_attacks,
     ACTION_ATTACH_TOOL,
     ACTION_EVOLVE,
     ACTION_PLAY_ENERGY,
@@ -4487,12 +4492,20 @@ class GameSession:
                 e.get("damage"), e.get("amountOperator"),
             )
         seen = {_identity(e) for e in entries}
+        borrowed = []
         for attack in granted_extra_attacks(self.board_state, pokemon):
             row = attack.to_dict()
             key = _identity(row)
             if key not in seen:
                 seen.add(key)
-                entries.append(row)
+                borrowed.append(row)
+        # The panel is a fixed list: borrowed attacks that would run it off
+        # the screen (Memory Spiral with a full Bench) collapse into one row
+        # that opens the scrollable attack-choice list when declared.
+        if borrowed and len(entries) + len(borrowed) > PANEL_ROW_LIMIT:
+            entries.append(borrowed_attacks_row(pokemon.entity_id, len(borrowed)))
+        else:
+            entries.extend(borrowed)
         return entries
 
     def _break_previous_evolution(self, pokemon: PokemonEntity):
@@ -5461,6 +5474,25 @@ class GameSession:
     async def _execute_attack(self, player_id, card, entry) -> bool:
         """Resolves an attack through the effect engine; attacking ends the turn."""
         action_id = entry["selectableAction"]["actionID"]
+        if action_id == borrowed_attacks_action_id(card.entity_id):
+            # The Borrowed Attacks stand-in: pick the real attack from the
+            # scrollable list, then declare THAT one -- it is this Pokemon's
+            # attack in every rules sense (cost paid, locks, "can't use next
+            # turn"), not a copy.
+            candidates = usable_borrowed_attacks(
+                self.board_state, self.turn_state, player_id, card,
+                immobilized=_active_immobilized(self.board_state, player_id))
+            if not candidates:
+                logging.warning(
+                    f"[Session {self.game_id}] Borrowed Attacks declared on "
+                    f"{card.entity_id} with nothing usable; ignoring."
+                )
+                return False
+            idx = await self.prompt_attack_selection(
+                player_id, card, candidates, "Choose an attack to use.")
+            if idx is None or not (0 <= idx < len(candidates)):
+                return False
+            action_id = candidates[idx][1].ability_id
         ability = ABILITIES_BY_ID.get(action_id)
         if ability is None:
             logging.warning(

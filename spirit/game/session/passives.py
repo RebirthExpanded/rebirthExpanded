@@ -371,6 +371,15 @@ class Passive:
         Transformation, Memory Capsule); costs/locks still apply normally."""
         return []
 
+    def granted_attacks_with_owner(
+        self, board: BoardState, pokemon: PokemonEntity, carrier: BoardEntity
+    ) -> List[Any]:
+        """The same grants as (owner card, attack) pairs -- the owner is the
+        card the attack is printed on, whose type colours the row when the
+        grants are listed in the scroll panel. Default: the Pokemon itself
+        (Memory Energy gives back its own line's attacks)."""
+        return [(pokemon, a) for a in (self.granted_attacks(board, pokemon, carrier) or [])]
+
     def blocks_trainer_play(
         self, card: BoardEntity, player_id: str, carrier: BoardEntity
     ) -> bool:
@@ -1081,13 +1090,19 @@ def tool_suppressed(board: BoardState, tool: BoardEntity) -> bool:
 
 def granted_extra_attacks(board: BoardState, pokemon: PokemonEntity) -> List[Any]:
     """All passive-granted extra attacks for `pokemon`, deduped by ability_id."""
+    return [a for _, a in granted_extra_attacks_with_owner(board, pokemon)]
+
+
+def granted_extra_attacks_with_owner(board: BoardState, pokemon: PokemonEntity) -> List[Any]:
+    """granted_extra_attacks as (owner card, attack) pairs, same order and
+    dedupe."""
     out: List[Any] = []
     seen = set()
     for passive, carrier in active_passives(board):
-        for attack in passive.granted_attacks(board, pokemon, carrier) or []:
+        for owner, attack in passive.granted_attacks_with_owner(board, pokemon, carrier) or []:
             if attack.ability_id and attack.ability_id not in seen:
                 seen.add(attack.ability_id)
-                out.append(attack)
+                out.append((owner, attack))
     return out
 
 
