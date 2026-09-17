@@ -4,9 +4,10 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 
 async def propagation(ctx):
     """Once per turn, from the discard pile: you may put this Pokemon into
-    your hand. The discard pile is public, so nothing needs revealing."""
-    if not await ctx.ask_yes_no("Put this Pokemon into your hand?"):
-        return
+    your hand. The discard pile is public, so nothing needs revealing.
+
+    No confirmation dialog: clicking the Ability on a discarded Exeggcute
+    IS the "you may" -- the player already chose to use it."""
     await ctx.put_in_hand([ctx.source], reveal=False)
 
 
