@@ -716,8 +716,14 @@ def shuffle_from_discard(predicate, count: int, prompt: str, up_to: bool = False
         candidates = [c for c in ctx.discard_pile() if predicate(c)]
         if not candidates:
             return
-        picks = await ctx.choose_cards(
-            candidates, count, minimum=0 if up_to else None, prompt=prompt)
+        if not up_to and len(candidates) <= count:
+            # A flat "Shuffle N" with N or fewer available takes them all:
+            # nothing to choose (Rescue Stretcher with 3 Pokemon in the
+            # discard), so no browser.
+            picks = list(candidates)
+        else:
+            picks = await ctx.choose_cards(
+                candidates, count, minimum=0 if up_to else None, prompt=prompt)
         if picks:
             await ctx.shuffle_into_deck(picks)
     return effect
