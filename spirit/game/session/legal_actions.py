@@ -758,7 +758,9 @@ def compute_legal_actions(
         elif isinstance(card, EnergyEntity):
             if state.energy_attached or not in_play_ids:
                 continue
-            if state.play_locked(player_id, card):
+            # A hand-play block can name Energy cards too (Ruler of the
+            # Night: no Special Energy from the hand).
+            if state.play_locked(player_id, card)                     or trainer_play_blocked(board, player_id, card):
                 continue
             definition = def_for(card.archetype_id)
             condition = getattr(definition, "attach_condition", None)
