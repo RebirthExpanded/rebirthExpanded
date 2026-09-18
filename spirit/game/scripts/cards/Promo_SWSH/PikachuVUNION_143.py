@@ -29,27 +29,11 @@ Pokemon. The card number 143 is this pool's own for the combined face
 
 from spirit.game.attributes import PokemonTypes, Rarities, SpecialConditions
 from spirit.game.card_effects.attacks_common import condition_attack
+from spirit.game.card_effects.pokemon import union_gain_attack
 from spirit.game.data_utils import Attack, VUnionPokemonDef
-from spirit.game.session.effects import is_basic_energy, is_energy_of_type, is_item_card
+from spirit.game.session.effects import is_item_card
 
 NAME = "com.direwolfdigital.cake.data.archetypes.pokemon.PikachuVUNION.Name"
-
-
-def _basic_lightning(card) -> bool:
-    return is_basic_energy(card) and is_energy_of_type(card, PokemonTypes.LIGHTNING)
-
-
-async def union_gain(ctx):
-    """Up to 2 basic [L] from the discard pile onto this Pokemon."""
-    candidates = [c for c in ctx.discard_pile() if _basic_lightning(c)]
-    if not candidates:
-        return
-    picks = await ctx.choose_cards(
-        candidates, 2, minimum=0,
-        prompt="Choose up to 2 Lightning Energy to attach to this Pokémon.",
-    )
-    for energy in picks:
-        await ctx.attach_energy(energy, ctx.attacker)
 
 
 async def disconnect(ctx):
@@ -58,12 +42,7 @@ async def disconnect(ctx):
     ctx.lock_plays(ctx.opponent_id, is_item_card)
 
 
-UNION_GAIN = Attack(
-    title="Union Gain",
-    game_text="Attach up to 2 {L} Energy cards from your discard pile to this Pokémon.",
-    cost={PokemonTypes.COLORLESS: 1},
-    effect=union_gain,
-)
+UNION_GAIN = union_gain_attack(PokemonTypes.LIGHTNING)
 SHOCKING_SHOCK = Attack(
     title="Shocking Shock",
     game_text="Flip a coin. If heads, your opponent's Active Pokémon is now Paralyzed.",

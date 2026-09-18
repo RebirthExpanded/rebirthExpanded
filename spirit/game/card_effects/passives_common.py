@@ -657,6 +657,23 @@ class OmegaBarrierPassive(Passive):
         return affected_entity is not None and affected_entity is carrier
 
 
+class ItemEffectShieldPassive(Passive):
+    """"Whenever your opponent plays an Item card from their hand, prevent
+    all effects of that card done to this Pokemon" (Greninja V-UNION's
+    Ninja Body): Omega Barrier's shape, Items only."""
+
+    def blocks_trainer_effects(self, affected_player_id, trainer_card,
+                               trainer_type, carrier, affected_entity=None,
+                               board=None):
+        if trainer_type != TrainerType.ITEM.value:
+            return False
+        return affected_entity is not None and affected_entity is carrier
+
+
+def item_effect_shield_passive() -> Passive:
+    return ItemEffectShieldPassive()
+
+
 def trainer_effect_shield_passive(supporters_only=True, protects=None,
                                   while_active=False, condition=None) -> Passive:
     """Dew Guard shape; the engine already scopes it to effects a DIFFERENT

@@ -18,6 +18,7 @@ from spirit.game.session.effects import (
     is_basic_energy,
     is_basic_pokemon,
     is_colorless_no_rule_box,
+    is_energy_of_type,
     is_pokemon_card,
     is_special_energy,
     is_supporter_card,
@@ -1525,6 +1526,41 @@ def stage_one_type_grant(pokemon_type) -> Passive:
 
 
 # --- Pokemon V-UNION: the assembly rule printed on every piece --------------
+
+def union_gain_attack(energy_type):
+    """"Union Gain [C]: Attach up to 2 <type> Energy cards from your discard
+    pile to this Pokemon." -- the attack every V-UNION's top-left piece
+    prints, for its own type."""
+    type_value = getattr(energy_type, "value", energy_type)
+    symbol = {
+        PokemonTypes.GRASS.value: "G", PokemonTypes.FIRE.value: "R",
+        PokemonTypes.WATER.value: "W", PokemonTypes.LIGHTNING.value: "L",
+        PokemonTypes.PSYCHIC.value: "P", PokemonTypes.FIGHTING.value: "F",
+        PokemonTypes.DARKNESS.value: "D", PokemonTypes.METAL.value: "M",
+        PokemonTypes.FAIRY.value: "Y", PokemonTypes.DRAGON.value: "N",
+    }.get(type_value, "C")
+
+    def _basic_of_type(card) -> bool:
+        return is_basic_energy(card) and is_energy_of_type(card, type_value)
+
+    async def effect(ctx):
+        candidates = [c for c in ctx.discard_pile() if _basic_of_type(c)]
+        if not candidates:
+            return
+        picks = await ctx.choose_cards(
+            candidates, 2, minimum=0,
+            prompt="Choose up to 2 Energy to attach to this Pokémon.",
+        )
+        for energy in picks:
+            await ctx.attach_energy(energy, ctx.attacker)
+
+    return Attack(
+        title="Union Gain",
+        game_text=f"Attach up to 2 {{{symbol}}} Energy cards from your discard pile to this Pokémon.",
+        cost={PokemonTypes.COLORLESS: 1},
+        effect=effect,
+    )
+
 
 def vunion_assembly_ability(display_name: str):
     """"Once per game, during your turn, you may put 4 different <name>

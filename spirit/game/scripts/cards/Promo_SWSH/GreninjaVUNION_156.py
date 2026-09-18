@@ -1,0 +1,41 @@
+"""Greninja V-UNION, top-right piece (SWSH Promo 156 -- JP Special Card Set
+002/013, the art here).
+
+One of the four Pokemon V-UNION cards. This piece prints Ninja Body and Aqua Edge [W] 130;
+the Pokemon that stands on the board is GreninjaVUNION_901 (HP 300, everything
+the four print, 3 Prizes). A piece is a Pokemon card -- a Pokemon V with a
+rule box -- that can't be played from hand and never stands alone: the four
+combine from the discard pile, once per game, through the rule offered on
+each piece there (not an Ability: no lock reaches it).
+"""
+
+from spirit.game.attributes import PokemonTypes, Rarities
+from spirit.game.card_effects.pokemon import vunion_assembly_ability
+from spirit.game.data_utils import VUnionPieceCardDef, sibling_card
+
+_UNION = sibling_card(__file__, "GreninjaVUNION_901.py")
+
+card = VUnionPieceCardDef(
+    vunion="Promo_SWSH/GreninjaVUNION_901",
+    position="top-right",
+    guid="2a2f3ac6-198d-55b8-a9a3-3b208b584d40",
+    key="Promo_SWSH",
+    name=_UNION.name,
+    display_name="Greninja V-UNION",
+    searchable_by=["Greninja V-UNION", "V-UNION", "GreninjaVUNION"],
+    subtypes=["V-UNION"],
+    collector_number=156,
+    set_code="Promo_SWSH",
+    regulation_mark="E",
+    rarity=Rarities.RareUltra,
+    hp=300,
+    elements=[PokemonTypes.WATER],
+    retreat_cost=2,
+    weakness_type=PokemonTypes.LIGHTNING,
+    family_id=658,
+    abilities=[
+        vunion_assembly_ability("Greninja V-UNION"),
+        _UNION.abilities[1],
+        _UNION.abilities[2],
+    ],
+)
