@@ -419,8 +419,10 @@ def check_and_generate_bundles() -> int:
                     
                     card_def = module.card
                     # A combined LEGEND is a runtime-only definition with no
-                    # card face of its own: its halves carry the art.
-                    if getattr(card_def, "runtime_only", False):
+                    # card face of its own: its halves carry the art. A
+                    # combined V-UNION stands on the board as an ordinary
+                    # Pokemon, so its face ships when the art exists.
+                    if getattr(card_def, "runtime_only", False) and not os.path.exists(png_path):
                         continue
                     set_code = card_def.set_code
                     asset_name = str(card_def.collector_number).zfill(3)

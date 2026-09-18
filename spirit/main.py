@@ -67,11 +67,15 @@ def main():
     from spirit.game.tournament_manager import TournamentManager
     TournamentManager()
 
-    # 1. Ensure asset_map.json exists for first-time setup
+    # 1. Ensure asset_map.json exists for first-time setup. It is a
+    # generated, git-ignored file the bundler fills in as it builds; an
+    # empty map just makes every set bundle rebuild once.
     map_path = "spirit/server/asset_map.json"
     if not os.path.exists(map_path):
-        logging.info("ERROR: [Main] asset_map.json not found.")
-        return
+        logging.warning("[Main] asset_map.json not found; creating an empty one "
+                        "(all card bundles will be rebuilt).")
+        with open(map_path, "w") as f:
+            f.write("{}")
 
     # 2. Run the auto bundle generation
     check_and_generate_bundles()

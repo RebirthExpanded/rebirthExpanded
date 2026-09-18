@@ -275,11 +275,11 @@ def create_card_set_bundle(png_mapping, template_path, target_bundle_name, keep_
     update_asset_map_bulk(bundle_logical_name, list(png_mapping.keys()))
 
 def update_asset_map_bulk(bundle_name, asset_names):
-    if not os.path.exists(ASSET_MAP_PATH):
-        return
     try:
-        with open(ASSET_MAP_PATH, "r") as f:
-            amap = json.load(f)
+        amap = {}
+        if os.path.exists(ASSET_MAP_PATH):
+            with open(ASSET_MAP_PATH, "r") as f:
+                amap = json.load(f)
         amap[bundle_name] = asset_names
         with open(ASSET_MAP_PATH, "w") as f:
             json.dump(amap, f)
