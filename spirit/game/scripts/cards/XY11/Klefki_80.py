@@ -22,7 +22,8 @@ the card follows from that:
 
 - The "no damage from Mega Evolution Pokemon" clause is the card's own
   passive, live only while it is a Tool and only for its holder. Mega
-  Evolution Pokemon are the XY "MEGA" cards and the Mega Evolution ex.
+  Evolution Pokemon are the XY "MEGA" cards; the SV Mega Evolution ex
+  are not covered (ruling).
 - "Discard this card at the end of your opponent's turn" is the Tool's
   text, so Jamming Tower (Tools have no effect) keeps it on the Pokemon,
   while an Ability lock does not stop the discard (it is no Ability) --
@@ -40,7 +41,9 @@ from spirit.game.session.passives import tool_slots_free
 
 
 def _is_mega(pokemon) -> bool:
-    return any(s in ("MEGA", "SV_Mega") for s in subtypes_for(pokemon.archetype_id))
+    # The XY-era Mega Evolution Pokemon ("M ...-EX") only: the SV Mega
+    # Evolution ex are not "Mega Evolution Pokemon" to this text (ruling).
+    return "MEGA" in subtypes_for(pokemon.archetype_id)
 
 
 def _wonder_lock_shield(calc, carrier) -> bool:
