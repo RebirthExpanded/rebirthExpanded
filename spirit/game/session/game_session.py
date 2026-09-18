@@ -1550,6 +1550,12 @@ class GameSession:
             pokemon.acts_as_energy = False
             pokemon.set_attribute(AttrID.ENERGY_INFO, None)
             pokemon.set_attribute(AttrID.IS_SPECIAL_ENERGY, False)
+        # A Pokemon card attached "as a Pokemon Tool" (Wonder Lock) is a
+        # Pokemon card again once it leaves the Pokemon it rode.
+        if getattr(pokemon, "acts_as_tool", False):
+            pokemon.acts_as_tool = False
+            pokemon.discard_at_opponents_turn_end = False
+            pokemon.set_attribute(AttrID.TRAINER_TYPE, None)
         entity_id = pokemon.entity_id
         state = self.turn_state
         for key in [k for k in state.attack_locks if k[0] == entity_id]:
@@ -3862,6 +3868,7 @@ class GameSession:
             await self._run_player_turn(active_id)
             await self._wait_for_connection_resume()
             await self._run_state_unit(self._fire_end_of_turn_triggers(active_id))
+            await self._run_state_unit(self._discard_expiring_tool_cards(active_id))
             await self._run_state_unit(self._resolve_scheduled_knockouts())
             await self._run_state_unit(self._expire_visualizations(
                 "end", active_id, self.turn_state.turn_number))
@@ -4292,6 +4299,29 @@ class GameSession:
         for pokemon in list(self.board_state.pokemon_in_play(active_id)):
             await self._fire_triggered_abilities(
                 active_id, pokemon, Triggers.END_OF_TURN)
+
+    async def _discard_expiring_tool_cards(self, active_id: str):
+        """A Pokemon card attached as a Tool that reads "discard this card
+        at the end of your opponent's turn" (Klefki's Wonder Lock) goes to
+        its owner's discard pile when the OTHER player's turn ends. The
+        discard is the Tool's own text: Jamming Tower (Tools have no
+        effect) keeps it on, an Ability lock does not (it is no Ability)."""
+        due = []
+        for pid in self.board_state.player_ids:
+            if pid == active_id:
+                continue
+            for pokemon in self.board_state.pokemon_in_play(pid):
+                for child in _stack_descendants(pokemon):
+                    if getattr(child, "acts_as_tool", False) \
+                            and getattr(child, "discard_at_opponents_turn_end", False) \
+                            and not tool_suppressed(self.board_state, child):
+                        due.append((pid, pokemon, child))
+        if not due:
+            return
+        for pid, holder, card in due:
+            ctx = EffectContext(self, pid, holder, None)
+            await ctx.discard_cards([card])
+            await self._flush_effect_runs(ctx)
 
     async def _resolve_scheduled_knockouts(self):
         """"At the end of your opponent's next turn, the Defending Pokemon

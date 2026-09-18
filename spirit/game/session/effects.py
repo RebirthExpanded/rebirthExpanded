@@ -65,6 +65,7 @@ from .passives import (
     effective_bench_capacity,
     effective_heal_amount,
     effective_max_hp,
+    tool_slots_free,
     effective_pokemon_types,
     energy_removal_blocked,
     healing_blocked,
@@ -2274,6 +2275,35 @@ class EffectContext:
                 lambda e=energy, p=pokemon: self.session.fire_energy_attached_triggers(
                     self.player_id, e, p))
         await self.enforce_attachment_restrictions(pokemon)
+        return True
+
+    async def attach_as_tool(self, card: CardEntity, pokemon: PokemonEntity) -> bool:
+        """Attaches `card` underneath `pokemon` as a Pokemon Tool by effect
+        (Klefki's Wonder Lock: a Pokemon card wearing a Tool's TRAINER_TYPE
+        while attached; the flag comes off in clear_pokemon_effects when it
+        leaves). Honours the Tool slot limit; a card already in play leaves
+        its spot with its effects, damage and usage cleared."""
+        if card is None or pokemon is None or self._stadium_effect_prevented(pokemon):
+            return False
+        if tool_slots_free(self.board, pokemon) <= 0:
+            return False
+        if isinstance(card, PokemonEntity):
+            self.session.clear_pokemon_effects(card)
+            self.session.reset_pokemon_damage(card)
+            self.session.reset_ability_usage(card)
+            self._queue_departed_visualizations(card)
+            card.acts_as_tool = True
+            card.set_attribute(AttrID.TRAINER_TYPE, TrainerType.POKEMON_TOOL.value)
+        position = len(pokemon.children)
+        max_before = effective_max_hp(self.board, pokemon)
+        if not self.board.attach_card(card.entity_id, pokemon.entity_id):
+            if isinstance(card, PokemonEntity):
+                card.acts_as_tool = False
+                card.set_attribute(AttrID.TRAINER_TYPE, None)
+            return False
+        self._queue_intro_and_move(card, pokemon.entity_id, position)
+        await self.session._refresh_max_hp(pokemon, max_before)
+        await self.session.refresh_granted_abilities(pokemon)
         return True
 
     async def move_energy(self, energy: CardEntity, to_pokemon: PokemonEntity) -> bool:

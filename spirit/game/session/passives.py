@@ -824,8 +824,12 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
                                 and ability.ability_type != AbilityTypes.ANCIENT_TRAIT)
                     triples.append((ability.passive, pokemon, lockable))
             for attachment in _descendants(pokemon):
-                if isinstance(attachment, PokemonEntity):
-                    continue  # tucked pre-evolutions contribute nothing
+                # Tucked pre-evolutions contribute nothing; a Pokemon card
+                # attached "as a Pokemon Tool" (Klefki's Wonder Lock) is a
+                # Tool here and its card passive rides it like a Tool's.
+                if isinstance(attachment, PokemonEntity) \
+                        and not getattr(attachment, "acts_as_tool", False):
+                    continue
                 definition = def_for(attachment.archetype_id)
                 passive = getattr(definition, "passive", None)
                 if passive is not None:

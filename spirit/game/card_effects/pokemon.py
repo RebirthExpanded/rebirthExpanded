@@ -1439,7 +1439,7 @@ def tucked_under(pokemon) -> list:
     stack = list(pokemon.children)
     while stack:
         entity = stack.pop()
-        if isinstance(entity, PokemonEntity):
+        if isinstance(entity, PokemonEntity) and not getattr(entity, "acts_as_tool", False):
             out.append(entity)
             stack.extend(entity.children)
     return out
