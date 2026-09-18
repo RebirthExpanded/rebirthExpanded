@@ -64,7 +64,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.GRASS,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Frogadier.Name",
-    family_id=658,
+    family_id=656,
     bench_from_hand=_last_card_in_hand,
     abilities=[
         Ability(

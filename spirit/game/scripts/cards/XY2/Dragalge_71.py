@@ -40,7 +40,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.FAIRY,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Skrelp.Name",
-    family_id=691,
+    family_id=690,
     abilities=[
         Ability(
             title="Poison Barrier",

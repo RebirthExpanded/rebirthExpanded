@@ -74,7 +74,7 @@ card = PokemonCardDef(
     resistance_type=PokemonTypes.FIGHTING,
     resistance_amount=20,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Murkrow.Name",
-    family_id=430,
+    family_id=198,
     abilities=[
         Ability(
             title="Ruler of the Night",

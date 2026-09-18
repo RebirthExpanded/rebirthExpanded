@@ -46,7 +46,7 @@ card = PokemonCardDef(
     resistance_type=PokemonTypes.WATER,
     resistance_amount=20,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Roselia.Name",
-    family_id=407,
+    family_id=315,
     abilities=[
         Ability(
             title="Le Parfum",

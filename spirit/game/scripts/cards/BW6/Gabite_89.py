@@ -37,7 +37,7 @@ card = PokemonCardDef(
     retreat_cost=1,
     weakness_type=PokemonTypes.DRAGON,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Gible.Name",
-    family_id=444,
+    family_id=443,
     abilities=[
         Ability(
             title="Dragon Call",

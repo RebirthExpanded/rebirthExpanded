@@ -39,7 +39,7 @@ card = PokemonCardDef(
     retreat_cost=2,
     weakness_type=PokemonTypes.FIRE,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Fomantis.Name",
-    family_id=754,
+    family_id=753,
     abilities=[
         Ability(
             title="Sunny Day",

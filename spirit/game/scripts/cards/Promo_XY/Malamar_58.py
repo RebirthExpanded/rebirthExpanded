@@ -57,7 +57,7 @@ card = PokemonCardDef(
     resistance_type=PokemonTypes.PSYCHIC,
     resistance_amount=20,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Inkay.Name",
-    family_id=687,
+    family_id=686,
     abilities=[
         Ability(
             title="θ Stop",

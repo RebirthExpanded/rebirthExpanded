@@ -38,7 +38,7 @@ card = PokemonCardDef(
     resistance_type=PokemonTypes.DARKNESS,
     resistance_amount=20,
     evolves_from="com.direwolfdigital.cake.data.archetypes.pokemon.Swirlix.Name",
-    family_id=685,
+    family_id=684,
     abilities=[
         Ability(
             title="Tasting",
