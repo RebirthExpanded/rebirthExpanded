@@ -213,6 +213,12 @@ class Passive:
         """True to turn off `pokemon`'s Abilities (Path to the Peak style)."""
         return False
 
+    def blocks_ability(self, pokemon: PokemonEntity, ability, carrier: BoardEntity) -> bool:
+        """True to take ONE named Ability away from `pokemon` (Psyduck's
+        Damp: "lose any Ability that requires the Pokemon using it to Knock
+        Out itself"), leaving its other Abilities alone."""
+        return False
+
     def blocks_trainer_targeting(self, target: BoardEntity, carrier: BoardEntity) -> bool:
         """True to shield `target` from being touched by Item and Supporter
         cards at all (Thunder Mountain shields itself from Field Blower).
@@ -1002,6 +1008,14 @@ def _locks_abilities_of(
                 continue
         return True
     return False
+
+
+def ability_disabled(board: BoardState, pokemon: PokemonEntity, ability) -> bool:
+    """Whether an active passive takes this one `ability` away from
+    `pokemon` (Damp). Evaluated on the FILTERED set: Damp is an Ability, so
+    a Pokemon whose Abilities are locked contributes no such passive."""
+    return any(passive.blocks_ability(pokemon, ability, carrier)
+               for passive, carrier in active_passives(board))
 
 
 def ability_locked(board: BoardState, pokemon: PokemonEntity) -> bool:

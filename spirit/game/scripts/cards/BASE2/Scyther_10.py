@@ -1,4 +1,5 @@
-from spirit.game.data_utils import PokemonCardDef, Attack, unimplemented
+from spirit.game.data_utils import PokemonCardDef, Attack
+from spirit.game.card_effects.passives_common import boost_own_next_turn
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
 
 card = PokemonCardDef(
@@ -23,7 +24,8 @@ card = PokemonCardDef(
             title="Swords Dance",
             game_text="During your next turn, Scyther's Slash attack's base damage is 60 instead of 30.",
             cost={PokemonTypes.GRASS: 1},
-            effect=unimplemented,
+            # "base damage is 60 instead of 30": +30 on Slash during your next turn.
+            effect=boost_own_next_turn(30, attack_title="Slash"),
         ),
         Attack(
             title="Slash",

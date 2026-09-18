@@ -99,6 +99,7 @@ card = PokemonCardDef(
             activation=Activations.ONCE_PER_TURN,
             condition=_lightning_pokemon_besides_self,
             effect=buzzap_thunder,
+            self_knockout=True,
         ),
         Attack(
             title="Head Bolt",

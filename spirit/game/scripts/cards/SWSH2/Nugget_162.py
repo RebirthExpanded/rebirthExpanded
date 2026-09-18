@@ -34,4 +34,6 @@ card = ItemCardDef(
     rarity=Rarities.Uncommon,
     condition=_turn_drawn,
     effect=_nugget,
+    # Played before it enters the hand: Item locks don't apply.
+    played_before_hand=True,
 )

@@ -19,10 +19,10 @@ holder; nor is your own Garbodor an opponent's Ability, so it still silences
 your own hooded Pokemon. Wobbuffet's Bide Barricade, being an opposing
 Pokemon's Ability, is stopped.
 
-NOT modelled: "Remove any such existing effects." A lock lifts by itself the
-moment the Hood goes on, because it is re-read on every query, but an effect
-already spent -- damage counters an Ability placed, a card it already
-discarded -- cannot be taken back.
+"Remove any such existing effects." is the lock lifting: a lock is re-read
+on every query, so it is gone the moment the Hood goes on. An effect
+already resolved -- damage counters an Ability placed, a card it already
+discarded -- is not an "existing effect" and stays (ruling confirmed).
 """
 
 from spirit.game.data_utils import PokemonToolCardDef

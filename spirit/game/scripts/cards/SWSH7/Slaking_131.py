@@ -1,5 +1,6 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
+from spirit.game.card_effects.pokemon import attack_gate_ability
 from spirit.game.card_effects.attacks_common import damage_per, count_bench
 
 
@@ -36,7 +37,7 @@ card = PokemonCardDef(
             cost={PokemonTypes.COLORLESS: 3},
             damage=120,
             damage_operator="+",
-            condition=_no_stadium_in_play,
+            condition=attack_gate_ability(_no_stadium_in_play),
             effect=damage_per(count_bench("opponent"), 30, base=120),
         ),
     ],

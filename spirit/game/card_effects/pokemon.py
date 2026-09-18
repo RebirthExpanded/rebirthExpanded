@@ -25,7 +25,7 @@ from spirit.game.session.effects import (
     is_trainer_card,
 )
 from spirit.game.session.passives import (
-    bench_space,
+    ability_locked, bench_space,
     Passive, carrier_pokemon, effective_bench_capacity,
 )
 from spirit.game.models.board import PokemonEntity
@@ -1526,6 +1526,18 @@ def stage_one_type_grant(pokemon_type) -> Passive:
 
 
 # --- Pokemon V-UNION: the assembly rule printed on every piece --------------
+
+def attack_gate_ability(condition):
+    """An attack gate that is an ABILITY's text ("Power Saver: this Pokemon
+    can't attack unless...", "Kinda Lazy", "Act Freely", "Movement
+    Restriction"): while the Pokemon's Abilities are locked (Path to the
+    Peak, Garbotoxin), the restriction is gone and the attack is usable."""
+    def gate(board, player_id, pokemon=None):
+        if pokemon is not None and ability_locked(board, pokemon):
+            return True
+        return condition(board, player_id, pokemon)
+    return gate
+
 
 def union_gain_attack(energy_type):
     """"Union Gain [C]: Attach up to 2 <type> Energy cards from your discard

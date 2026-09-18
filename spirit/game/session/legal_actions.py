@@ -39,6 +39,7 @@ from .constants import (
 from .passives import (
     putting_into_play_blocked,
     granted_extra_attacks_with_owner,
+    ability_disabled,
     ability_locked,
     abilities_disabled,
     attack_effects_blocked,
@@ -778,10 +779,13 @@ def compute_legal_actions(
 
         elif isinstance(card, TrainerEntity):
             trainer_type = card.get_attribute(AttrID.TRAINER_TYPE)
-            if state.play_locked(player_id, card) \
-                    or trainer_play_blocked(board, player_id, card):
-                continue
             definition = def_for(card.archetype_id)
+            # A card played before it reaches the hand (Nugget) is not a
+            # play from the hand: no Item lock reaches it.
+            if not getattr(definition, "played_before_hand", False) \
+                    and (state.play_locked(player_id, card)
+                         or trainer_play_blocked(board, player_id, card)):
+                continue
             condition = getattr(definition, "condition", None)
             if condition is not None \
                     and not trainer_condition_met(condition, board, player_id, card):
@@ -895,6 +899,9 @@ def _ability_entries(
             # fossil's discard, Lillie's Poke Doll's return) is no Ability
             # at all, so no lock reaches it.
             if locked and not ability.is_granted and not ability.rules_text:
+                continue
+            # Damp takes one Ability away, the rest of the card stays.
+            if ability_disabled(board, pokemon, ability):
                 continue
             if ability.activation != Activations.UNLIMITED \
                     and (pokemon.entity_id, ability_id) in state.used_abilities:

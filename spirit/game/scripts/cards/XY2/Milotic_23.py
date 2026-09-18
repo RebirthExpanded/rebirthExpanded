@@ -97,6 +97,7 @@ card = PokemonCardDef(
             activation=Activations.ONCE_PER_TURN,
             condition=_energy_grace_condition,
             effect=energy_grace,
+            self_knockout=True,
         ),
         Attack(title="Waterfall", game_text="",
                cost={PokemonTypes.WATER: 1, PokemonTypes.COLORLESS: 2}, damage=60),

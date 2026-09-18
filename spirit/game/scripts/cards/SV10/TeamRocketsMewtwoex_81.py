@@ -1,5 +1,6 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, def_for
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
+from spirit.game.card_effects.pokemon import attack_gate_ability
 
 
 def _is_team_rockets(pokemon) -> bool:
@@ -60,7 +61,7 @@ card = PokemonCardDef(
             cost={PokemonTypes.PSYCHIC: 2, PokemonTypes.COLORLESS: 1},
             damage=160,
             damage_operator="+",
-            condition=_power_saver_ok,
+            condition=attack_gate_ability(_power_saver_ok),
             effect=erasure_ball,
         ),
     ],

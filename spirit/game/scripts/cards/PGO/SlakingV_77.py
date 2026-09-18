@@ -1,5 +1,6 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
+from spirit.game.card_effects.pokemon import attack_gate_ability
 
 
 def _prizes_remaining(board, player_id):
@@ -36,7 +37,7 @@ card = PokemonCardDef(
             title="Heavy Impact",
             cost={PokemonTypes.COLORLESS: 4},
             damage=260,
-            condition=_kinda_lazy_condition,
+            condition=attack_gate_ability(_kinda_lazy_condition),
         ),
     ],
 )

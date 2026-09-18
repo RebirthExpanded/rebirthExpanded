@@ -1,4 +1,10 @@
-from spirit.game.data_utils import PokemonCardDef, Attack, unimplemented
+from spirit.game.data_utils import PokemonCardDef, Attack, subtypes_for
+from spirit.game.card_effects.attacks_common import bonus_if
+
+
+def _defender_is_tera(ctx) -> bool:
+    defender = ctx.defender
+    return defender is not None and "Tera" in subtypes_for(defender.archetype_id)
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
 
 card = PokemonCardDef(
@@ -25,7 +31,7 @@ card = PokemonCardDef(
             cost={PokemonTypes.COLORLESS: 4},
             damage=100,
             damage_operator="+",
-            effect=unimplemented,
+            effect=bonus_if(_defender_is_tera, 230),
         ),
     ],
 )

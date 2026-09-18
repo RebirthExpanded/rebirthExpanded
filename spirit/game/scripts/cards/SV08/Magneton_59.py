@@ -49,6 +49,7 @@ card = PokemonCardDef(
             game_text="Once during your turn, you may attach up to 3 Basic Energy cards from your discard pile to your Lightning Pokémon in any way you like. If you use this Ability, this Pokémon is Knocked Out.",
             activation=Activations.ONCE_PER_TURN,
             effect=overvolt_discharge,
+            self_knockout=True,
         ),
         Attack(
             title="Electric Ball",

@@ -114,6 +114,7 @@ card = PokemonCardDef(
             activation=Activations.ONCE_PER_TURN,
             condition=_bomb_condition,
             effect=extra_energy_bomb,
+            self_knockout=True,
         ),
         Attack(
             title="Electro Ball",

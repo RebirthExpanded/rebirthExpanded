@@ -82,6 +82,7 @@ def _clone_ability(ability: "Ability") -> "Ability":
             ends_turn=ability.ends_turn,
             usable_from=ability.usable_from,
             rules_text=ability.rules_text,
+            self_knockout=ability.self_knockout,
         )
     clone.is_granted = ability.is_granted
     return clone
@@ -175,6 +176,10 @@ def reprint(
             searchable_by=list(base.searchable_by or []),
             subtypes=list(base.subtypes or []),
             regulation_mark=new_reg,
+            usable_first_turn=getattr(base, "usable_first_turn", False),
+            play_targets=getattr(base, "play_targets", None),
+            play_target_prompt=getattr(base, "play_target_prompt", "Choose a target"),
+            played_before_hand=getattr(base, "played_before_hand", False),
         )
         if isinstance(base, FossilItemCardDef):
             return FossilItemCardDef(
@@ -579,6 +584,7 @@ class Ability:
         ends_turn: bool = False,
         usable_from: Optional[str] = None,
         rules_text: bool = False,
+        self_knockout: bool = False,
     ):
         self.title = title
         # True for a card's own rules text that is offered LIKE an Ability
@@ -587,6 +593,9 @@ class Ability:
         # to the Peak, Silent Lab -- only switch off Abilities, so they
         # never reach these.
         self.rules_text = rules_text
+        # "If you use this Ability, this Pokemon is Knocked Out" (Buzzap,
+        # Call Signal): what Psyduck's Damp takes away.
+        self.self_knockout = self_knockout
         # 'hand' | 'discard': offered while the card sits in that zone instead
         # of in play (Pyukumuku, Beedrill, Gengar). Hand gets AbilitySelection
         # + OutOfPlay; discard uses OutOfPlay.
@@ -999,7 +1008,13 @@ class TrainerCardDef(CardDefinition):
         foil: Optional[Foil] = None,
         play_targets: Optional[Callable] = None,
         play_target_prompt: str = "Choose a target",
+        played_before_hand: bool = False,
     ):
+        # Nugget: "you may reveal it and play it before putting it into your
+        # hand" -- the play never happens from the hand, so no "can't play
+        # Item cards from your hand" lock (Disconnect, Item lock passives)
+        # reaches it. The offer path skips both lock checks for such a card.
+        self.played_before_hand = played_before_hand
         super().__init__(
             guid, key, name, collector_number, set_code, rarity,
             display_name, searchable_by, subtypes, attributes,

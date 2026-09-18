@@ -1,5 +1,6 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
+from spirit.game.card_effects.pokemon import attack_gate_ability
 from spirit.game.card_effects.attacks_common import recoil_attack
 
 
@@ -37,7 +38,7 @@ card = PokemonCardDef(
             game_text="This Pokémon also does 30 damage to itself.",
             cost={PokemonTypes.PSYCHIC: 2},
             damage=300,
-            condition=_ten_or_more_in_hand,
+            condition=attack_gate_ability(_ten_or_more_in_hand),
             effect=recoil_attack(30),
         ),
     ],
