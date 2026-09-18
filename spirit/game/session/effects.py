@@ -64,6 +64,7 @@ from .passives import (
     bench_space,
     effective_bench_capacity,
     effective_heal_amount,
+    coin_flips_forced_tails,
     effective_max_hp,
     tool_slots_free,
     effective_pokemon_types,
@@ -1073,6 +1074,8 @@ class EffectContext:
             return []
         results = [random.choice([0, 1]) for _ in range(count)]
         self._apply_forced_first_flip(results)
+        if coin_flips_forced_tails(self.board, self.player_id):
+            results = [1] * count
         final = await self._maybe_reroll_attack_coins(
             results, title, source,
             lambda: [random.choice([0, 1]) for _ in range(count)])
@@ -1109,6 +1112,8 @@ class EffectContext:
             results = results[:1]
             while results[-1] == 0:
                 results.append(random.choice([0, 1]))
+        if coin_flips_forced_tails(self.board, self.player_id):
+            results = [1]
         final = await self._maybe_reroll_attack_coins(results, title, None, _run)
         if final is None:
             await self._queue_coin_results(results, title)

@@ -444,6 +444,13 @@ class Passive:
         """True to skip the Burn recovery flip entirely (stays Burned)."""
         return False
 
+    def forces_coin_tails(self, flipper_id: str, carrier: BoardEntity) -> bool:
+        """True to make every coin `flipper_id` flips during their own turn
+        land tails (Malamar's Contrary). Asked of card-effect flips and the
+        in-turn rule flips (Confusion, Smokescreen, an attach tax); never of
+        the Pokemon Checkup or the opening flip."""
+        return False
+
     def tool_capacity(self, pokemon: PokemonEntity, carrier: BoardEntity) -> int:
         """Pokemon Tools `pokemon` may hold (GarbodorVMAX 2); highest wins."""
         return 1
@@ -1678,6 +1685,17 @@ def player_visualizations(board: BoardState, player_id: str) -> List[Dict[str, A
     for passive, carrier in active_passives(board):
         rows.extend(passive.player_visualizations(player_id, carrier) or [])
     return rows
+
+
+def coin_flips_forced_tails(board: BoardState, flipper_id: str) -> bool:
+    """Whether a passive turns every coin `flipper_id` flips during their
+    turn into tails (Contrary). Applied after Will's chosen result -- a
+    heads chosen by Will is still a coin the opponent flipped (ruling)."""
+    turn_state = getattr(board, "turn_state", None)
+    if turn_state is not None and turn_state.active_player_id != flipper_id:
+        return False
+    return any(passive.forces_coin_tails(flipper_id, carrier)
+               for passive, carrier in active_passives(board))
 
 
 def tool_slots_free(board: Optional[BoardState], pokemon: PokemonEntity) -> int:

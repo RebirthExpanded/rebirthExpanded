@@ -134,7 +134,7 @@ from .passives import (
     granted_extra_attacks, player_visualizations,
     mega_evolution_ends_turn, retreat_energy_destination,
     sleep_checkup_coin_count, tool_slots_free,
-    tool_suppressed, special_energy_suppressed,
+    coin_flips_forced_tails, tool_suppressed, special_energy_suppressed,
 )
 from .legal_actions import (
     trainer_play_target_ids,
@@ -4486,6 +4486,8 @@ class GameSession:
         """Slimy Room flip on a manual energy attach: heads (True) proceeds;
         tails discards the energy from hand (revealed) and returns False."""
         flip = random.choice([0, 1])
+        if coin_flips_forced_tails(self.board_state, player_id):
+            flip = 1  # Contrary: the opponent's in-turn coins are all tails
         heads = flip == 0
         self.stat_add(player_id, "headsflipped", 1 if heads else 0)
         self.stat_add(player_id, "tailsflipped", 0 if heads else 1)
@@ -5803,6 +5805,8 @@ class GameSession:
         ends). PokeAbility bracket: M.s runs the L.x flip with no condition
         pop-in (FlipToWakeUp would stamp the Asleep pop-in)."""
         flip = random.choice([0, 1])
+        if coin_flips_forced_tails(self.board_state, player_id):
+            flip = 1  # Contrary: the opponent's in-turn coins are all tails
         heads = flip == 0
         self.stat_add(player_id, "headsflipped", 1 if heads else 0)
         self.stat_add(player_id, "tailsflipped", 0 if heads else 1)
@@ -5828,6 +5832,8 @@ class GameSession:
         """Confused Pokemon flip before attacking: heads proceeds into the
         normal attack; tails hurts the attacker for 30 raw damage instead."""
         flip = random.choice([0, 1])
+        if coin_flips_forced_tails(self.board_state, player_id):
+            flip = 1  # Contrary: the opponent's in-turn coins are all tails
         heads = flip == 0
         self.stat_add(player_id, "headsflipped", 1 if heads else 0)
         self.stat_add(player_id, "tailsflipped", 0 if heads else 1)
