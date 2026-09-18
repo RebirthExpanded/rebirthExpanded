@@ -11,9 +11,11 @@ Compressor and Ultra Ball dump the pieces, this puts one back where the
 next draw finds it. put_on_top_of_deck is the same primitive Cyllene uses
 for its discard-to-top clause.
 
-The English print drops the Japanese card's "reveal it" step. Nothing is
-lost by that here -- the discard pile is a public zone, so the opponent has
-already seen every card that could be chosen.
+The Japanese card has a "reveal it" step the English print drops. The
+discard pile is public, but the chosen card flies to the deck top in one
+move the opponent can easily miss, so it is presented to them large
+before it goes (reveal_cards with an explicit viewer: a public-zone card
+is hidden from nobody, so the default viewer set would be empty).
 
 There is nothing to do with an empty discard pile, so the attack checks for
 that rather than opening a chooser with no candidates.
@@ -33,6 +35,7 @@ async def garbage_collection(ctx):
         prompt="Choose a card to put on top of your deck",
     )
     if picks:
+        await ctx.reveal_cards(picks, to_player=ctx.opponent_id)
         await ctx.put_on_top_of_deck(picks[0])
 
 

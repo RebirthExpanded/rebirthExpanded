@@ -1487,8 +1487,12 @@ class EffectContext:
         return await self.draw_cards(missing, player_id)
 
     def _queue_reveal_batch(self, entries, viewer_id: str):
-        """Introduces every card before one automatic grouped reveal and move."""
+        """Introduces every card the viewer can't see yet before one
+        automatic grouped reveal and move (a public-zone card is already
+        introduced; it is only presented)."""
         for card, _ in entries:
+            if not card.is_hidden_from(viewer_id):
+                continue
             self._queue(self.session._entity_introduced_msg(card), viewer_id=viewer_id,
                         bracket=GameSequence.SERIAL_SEQUENCE.value)
         for card, move in entries:
@@ -1552,6 +1556,8 @@ class EffectContext:
 
         to_player=None reveals to every viewer the card is currently hidden
         from (own-hand reveals reach the opponent; deck cards reach both).
+        A card in a public zone (the discard pile) is hidden from no one, so
+        showing which one was chosen takes an explicit to_player.
         """
         reveal_batches = {}
         for card in cards:

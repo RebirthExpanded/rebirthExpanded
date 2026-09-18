@@ -19,7 +19,9 @@ async def recycle(ctx):
     picks = await ctx.choose_cards(
         cards, 1, minimum=1, prompt="Choose a card to put on top of your deck")
     if picks:
-        await ctx.reveal_cards(picks)
+        # The discard pile is public, so the default viewer set is empty:
+        # show the opponent which card went to the deck top.
+        await ctx.reveal_cards(picks, to_player=ctx.opponent_id)
         await ctx.put_on_top_of_deck(picks[0])
 
 
