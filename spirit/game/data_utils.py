@@ -633,8 +633,17 @@ class Ability:
         return self.trigger == trigger
 
     def to_dict(self) -> dict:
+        hint = ABILITY_TYPE_HINTS.get(self.ability_type, "PokeAbility")
+        if self.rules_text:
+            # A card's own rules text (a fossil's discard, Lillie's Poke
+            # Doll's return, Grant, the V-UNION assembly) is no Ability, and
+            # the client's AbilityButtonRenderer stamps the "Ability" frame
+            # on PokeAbility/PokePower/PokeBody descriptions only; the
+            # TrainerAbility class (an AbilityTypes member too) gets a
+            # plain title-and-text button.
+            hint = "TrainerAbility"
         d = {
-            "abilityType": ABILITY_TYPE_HINTS.get(self.ability_type, "PokeAbility"),
+            "abilityType": hint,
             "title": {"id": self.title},
             "gameText": {"id": self.game_text}
         }
