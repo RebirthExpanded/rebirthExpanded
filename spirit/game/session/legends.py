@@ -14,6 +14,7 @@ Ported from Spirit-PTCGO (9f5d7eef) onto this engine's helpers.
 from typing import Any, Dict, List, Optional
 
 from spirit.game.attributes import GameSequence
+from spirit.game.game_sequence_packets import NestedSequence
 from spirit.game.data_utils import (
     LegendHalf, Triggers, def_for, matching_legend_halves, vunion_pieces_in,
 )
@@ -262,20 +263,27 @@ async def assemble_vunion(session, player_id: str, piece) -> Optional[VUnionPoke
         used = board.vunion_assembled = {}
     used.setdefault(player_id, set()).add(definition.guid.lower())
     viewers = list(session.players.values())
-    # The pieces are public already (discard pile); the combined Pokemon is
-    # a new entity both viewers learn, then the four fly into the join slots
-    # and the combined card lands on the Bench (the client's CreateVUnion
-    # executor reads the moves of this bracket).
-    await session.send_game_sequence(
-        viewers, GameSequence.SERIAL_SEQUENCE,
-        [added, session._entity_introduced_msg(union)])
+    # The client's CreateVUnion executor (pie-src r.Q) reads one bracket of
+    # a fixed shape: the combined Pokemon's EntityAdded + EntityIntroduced
+    # (run first, and the added entity is the card it will shine), then a
+    # nested AttachToVUnion whose four EntityMoved are the pieces in join-
+    # slot order (it flies each from the discard pile into CardSlot1-4 and
+    # plays the combine animation; the moves themselves run silently), then
+    # a nested PlayCard carrying the combined card's move onto the Bench
+    # (flown FromReveal to the Bench, then the VUnionShine FX). Any other
+    # layout leaves its piece array empty and it dereferences null.
     client_staging = board.client_out_of_play_children()
-    moves = [
+    piece_moves = [
         session._entity_moved_msg(part.entity_id, staging.entity_id,
                                   client_staging.index(part), stamp_slot=False)
         for part in pieces
     ]
-    moves.append(session._entity_moved_msg(union.entity_id, bench.entity_id, position))
-    await session.send_game_sequence(viewers, GameSequence.CREATE_VUNION, moves)
+    await session.send_game_sequence(viewers, GameSequence.CREATE_VUNION, [
+        added,
+        session._entity_introduced_msg(union),
+        NestedSequence(GameSequence.ATTACH_TO_VUNION, piece_moves),
+        NestedSequence(GameSequence.PLAY_CARD, [
+            session._entity_moved_msg(union.entity_id, bench.entity_id, position)]),
+    ])
     await session.fire_pokemon_benched_triggers(player_id, union)
     return union
