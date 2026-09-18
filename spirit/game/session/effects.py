@@ -1487,12 +1487,13 @@ class EffectContext:
         return await self.draw_cards(missing, player_id)
 
     def _queue_reveal_batch(self, entries, viewer_id: str):
-        """Introduces every card the viewer can't see yet before one
-        automatic grouped reveal and move (a public-zone card is already
-        introduced; it is only presented)."""
+        """Introduces every card before one automatic grouped reveal and move.
+
+        The intro is unconditional: callers queue the batch after the board
+        move (put_in_hand), so the card may already sit in a zone the viewer
+        sees, and its intro is still what makes it face up there. A card the
+        viewer already knows is re-introduced harmlessly."""
         for card, _ in entries:
-            if not card.is_hidden_from(viewer_id):
-                continue
             self._queue(self.session._entity_introduced_msg(card), viewer_id=viewer_id,
                         bracket=GameSequence.SERIAL_SEQUENCE.value)
         for card, move in entries:
