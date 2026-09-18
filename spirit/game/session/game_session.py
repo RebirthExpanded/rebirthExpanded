@@ -4198,6 +4198,10 @@ class GameSession:
         if not put_by_ability:
             ends_turn = await self._fire_triggered_abilities(
                 player_id, card, Triggers.ON_PLAY)
+        else:
+            # The hand Ability's own follow-up ("If you do, draw 3 cards").
+            ends_turn = await self._fire_triggered_abilities(
+                player_id, card, Triggers.ON_BENCHED_BY_ABILITY)
         # A Pokemon that lowers a Bench cap the moment it arrives (Sudowoodo's
         # Roadblock caps the opponent at 4) has to shrink that Bench now. Every
         # other path that can change capacity settles through

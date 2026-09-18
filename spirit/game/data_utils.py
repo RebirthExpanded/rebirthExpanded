@@ -513,6 +513,9 @@ class Triggers:
     # Either player manually put a Basic from hand onto their Bench (Gapejaw
     # Bog); ctx carries benching_player_id / benched_pokemon.
     ON_POKEMON_BENCHED = "on_pokemon_benched"
+    # This Pokemon was PUT onto the Bench by its own hand Ability
+    # (bench_from_hand: Elusive Master's "If you do, draw 3 cards").
+    ON_BENCHED_BY_ABILITY = "on_benched_by_ability"
     # This card was drawn by the beginning-of-turn draw (Lombre "Top Entry");
     # fires after the card lands in hand (approximation of "before you put it
     # into your hand").
