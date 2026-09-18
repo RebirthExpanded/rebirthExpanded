@@ -3,7 +3,6 @@ import sys
 import logging
 import subprocess
 import json
-import importlib.util
 import math
 from PIL import Image, ImageFilter
 
@@ -398,83 +397,73 @@ def check_and_generate_bundles() -> int:
     sets = {} # set_code -> {coll_num_str: {asset_name: png_path}}
     foil_sets = {} # set_code -> {kind: {padded_num: png_path}}
 
-    scripts_dir = loader.scripts_dir
-    for root, _, files in os.walk(scripts_dir):
-        for file in files:
-            if file.endswith(".py") and file != "__init__.py":
-                rel_dir = os.path.relpath(root, scripts_dir)
-                base_name = file[:-3]
-                png_path = os.path.join(CARDS_IMG_DIR, rel_dir, f"{base_name}.png")
-                
-                try:
-                    file_path = os.path.join(root, file)
-                    module_name = "autobundle_" + rel_dir.replace(os.path.sep, "_") + "_" + base_name
-                    spec = importlib.util.spec_from_file_location(module_name, file_path)
-                    if spec is None or spec.loader is None:
+    # The loader's own definitions, never a second run of the scripts: a
+    # script re-executed here would register a fresh definition over the
+    # loader's, losing what load_all bound afterwards (a LEGEND half's
+    # combined Pokemon, a V-UNION piece's), and the engine reads
+    # CARD_DEFS_BY_GUID.
+    for reference, card_def in list(loader.definitions.items()):
+        rel_dir, _, base_name = reference.rpartition("/")
+        rel_dir = rel_dir.replace("/", os.path.sep) or "."
+        png_path = os.path.join(CARDS_IMG_DIR, rel_dir, f"{base_name}.png")
+        try:
+            # A combined LEGEND is a runtime-only definition with no
+            # card face of its own: its halves carry the art. A
+            # combined V-UNION stands on the board as an ordinary
+            # Pokemon, so its face ships when the art exists.
+            if getattr(card_def, "runtime_only", False) and not os.path.exists(png_path):
+                continue
+            set_code = card_def.set_code
+            asset_name = str(card_def.collector_number).zfill(3)
+            
+            if set_code not in sets:
+                sets[set_code] = {}
+            
+            card_assets = {asset_name: png_path}
+
+            # Foil masks live in their own {SET}_wp_{kind}_Foil2 bundles
+            # with textures named by padded number: the client's request
+            # "{SET}_wp_std_Foil2/127" strips to LoadAsset("127"), so a
+            # mask inside the set bundle can never be reached.
+            for suffix, kind in FOIL_KIND_SUFFIXES.items():
+                foil_png_path = os.path.join(CARDS_IMG_DIR, rel_dir, f"{base_name}{suffix}.png")
+                if os.path.exists(foil_png_path):
+                    foil_sets.setdefault(set_code, {}).setdefault(kind, {})[asset_name] = foil_png_path
+
+            # foil-flagged cards with no extracted/hand-authored mask
+            # get a generated one (explicit _foil PNGs above win)
+            foil_def = getattr(card_def, "foil", None)
+            if foil_def is not None and os.path.exists(png_path):
+                style = foil_def.resolve_style(
+                    getattr(card_def, "rarity", None),
+                    getattr(card_def, "subtypes", None))
+                kinds = [foil_def.mask_kind()]
+                if len(foil_def.effects) > 1:
+                    kinds.append("secondary")
+                for kind in kinds:
+                    kind_map = foil_sets.setdefault(set_code, {}).setdefault(kind, {})
+                    if asset_name in kind_map:
                         continue
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    if not hasattr(module, 'card'):
-                        continue
-                    
-                    card_def = module.card
-                    # A combined LEGEND is a runtime-only definition with no
-                    # card face of its own: its halves carry the art. A
-                    # combined V-UNION stands on the board as an ordinary
-                    # Pokemon, so its face ships when the art exists.
-                    if getattr(card_def, "runtime_only", False) and not os.path.exists(png_path):
-                        continue
-                    set_code = card_def.set_code
-                    asset_name = str(card_def.collector_number).zfill(3)
-                    
-                    if set_code not in sets:
-                        sets[set_code] = {}
-                    
-                    card_assets = {asset_name: png_path}
+                    gen_path = ensure_generated_mask(png_path, set_code, asset_name, kind, style)
+                    if gen_path:
+                        kind_map[asset_name] = gen_path
 
-                    # Foil masks live in their own {SET}_wp_{kind}_Foil2 bundles
-                    # with textures named by padded number: the client's request
-                    # "{SET}_wp_std_Foil2/127" strips to LoadAsset("127"), so a
-                    # mask inside the set bundle can never be reached.
-                    for suffix, kind in FOIL_KIND_SUFFIXES.items():
-                        foil_png_path = os.path.join(CARDS_IMG_DIR, rel_dir, f"{base_name}{suffix}.png")
-                        if os.path.exists(foil_png_path):
-                            foil_sets.setdefault(set_code, {}).setdefault(kind, {})[asset_name] = foil_png_path
+            if _is_special_energy(card_def) and os.path.exists(png_path):
+                pip_path = generate_energy_pip_png(
+                    png_path, set_code, asset_name,
+                    units=_energy_units(card_def),
+                    wide=bool(getattr(card_def, "pip_wide", False)))
+                if pip_path:
+                    card_assets[f"{asset_name}_energypip"] = pip_path
+            elif _is_pokemon_tool(card_def) and os.path.exists(png_path):
+                pip_path = generate_tool_pip_png(png_path, set_code, asset_name)
+                if pip_path:
+                    card_assets[f"{asset_name}_toolpip"] = pip_path
 
-                    # foil-flagged cards with no extracted/hand-authored mask
-                    # get a generated one (explicit _foil PNGs above win)
-                    foil_def = getattr(card_def, "foil", None)
-                    if foil_def is not None and os.path.exists(png_path):
-                        style = foil_def.resolve_style(
-                            getattr(card_def, "rarity", None),
-                            getattr(card_def, "subtypes", None))
-                        kinds = [foil_def.mask_kind()]
-                        if len(foil_def.effects) > 1:
-                            kinds.append("secondary")
-                        for kind in kinds:
-                            kind_map = foil_sets.setdefault(set_code, {}).setdefault(kind, {})
-                            if asset_name in kind_map:
-                                continue
-                            gen_path = ensure_generated_mask(png_path, set_code, asset_name, kind, style)
-                            if gen_path:
-                                kind_map[asset_name] = gen_path
+            sets[set_code][asset_name] = card_assets
 
-                    if _is_special_energy(card_def) and os.path.exists(png_path):
-                        pip_path = generate_energy_pip_png(
-                            png_path, set_code, asset_name,
-                            units=_energy_units(card_def),
-                            wide=bool(getattr(card_def, "pip_wide", False)))
-                        if pip_path:
-                            card_assets[f"{asset_name}_energypip"] = pip_path
-                    elif _is_pokemon_tool(card_def) and os.path.exists(png_path):
-                        pip_path = generate_tool_pip_png(png_path, set_code, asset_name)
-                        if pip_path:
-                            card_assets[f"{asset_name}_toolpip"] = pip_path
-
-                    sets[set_code][asset_name] = card_assets
-
-                except Exception as e:
-                    logging.error(f"[AutoBundle] Failed to parse {file}: {e}")
+        except Exception as e:
+            logging.error(f"[AutoBundle] Failed to parse {reference}: {e}")
 
     generated_count = 0
 

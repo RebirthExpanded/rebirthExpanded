@@ -36,7 +36,9 @@ async def brocks_grit(ctx):
         )
     if not picks:
         return
-    await ctx.reveal_cards(picks)
+    # The discard pile is public, so the default viewer set is empty: show
+    # the opponent which cards go back before they vanish into the deck.
+    await ctx.reveal_cards(picks, to_player=ctx.opponent_id)
     await ctx.shuffle_into_deck(picks)
 
 
