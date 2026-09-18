@@ -55,6 +55,7 @@ card = PokemonCardDef(
             activation=Activations.ONCE_PER_TURN,
             condition=_on_bench,
             effect=buzzap_generator,
+            self_knockout=True,
         ),
         Attack(
             title="Electric Ball",

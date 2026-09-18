@@ -50,6 +50,7 @@ card = PokemonCardDef(
             ),
             activation=Activations.ONCE_PER_TURN,
             effect=cursed_blast_13,
+            self_knockout=True,
         ),
         Attack(
             title="Shadow Bind",

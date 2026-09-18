@@ -43,6 +43,7 @@ card = PokemonCardDef(
             ),
             activation=Activations.ONCE_PER_TURN,
             effect=cursed_blast_5,
+            self_knockout=True,
         ),
         Attack(
             title="Will-O-Wisp",

@@ -9,9 +9,9 @@ Basic Water Pokemon. HP 70, weakness Lightning x2, retreat 1.
 
 Damp is a passive that takes ONE Ability away from a Pokemon -- the one
 whose text ends "this Pokemon is Knocked Out" / "Knock Out this Pokemon"
-(Buzzap, Call Signal, Extra Energy Bomb, Overvolt Discharge, Milotic's
-Energy Grace) -- and leaves the rest of that card alone. Those Abilities
-carry Ability(self_knockout=True); the offer path asks ability_disabled()
+(Buzzap Thunder / Generator, Call Signal, Extra Energy Bomb, Overvolt
+Discharge, Milotic's Energy Grace, Dusclops / Dusknoir's Cursed Blast) --
+and leaves the rest of that card alone. Those Abilities carry Ability(self_knockout=True); the offer path asks ability_disabled()
 for each Ability separately. Damp is an Ability itself, so an Ability lock
 on Psyduck switches it off.
 """
