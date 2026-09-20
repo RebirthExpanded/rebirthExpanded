@@ -1281,16 +1281,20 @@ class PokemonToolCardDef(TrainerCardDef):
     restricts legal attach targets (Hero's Medal). `on_attach` is an async
     (ctx) hook run once the tool has been attached from hand, ctx.attached_to
     being the holder (Ancient Booster Energy Capsule's "recovers from all
-    Special Conditions") -- the Energy on_attach shape."""
+    Special Conditions") -- the Energy on_attach shape.
+    `discard_at_opponents_turn_end` is the printed "Discard this card at
+    the end of your opponent's turn" (Bursting Balloon)."""
     def __init__(self, passive: Optional[Any] = None,
                  granted_abilities: Optional[List[Ability]] = None,
                  attach_to: Optional[Callable] = None,
-                 on_attach: Optional[Any] = None, **kwargs):
+                 on_attach: Optional[Any] = None,
+                 discard_at_opponents_turn_end: bool = False, **kwargs):
         kwargs['trainer_type'] = TrainerType.POKEMON_TOOL
         super().__init__(**kwargs)
         self.passive = passive
         self.attach_to = attach_to
         self.on_attach = on_attach
+        self.discard_at_opponents_turn_end = discard_at_opponents_turn_end
         self.granted_abilities: List[Ability] = granted_abilities or []
         for idx, a in enumerate(self.granted_abilities):
             if not a.ability_id:

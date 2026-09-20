@@ -4305,19 +4305,24 @@ class GameSession:
                 active_id, pokemon, Triggers.END_OF_TURN)
 
     async def _discard_expiring_tool_cards(self, active_id: str):
-        """A Pokemon card attached as a Tool that reads "discard this card
-        at the end of your opponent's turn" (Klefki's Wonder Lock) goes to
-        its owner's discard pile when the OTHER player's turn ends. The
-        discard is the Tool's own text: Jamming Tower (Tools have no
-        effect) keeps it on, an Ability lock does not (it is no Ability)."""
+        """A Tool that reads "discard this card at the end of your
+        opponent's turn" -- Bursting Balloon, or a Pokemon card attached as
+        a Tool (Klefki's Wonder Lock) -- goes to its owner's discard pile
+        when the OTHER player's turn ends. The discard is the Tool's own
+        text: Jamming Tower (Tools have no effect) keeps it on, an Ability
+        lock does not (it is no Ability)."""
+        def _expiring(child) -> bool:
+            if getattr(child, "acts_as_tool", False):
+                return bool(getattr(child, "discard_at_opponents_turn_end", False))
+            return bool(getattr(def_for(child.archetype_id),
+                                "discard_at_opponents_turn_end", False))
         due = []
         for pid in self.board_state.player_ids:
             if pid == active_id:
                 continue
             for pokemon in self.board_state.pokemon_in_play(pid):
                 for child in _stack_descendants(pokemon):
-                    if getattr(child, "acts_as_tool", False) \
-                            and getattr(child, "discard_at_opponents_turn_end", False) \
+                    if _expiring(child) \
                             and not tool_suppressed(self.board_state, child):
                         due.append((pid, pokemon, child))
         if not due:
