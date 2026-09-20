@@ -2432,8 +2432,12 @@ class GameSession:
                 and ctx.attacker is not None
                 and ctx.attacker.owning_player_id != owner_id)
             # Lost City-style passives (Lost Zone) redirect the KO'd Pokemon
-            # stack; energy/tools always fall to the discard pile.
-            dest_name = next(
+            # stack; energy/tools always fall to the discard pile -- unless
+            # the effect that Knocked it Out routes the whole stack itself
+            # (Lost Crisis: "that Pokemon and all cards attached to it").
+            override = getattr(ctx, "knockout_destinations", {}).get(pokemon.entity_id)
+            whole_stack = bool(override and override[1])
+            dest_name = override[0] if override else next(
                 (d for p, c in active_passives(self.board_state)
                  for d in [p.knockout_destination(pokemon, c)] if d),
                 "discard",
@@ -2445,7 +2449,7 @@ class GameSession:
             # speaks through a passive, and the first move would silence it.
             destinations = {}
             for entity in stack:
-                area = dest_area if isinstance(entity, PokemonEntity) else discard
+                area = dest_area if (whole_stack or isinstance(entity, PokemonEntity)) else discard
                 # Prism Star: anything in the stack that would hit a discard
                 # pile goes to the Lost Zone instead, the Pokemon included.
                 if area is discard or dest_name == "discard":

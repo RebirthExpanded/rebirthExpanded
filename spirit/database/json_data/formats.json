@@ -183,7 +183,8 @@
       "sets": [
         "Free_Energy",
         "CUSTOM",
-        "BW1"
+        "BW1",
+        "HGSS4"
       ],
       "allSets": false,
       "bannedCards": [],

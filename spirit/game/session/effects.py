@@ -124,6 +124,11 @@ class EffectContext:
         self.play_target = play_target
         self._play_target_consumed = False
         self.knockouts: List[PokemonEntity] = []
+        # entity_id -> (area name, whole stack?) for a Knock Out THIS effect
+        # routes somewhere other than the discard pile ("put that Pokemon
+        # and all cards attached to it in the Lost Zone" -- Lost Crisis).
+        # Read by resolve_knockouts ahead of the Lost City-style passives.
+        self.knockout_destinations: Dict[str, Tuple[str, bool]] = {}
         # Extra prizes the attacker takes for knockouts this attack causes
         # (e.g. Stoutland V's Double Dip Fangs).
         self.extra_prizes = 0
