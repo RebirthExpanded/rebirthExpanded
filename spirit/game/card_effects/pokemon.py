@@ -1539,6 +1539,29 @@ def attack_gate_ability(condition):
     return gate
 
 
+def lost_march_attack(cost):
+    """"Lost March: This attack does 20 damage for each of your Pokemon,
+    except Prism Star Pokemon, in the Lost Zone." -- Natu, Cottonee and
+    Jumpluff (Lost Thunder) print it with their own cost."""
+    from spirit.game.data_utils import is_prism_star
+
+    def count(ctx) -> int:
+        return sum(1 for c in ctx.lost_zone()
+                   if is_pokemon_card(c) and not is_prism_star(c.archetype_id))
+
+    async def effect(ctx):
+        await ctx.deal_damage(20 * count(ctx))
+
+    return Attack(
+        title="Lost March",
+        game_text="This attack does 20 damage for each of your Pokémon, except Prism Star Pokémon, in the Lost Zone.",
+        cost=cost,
+        damage=20,
+        damage_operator="x",
+        effect=effect,
+    )
+
+
 def union_gain_attack(energy_type):
     """"Union Gain [C]: Attach up to 2 <type> Energy cards from your discard
     pile to this Pokemon." -- the attack every V-UNION's top-left piece
