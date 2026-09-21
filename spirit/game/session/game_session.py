@@ -5516,19 +5516,12 @@ class GameSession:
             getattr(def_for(existing.archetype_id), "discards_replacement", False)
             for existing in stadium_area.children
         )
+        # The replaced Stadium leaves AFTER the new one lands (Spirit PR #12):
+        # a StadiumPresent bracket carrying both moves flashed the new card
+        # back to the hand and clipped it into the playmat, so the play is
+        # an ordinary PlayCard and the old card's exit a GroupedMove after.
+        replaced = list(stadium_area.children)
         moves = []
-        for existing in list(stadium_area.children):
-            owner_id = existing.owning_player_id or player_id
-            # Prism Star Stadiums (Thunder Mountain) are Lost-Zoned, not
-            # discarded, when the next Stadium replaces them.
-            owner_pile = self.board_state.find_player_area(
-                owner_id, discard_area_name(existing.archetype_id))
-            if owner_pile:
-                position = len(owner_pile.children)
-                self.board_state.move_card(existing.entity_id, owner_pile.entity_id)
-                moves.append(self._entity_moved_msg(
-                    existing.entity_id, owner_pile.entity_id, position
-                ))
         for stadium_card in incoming:
             position = len(stadium_area.children)
             if not self.board_state.move_card(stadium_card.entity_id, stadium_area.entity_id):
@@ -5548,8 +5541,25 @@ class GameSession:
             f"played stadium {card.entity_id}."
         )
         await self._send_play_sequence(
-            player_id, GameSequence.STADIUM_PRESENT, moves, incoming
+            player_id, GameSequence.PLAY_CARD, moves, incoming
         )
+        exits = []
+        for existing in replaced:
+            owner_id = existing.owning_player_id or player_id
+            # Prism Star Stadiums (Thunder Mountain) are Lost-Zoned, not
+            # discarded, when the next Stadium replaces them.
+            owner_pile = self.board_state.find_player_area(
+                owner_id, discard_area_name(existing.archetype_id))
+            if owner_pile:
+                position = len(owner_pile.children)
+                self.board_state.move_card(existing.entity_id, owner_pile.entity_id)
+                exits.append(self._entity_moved_msg(
+                    existing.entity_id, owner_pile.entity_id, position
+                ))
+        if exits:
+            await self._send_play_sequence(
+                player_id, GameSequence.GROUPED_MOVE, exits, []
+            )
 
         if swept_away:
             # It came into play and is discarded straight away, which is what
