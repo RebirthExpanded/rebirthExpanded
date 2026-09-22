@@ -1111,7 +1111,10 @@ async def colresss_experiment(ctx):
 
 async def klara(ctx):
     """Choose 1 or both: up to 2 Pokemon and/or up to 2 basic Energy from your
-    discard pile into your hand."""
+    discard pile, revealed, into your hand.
+
+    The pile is public, but the card says to reveal them and the pool shows
+    such picks large to the opponent (Brock's Grit, Junk Collection)."""
     pokemon = [c for c in ctx.discard_pile() if is_pokemon_card(c)]
     energy = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
     picks_p = await ctx.choose_cards(
@@ -1122,7 +1125,7 @@ async def klara(ctx):
         energy, 2, minimum=0,
         prompt="Choose up to 2 basic Energy from your discard pile.",
     ) if energy else []
-    await ctx.put_in_hand(picks_p + picks_e, reveal=False)
+    await ctx.put_in_hand(picks_p + picks_e, reveal=True)
 
 
 # --- Mirage Gate (LOR, Item) ---------------------------------------------
