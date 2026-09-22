@@ -806,6 +806,15 @@ def _refresh_stadium_shields(
     board.stadium_shield_players = frozenset(shields.values())
 
 
+def _scanning_passives(board: BoardState) -> bool:
+    """True while a passive scan is settling lock state or filtering the
+    live set. A hook that asks the board a passive-dependent question from
+    inside that scan (Bide Barricade reading a Pokemon's live types) must
+    not start another scan: effective_pokemon_types answers with the
+    printed types instead."""
+    return bool(getattr(board, "_passive_scan_depth", 0))
+
+
 def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, bool]]:
     """All (passive, carrier, is_ability) triples currently switched on by
     board position, before ability locks are applied. is_ability is True only
@@ -865,11 +874,21 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
             continue
         triples.append((temp.passive, carrier, False))
     # Mutual Ability locks (Klefki vs Flutter Mane): the one that started
-    # working first wins, so which locks are live is state.
-    _refresh_ability_lock_seq(board, triples)
-    # New Moon: decide the shields on the raw set, then hand out the Stadium
-    # passives behind a guard that honours them.
-    _refresh_stadium_shields(board, triples, stadium_triples)
+    # working first wins, so which locks are live is state. The refresh
+    # asks every lock passive whom it would lock, and a lock keyed on a
+    # LIVE type (Bide Barricade's "except for Psychic Pokemon" reads
+    # effective_pokemon_types) comes straight back here for the passives
+    # -- so a nested collect skips the state refreshes and answers from
+    # the state the outer pass is in the middle of settling.
+    if not _scanning_passives(board):
+        board._passive_scan_depth = 1
+        try:
+            _refresh_ability_lock_seq(board, triples)
+            # New Moon: decide the shields on the raw set, then hand out
+            # the Stadium passives behind a guard that honours them.
+            _refresh_stadium_shields(board, triples, stadium_triples)
+        finally:
+            board._passive_scan_depth = 0
     if stadium_triples and getattr(board, "stadium_shield_players", None):
         guarded = {id(t): (_StadiumGuard(t[0], board), t[1], t[2]) for t in stadium_triples}
         triples = [guarded.get(id(t), t) for t in triples]
@@ -1111,10 +1130,20 @@ def active_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity]]:
     def blocked(pokemon: PokemonEntity) -> bool:
         return _locks_abilities_of(triples, pokemon)
 
-    return [(p, c) for p, c, is_ability in triples
-            if not (is_ability and blocked(c))
-            and not _suppressed_special_energy(triples, c)
-            and not _suppressed_tool(triples, c)]
+    # The lock filter asks each lock passive whom it locks; one keyed on a
+    # live type (Bide Barricade) would re-enter here through
+    # effective_pokemon_types, so the filter runs as a scan too.
+    outer = _scanning_passives(board)
+    if not outer:
+        board._passive_scan_depth = 1
+    try:
+        return [(p, c) for p, c, is_ability in triples
+                if not (is_ability and blocked(c))
+                and not _suppressed_special_energy(triples, c)
+                and not _suppressed_tool(triples, c)]
+    finally:
+        if not outer:
+            board._passive_scan_depth = 0
 
 
 def tool_suppressed(board: BoardState, tool: BoardEntity) -> bool:
@@ -1618,6 +1647,10 @@ def special_energy_suppressed(board: BoardState, energy: BoardEntity) -> bool:
 def effective_pokemon_types(board: BoardState, pokemon: BoardEntity) -> List[Any]:
     """A Pokemon's live type list after type-rewriting passives (Chromashift)."""
     types = list(pokemon.get_attribute(AttrID.POKEMON_TYPES) or [])
+    if _scanning_passives(board):
+        # Asked from inside a passive scan (a lock passive's own type
+        # test): the printed types, or the scan would start over.
+        return types
     for passive, carrier in active_passives(board):
         types = passive.modify_pokemon_types(types, pokemon, carrier)
     return types
