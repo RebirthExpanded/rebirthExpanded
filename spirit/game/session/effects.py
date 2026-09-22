@@ -1007,7 +1007,8 @@ class EffectContext:
 
     async def _queue_coin_results(self, results: List[int], title: str,
                                   source: Optional[BoardEntity] = None,
-                                  immediate: bool = False):
+                                  immediate: bool = False,
+                                  flipper_id: Optional[str] = None):
         """Sends ONE MultipleCoinFlipWithContextEffect for a pre-rolled run
         (0 = heads); queued inline in attack/ability context, sent as its own
         PokeAbility bracket + pacing pause in trainer context. `source`
@@ -1018,8 +1019,9 @@ class EffectContext:
         if not self._in_interceptor:
             self.coin_results.extend(results)
         source = source if source is not None else self.source
-        self.session.stat_add(self.player_id, "headsflipped", heads)
-        self.session.stat_add(self.player_id, "tailsflipped", len(results) - heads)
+        flipper = flipper_id or self.player_id
+        self.session.stat_add(flipper, "headsflipped", heads)
+        self.session.stat_add(flipper, "tailsflipped", len(results) - heads)
         msg = self.session._build_msg(
             OutboundMsg.MULTIPLE_COIN_FLIP_WITH_CONTEXT_EFFECT.value,
             {
@@ -1072,31 +1074,39 @@ class EffectContext:
         return new_results
 
     async def flip_coins(self, count: int, title: str = "",
-                         source: Optional[BoardEntity] = None) -> List[bool]:
+                         source: Optional[BoardEntity] = None,
+                         flipper_id: Optional[str] = None) -> List[bool]:
         """Flips `count` coins for a card effect ("Flip 2 coins..."); returns
-        the results, True = heads. `source` re-anchors the flip visual."""
+        the results, True = heads. `source` re-anchors the flip visual.
+        `flipper_id` names a player OTHER than the effect's owner as the one
+        flipping ("each player flips a coin" -- Ilima, Lucian): the coin is
+        then theirs for Will's chosen result, for Contrary's forced tails,
+        and for the flip statistics."""
         if count <= 0:
             return []
         results = [random.choice([0, 1]) for _ in range(count)]
-        self._apply_forced_first_flip(results)
-        if coin_flips_forced_tails(self.board, self.player_id):
+        self._apply_forced_first_flip(results, flipper_id)
+        if coin_flips_forced_tails(self.board, flipper_id or self.player_id):
             results = [1] * count
         final = await self._maybe_reroll_attack_coins(
             results, title, source,
             lambda: [random.choice([0, 1]) for _ in range(count)])
         if final is None:
-            await self._queue_coin_results(results, title, source)
+            await self._queue_coin_results(results, title, source,
+                                           flipper_id=flipper_id)
         else:
             results = final
         return [r == 0 for r in results]
 
-    def _apply_forced_first_flip(self, results: List[int]) -> bool:
+    def _apply_forced_first_flip(self, results: List[int],
+                                 flipper_id: Optional[str] = None) -> bool:
         """Will: the turn player's chosen result replaces the first coin of
         the next flip they make this turn. 0 is heads in the raw results.
         Only the flipping player's own choice applies -- Will names "you"."""
         state = self.session.turn_state
         forced = getattr(state, "forced_first_flip", None)
-        if forced is None or not results or self.player_id != state.active_player_id:
+        flipper = flipper_id or self.player_id
+        if forced is None or not results or flipper != state.active_player_id:
             return False
         results[0] = 0 if forced else 1
         state.forced_first_flip = None

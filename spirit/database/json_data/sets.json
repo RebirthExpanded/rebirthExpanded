@@ -762,6 +762,20 @@
     "promo": false
   },
   {
+    "name": "DPs",
+    "externalId": "SF",
+    "number": 425,
+    "count": 100,
+    "filter": true,
+    "block": "DP",
+    "legalFormats": [
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": false
+  },
+  {
     "name": "COL",
     "externalId": "CL",
     "number": 470,
