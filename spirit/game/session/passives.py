@@ -1666,11 +1666,22 @@ def energy_removal_blocked(board: BoardState, mover_player_id: str,
     )
 
 
+def printed_energy_options(energy: BoardEntity) -> List[List[int]]:
+    """The options the card prints. GameSession.sync_energy_info rewrites
+    the client-facing ENERGY_INFO attribute to the LIVE options (the
+    retreat-cost tray tallies that attribute), stashing the printed set on
+    the entity first; the passives always start from the printed set."""
+    stashed = getattr(energy, "printed_energy_options", None)
+    if stashed is not None:
+        return stashed
+    info = energy.get_attribute(AttrID.ENERGY_INFO) or {}
+    return info.get("options", [])
+
+
 def energy_provided_options(board: Optional[BoardState], energy: BoardEntity) -> List[List[int]]:
     """An energy card's provided-type options after suppression (a suppressed
     Special Energy provides only Colorless) and modify_energy_provided hooks."""
-    info = energy.get_attribute(AttrID.ENERGY_INFO) or {}
-    options = [list(option) for option in info.get("options", [])]
+    options = [list(option) for option in printed_energy_options(energy)]
     if board is None:
         return options
     if special_energy_suppressed(board, energy):

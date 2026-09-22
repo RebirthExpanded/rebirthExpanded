@@ -126,6 +126,7 @@ from .effects import (
     resolve_triggered_ability,
 )
 from .passives import (
+    energy_provided_options,
     putting_into_play_blocked,
     abilities_disabled, ability_locked, active_passives, active_to_bench_counters,
     burn_recovery_blocked, discard_destination_for,
@@ -311,6 +312,8 @@ class GameSession:
         # resync_effective_max_hp keep damage constant when a suppression
         # passive (Tool Jammer) flips a bonus on/off without a stack change.
         self._effective_max_seen: Dict[str, int] = {}
+        # Energy entities whose ENERGY_INFO was rewritten to live options.
+        self._energy_info_synced: set = set()
         # Per-player EOG summary counters (playmat.endgame.stat.* suffixes).
         self.game_stats: Dict[str, Dict[str, int]] = {
             pid: {} for pid in pairing["players"].keys()
@@ -3949,6 +3952,7 @@ class GameSession:
         for _ in range(MAX_ACTIONS_PER_TURN):
             await self._wait_for_connection_resume()
             await self._run_state_unit(self._refresh_dynamic_attacks(active_id))
+            await self._run_state_unit(self.sync_energy_info())
             target_map = compute_legal_actions(
                 self.board_state, self.turn_state, active_id, self.game_id
             )
@@ -4684,6 +4688,48 @@ class GameSession:
             await self._broadcast_entity_attribute(
                 active, AttrID.PIE_ABILITIES, entries
             )
+
+    async def sync_energy_info(self):
+        """Syncs each in-play Energy's client-facing ENERGY_INFO to its live
+        provided options before an offer. The client's retreat-cost tray
+        tallies that attribute on its own (S.y.EnergyProvidedCount = the
+        longest option), so a Counter Energy printed as one [C] but paying
+        2 right now had its Done button dead at a cost of 2. The printed
+        options are stashed on the entity (printed_energy_options) so the
+        passives keep reading the card, not the last sync; an Energy that
+        left play gets its printed value back.
+        """
+        live_ids = set()
+        for player_id in self.players:
+            for pokemon in self.board_state.pokemon_in_play(player_id):
+                for energy in self.board_state.attached_energies(pokemon):
+                    live_ids.add(energy.entity_id)
+                    live = energy_provided_options(self.board_state, energy)
+                    info = energy.get_attribute(AttrID.ENERGY_INFO) or {}
+                    if live == info.get("options", []):
+                        continue
+                    if getattr(energy, "printed_energy_options", None) is None:
+                        energy.printed_energy_options = [
+                            list(o) for o in info.get("options", [])]
+                        self._energy_info_synced.add(energy.entity_id)
+                    await self._broadcast_entity_attribute(
+                        energy, AttrID.ENERGY_INFO, {"options": live})
+        for entity_id in list(self._energy_info_synced):
+            if entity_id in live_ids:
+                continue
+            energy = self.board_state.get_entity(entity_id)
+            self._energy_info_synced.discard(entity_id)
+            if energy is None:
+                continue
+            printed = getattr(energy, "printed_energy_options", None)
+            energy.printed_energy_options = None
+            # A Pokemon that rode as an Energy (Buzzap Thunder) is a Pokemon
+            # card again off the stack: nothing to restore on it.
+            if printed is not None and (
+                    not isinstance(energy, PokemonEntity)
+                    or getattr(energy, "acts_as_energy", False)):
+                await self._broadcast_entity_attribute(
+                    energy, AttrID.ENERGY_INFO, {"options": printed})
 
     async def sync_player_visualizations(self):
         """Rewrites each player's persistent status rows (attr 200370 on their
