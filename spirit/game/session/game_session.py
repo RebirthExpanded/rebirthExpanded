@@ -2529,6 +2529,10 @@ class GameSession:
             entry = {
                 "archetype_id": pokemon.archetype_id,
                 "subtypes": list(subtypes_for(pokemon.archetype_id)),
+                # Pokemon Checkup sits between the turns, so a knockout there
+                # belongs to neither player's turn: text gated on "Knocked Out
+                # during your opponent's last turn" skips these.
+                "at_checkup": bool(getattr(self, "_in_pokemon_checkup", False)),
             }
             # "Knocked Out during your opponent's last turn" (Fezandipiti ex,
             # Oricorio-GX) counts every knockout: poison at Checkup, damage
@@ -3450,6 +3454,15 @@ class GameSession:
         BETWEEN_TURNS triggered abilities for every in-play Pokemon."""
         active_id = active_id if active_id is not None else self.turn_state.active_player_id
         turn_number = self.turn_state.turn_number
+        self._in_pokemon_checkup = True
+        try:
+            await self._run_pokemon_checkup_body(active_id, turn_number)
+        finally:
+            self._in_pokemon_checkup = False
+
+    async def _run_pokemon_checkup_body(self, active_id: str, turn_number: int):
+        """The checkup itself; _run_pokemon_checkup wraps it in the flag that
+        marks its knockouts as happening between the turns."""
         # Scheduled cross-turn effects (Word of Ruin timers) fire FIRST, before
         # conditions; due entries are removed whether their guard passes or not.
         due = [s for s in self.scheduled_effects

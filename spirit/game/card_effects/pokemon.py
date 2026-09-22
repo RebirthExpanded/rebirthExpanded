@@ -1418,17 +1418,20 @@ async def shield_from_basics(ctx):
 def ally_ko_last_turn(board, player_id, pokemon=None) -> bool:
     """Ability condition: the player lost a Pokemon on the opponent's turn.
 
-    Fezandipiti ex's Flip the Script and Oricorio-GX's Dance of Tribute, which
-    print the same clause. Neither says "by damage from an opponent's attack",
-    so this reads kos_suffered_last_turn -- every knockout, including poison
-    at Checkup and damage counters -- rather than the narrower kos_by_attack
-    ledger that Dhelmise V's printed wording does ask for.
+    Fezandipiti ex's Flip the Script, Oricorio-GX's Dance of Tribute and Rust
+    Syndicate Grunt print the same clause. None of them says "by damage from
+    an opponent's attack", so this is wider than the kos_by_attack ledger
+    Dhelmise V asks for -- damage counters and a Trainer's knockout count.
+    A Pokemon Checkup knockout does NOT: the Checkup sits between the turns,
+    so it happened during neither player's turn (pool ruling).
     """
     turn_state = getattr(board, "turn_state", None)
     if turn_state is None:
         return False
     getter = getattr(turn_state, "pokemon_lost_last_turn", None)
-    return bool(getter(player_id)) if getter else False
+    if getter is None:
+        return False
+    return any(not entry.get("at_checkup") for entry in getter(player_id))
 
 
 # --- "can use any attack from its previous Evolutions" --------------------
