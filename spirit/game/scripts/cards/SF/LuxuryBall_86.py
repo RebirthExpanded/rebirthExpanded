@@ -10,6 +10,10 @@ The printed "(excluding Pokemon LV.X)" has nothing to exclude in this
 pool. The self-lock reads the discard pile by name, so a second copy is
 dead once the first one is used. The low-resolution art is all
 pokemon-card.com carries for this print.
+
+The set is registered as "SF" rather than "DPs": the client hides every
+card whose set NAME contains "DP" (ArchetypesUtil.CacheBySet), so a
+DP-named set never reaches card search.
 """
 
 from spirit.game.attributes import Rarities
@@ -28,14 +32,14 @@ def _no_luxury_ball_in_discard(board, player_id) -> bool:
 
 
 card = ItemCardDef(
-    guid="2e3cd5af-89b1-55e2-b09d-1a3c693bf331",
-    key="DPs",
+    guid="f67deb84-ce8d-570a-ad83-05d41e93177d",
+    key="SF",
     name="com.direwolfdigital.cake.data.archetypes.trainer.LuxuryBall.Name",
     display_name=NAME,
     searchable_by=["Luxury Ball", "Item", "LuxuryBall"],
     subtypes=["Item"],
     collector_number=86,
-    set_code="DPs",
+    set_code="SF",
     rarity=Rarities.Uncommon,
     condition=_no_luxury_ball_in_discard,
     effect=search_to_hand(is_pokemon_card, count=1, minimum=0, reveal=True,
