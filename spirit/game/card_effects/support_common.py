@@ -111,6 +111,23 @@ def evolves_from(card, logic_name) -> bool:
             and not entry_restricted_def(def_for(card.archetype_id)))
 
 
+def legal_in_match(board, definition) -> bool:
+    """Whether a card definition is legal in the match's format. "Exists" in
+    card-pool questions means exists in the format being played: Wobbuffet
+    has Wobbuffet BREAK to evolve into in Expanded, nothing in Standard. A
+    board with no format (bare test rigs) reads the whole pool."""
+    format_guid = getattr(board, "format_guid", None)
+    if not format_guid:
+        return True
+    from spirit.game.format_manager import FormatManager
+    from spirit.game.scripts.cards import loader as card_loader
+    guid = str(definition.guid)
+    card = card_loader.cards_by_guid.get(guid) or card_loader.cards_by_guid.get(guid.lower())
+    if card is None:
+        return True
+    return FormatManager().is_card_legal(format_guid, card)
+
+
 def evolution_available(board, player_id, logic_name, def_predicate=None) -> bool:
     """Whether an evolution of `logic_name` could still come out of the deck.
 
@@ -127,7 +144,8 @@ def evolution_available(board, player_id, logic_name, def_predicate=None) -> boo
     def_predicate narrows which evolution definitions count (Grand Tree's
     Stage 1, Salvatore's no-Ability). Entry-restricted Pokemon (Palafin ex)
     never count: every caller evolves from the deck, where they can't come
-    out (see evolves_from).
+    out (see evolves_from). Only cards legal in the match's format count
+    (legal_in_match).
     """
     from spirit.game.data_utils import CARD_DEFS_BY_GUID, _string_attr
     if not logic_name:
@@ -142,6 +160,8 @@ def evolution_available(board, player_id, logic_name, def_predicate=None) -> boo
         if entry_restricted_def(definition):
             continue
         if def_predicate is not None and not def_predicate(definition):
+            continue
+        if not legal_in_match(board, definition):
             continue
         matched = True
         key = str(definition.guid).lower()

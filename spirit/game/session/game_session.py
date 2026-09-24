@@ -340,6 +340,7 @@ class GameSession:
         # Initialize the virtual OOP Board State and populate player decks
         self.board_state = BoardState(self.game_id, list(self.players.keys()))
         self.board_state.turn_state = self.turn_state
+        self.board_state.format_guid = self._match_format_guid()
         for player_id, player in self.players.items():
             self.board_state.populate_deck(player_id, player.active_deck)
             # Dynamically update the PlayerEntity NAME attribute to the player's screen name
@@ -573,6 +574,15 @@ class GameSession:
     _BOTH_MARKER_FORMATS = frozenset(
         {DeckFormat.EXPANDED.value, DeckFormat.UNLIMITED.value})
 
+    def _match_format_guid(self) -> str:
+        """The match's format GUID, from the queue name -- which is what the
+        session knows. A queue that names no format (Friend, SinglePlayer,
+        Tournament_<id>) is Expanded here, this server's format."""
+        from spirit.game.format_manager import FormatManager
+        guid = FormatManager().resolve_format_guid(
+            (getattr(self, "pairing", None) or {}).get("queue_name") or "")
+        return guid or DeckFormat.EXPANDED.value
+
     def _format_owns_both_markers(self) -> bool:
         """Whether this match puts both markers out regardless of deck contents.
 
@@ -587,10 +597,7 @@ class GameSession:
         is Expanded here, this server's format; Standard and Legacy keep the
         deck scan, where a marker with nothing to spend it on is clutter.
         """
-        from spirit.game.format_manager import FormatManager
-        guid = FormatManager().resolve_format_guid(
-            self.pairing.get("queue_name") or "")
-        return guid is None or guid in self._BOTH_MARKER_FORMATS
+        return self._match_format_guid() in self._BOTH_MARKER_FORMATS
 
     def _mark_token_spent(self, player_id: str, attr) -> None:
         """Raise the playmat marker's spent flag.

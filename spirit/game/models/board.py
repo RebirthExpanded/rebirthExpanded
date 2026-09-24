@@ -372,6 +372,10 @@ class BoardState:
         }
         # player_id -> prize cards dealt at setup; prizes taken = dealt - remaining.
         self.prizes_dealt: Dict[str, int] = {}
+        # The match's format GUID (set by the session): card-pool questions
+        # like "does anything evolve from this Pokemon?" read that format's
+        # legal cards. None (bare test boards) reads the whole pool.
+        self.format_guid: Optional[str] = None
         # (passive, owner player_id) pairs that last the whole game
         # (Full Metal Wall-GX); see passives._collect_passives.
         self.game_passives: List[Tuple[Any, str]] = []
