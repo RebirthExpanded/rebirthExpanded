@@ -616,6 +616,24 @@ async def ultra_ball(ctx):
     await ctx.shuffle_deck()
 
 
+def opponent_active_is_stage(stage):
+    """Condition: the opponent's Active Pokemon is of `stage`.
+
+    The four sisters (Morgan, Dana, Evelyn, Nita) each name one Stage, and
+    the check is the PRINTED stage of the card in the Active Spot -- an
+    empty Active Spot (between turns) answers no.
+    """
+    stage_value = getattr(stage, "value", stage)
+
+    def check(board, player_id, card=None) -> bool:
+        opponent = next((pid for pid in board.player_ids if pid != player_id), None)
+        active = board.active_pokemon(opponent) if opponent else None
+        return active is not None \
+            and active.get_attribute(AttrID.STAGE) == stage_value
+
+    return check
+
+
 def is_ball_item(card) -> bool:
     """An Item card with "Ball" in its name (Ball Guy).
 
