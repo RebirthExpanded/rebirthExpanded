@@ -22,7 +22,7 @@ or put down at setup, may be evolved.
 
 from spirit.game.attributes import AttrID, Rarities
 from spirit.game.card_effects.pokemon import has_printed_ability
-from spirit.game.card_effects.support_common import pokemon_can_still_evolve
+from spirit.game.card_effects.support_common import evolves_from, pokemon_can_still_evolve
 from spirit.game.data_utils import Ability, Attack, SupporterCardDef
 
 
@@ -56,7 +56,7 @@ async def salvatore(ctx):
         return
     picks = await ctx.search_deck(
         lambda c, name=logic_name: (
-            c.get_attribute(AttrID.EVOLUTION_LOGIC_FROM) == name
+            evolves_from(c, name)
             and not has_printed_ability(c)),
         count=1, minimum=0,
         prompt="Choose a card with no Abilities that evolves from that Pokémon.",

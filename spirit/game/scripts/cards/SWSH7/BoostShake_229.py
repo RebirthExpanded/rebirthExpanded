@@ -1,16 +1,6 @@
-from spirit.game.card_effects.support_common import pokemon_can_still_evolve
-from spirit.game.data_utils import ItemCardDef, def_for
+from spirit.game.card_effects.support_common import evolves_from, pokemon_can_still_evolve
+from spirit.game.data_utils import ItemCardDef
 from spirit.game.attributes import AttrID, Rarities
-
-
-def _may_evolve_into(definition) -> bool:
-    """Palafin ex's Hero's Spirit ("put this Pokemon into play only with the
-    effect of Palafin's Zero to Hero") keeps it out of Boost Shake. The card
-    is searched out of the deck, where no Ability lock reaches (Garbotoxin
-    covers play, hands and discard piles), so the restriction always binds
-    here: the definition's unplayable_from_hand marks it, and among
-    evolution cards only such entry-restricted Pokemon carry it."""
-    return not getattr(definition, "unplayable_from_hand", False)
 
 
 def _boost_shake_targets(board, player_id):
@@ -20,7 +10,7 @@ def _boost_shake_targets(board, player_id):
     such Pokemon in play there is no target, the card is unplayable, and the
     deck is never opened. Wally's gate."""
     return [p for p in board.pokemon_in_play(player_id)
-            if pokemon_can_still_evolve(board, player_id, p, _may_evolve_into)]
+            if pokemon_can_still_evolve(board, player_id, p)]
 
 
 def _boost_shake_condition(board, player_id):
@@ -35,9 +25,7 @@ async def boost_shake(ctx):
         logic_name = target.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) if target else None
         if logic_name:
             picks = await ctx.search_deck(
-                lambda c, name=logic_name: (
-                    c.get_attribute(AttrID.EVOLUTION_LOGIC_FROM) == name
-                    and _may_evolve_into(def_for(c.archetype_id))),
+                lambda c, name=logic_name: evolves_from(c, name),
                 count=1, minimum=0,
                 prompt="Choose a card that evolves from that Pokémon.",
             )

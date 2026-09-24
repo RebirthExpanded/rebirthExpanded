@@ -1,5 +1,5 @@
 from spirit.game.data_utils import StadiumCardDef, Ability, Activations
-from spirit.game.card_effects.support_common import pokemon_can_still_evolve
+from spirit.game.card_effects.support_common import evolves_from, pokemon_can_still_evolve
 from spirit.game.attributes import AttrID, PokemonStage, Rarities
 from spirit.game.session.effects import is_basic_pokemon, is_pokemon_card
 
@@ -52,7 +52,7 @@ async def grand_tree(ctx):
     stage1_picks = await ctx.search_deck(
         lambda c, name=logic_name: (
             _is_stage1(c)
-            and c.get_attribute(AttrID.EVOLUTION_LOGIC_FROM) == name
+            and evolves_from(c, name)
         ),
         count=1, minimum=0,
         prompt="Choose a Stage 1 Pokémon that evolves from that Pokémon.",
@@ -76,7 +76,7 @@ async def grand_tree(ctx):
     stage2_picks = await ctx.search_deck(
         lambda c, name=stage1_logic: (
             _is_stage2(c)
-            and c.get_attribute(AttrID.EVOLUTION_LOGIC_FROM) == name
+            and evolves_from(c, name)
         ),
         count=1, minimum=0,
         prompt="Choose a Stage 2 Pokémon that evolves from that Pokémon.",

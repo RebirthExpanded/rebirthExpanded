@@ -92,6 +92,25 @@ def _player_cards_by_archetype(board, player_id):
     return owned, public
 
 
+def entry_restricted_def(definition) -> bool:
+    """A Pokemon that may be put into play only one way (Palafin ex's Hero's
+    Spirit: "only with the effect of Palafin's Zero to Hero"). The definition
+    marks it with unplayable_from_hand; among evolution cards only such
+    entry-restricted Pokemon carry it."""
+    return bool(getattr(definition, "unplayable_from_hand", False))
+
+
+def evolves_from(card, logic_name) -> bool:
+    """Deck-search predicate for "a card that evolves from that Pokemon" put
+    onto it by an effect (Boost Shake, Wally, TM Evolution...). Excludes
+    entry-restricted Pokemon: no Ability lock reaches the deck (Garbotoxin
+    covers play, hands and discard piles), so Hero's Spirit always binds on a
+    card being searched out of it."""
+    return (bool(logic_name)
+            and card.get_attribute(AttrID.EVOLUTION_LOGIC_FROM) == logic_name
+            and not entry_restricted_def(def_for(card.archetype_id)))
+
+
 def evolution_available(board, player_id, logic_name, def_predicate=None) -> bool:
     """Whether an evolution of `logic_name` could still come out of the deck.
 
@@ -106,7 +125,9 @@ def evolution_available(board, player_id, logic_name, def_predicate=None) -> boo
     are not public and keep the effect usable.
 
     def_predicate narrows which evolution definitions count (Grand Tree's
-    Stage 1, Salvatore's no-Ability).
+    Stage 1, Salvatore's no-Ability). Entry-restricted Pokemon (Palafin ex)
+    never count: every caller evolves from the deck, where they can't come
+    out (see evolves_from).
     """
     from spirit.game.data_utils import CARD_DEFS_BY_GUID, _string_attr
     if not logic_name:
@@ -117,6 +138,8 @@ def evolution_available(board, player_id, logic_name, def_predicate=None) -> boo
     public_total = 0
     for definition in CARD_DEFS_BY_GUID.values():
         if _string_attr(definition, AttrID.EVOLUTION_LOGIC_FROM) != logic_name:
+            continue
+        if entry_restricted_def(definition):
             continue
         if def_predicate is not None and not def_predicate(definition):
             continue

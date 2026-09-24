@@ -1,5 +1,5 @@
 from spirit.game.data_utils import SupporterCardDef
-from spirit.game.card_effects.support_common import pokemon_can_still_evolve
+from spirit.game.card_effects.support_common import evolves_from, pokemon_can_still_evolve
 from spirit.game.attributes import AttrID, Rarities
 
 
@@ -37,7 +37,7 @@ async def pokemon_breeders_nurturing(ctx):
         if not logic_name:
             continue
         picks = await ctx.search_deck(
-            lambda c, name=logic_name: c.get_attribute(AttrID.EVOLUTION_LOGIC_FROM) == name,
+            lambda c, name=logic_name: evolves_from(c, name),
             count=1, minimum=0,
             prompt="Choose a card that evolves from that Pokémon.",
         )

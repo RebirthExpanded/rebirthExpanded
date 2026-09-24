@@ -2130,6 +2130,11 @@ class EffectContext:
         area_name = evolution_card._containing_area_name() \
             if isinstance(evolution_card, CardEntity) else None
         from_hidden = area_name in CardEntity.HIDDEN_FROM_OWNER_AREAS
+        if from_hidden and getattr(def_for(evolution_card.archetype_id),
+                                   "unplayable_from_hand", False):
+            # Palafin ex's Hero's Spirit: never evolved onto out of the deck
+            # (no Ability lock reaches it there).
+            return False
         owner = evolution_card.owning_player_id or self.player_id
         await self.flush_choreography()
         return await self.session.perform_evolution(

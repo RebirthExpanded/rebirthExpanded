@@ -29,7 +29,7 @@ anything, asked as a single question of what is attached.
 
 from spirit.game.attributes import (AttrID, PokemonStage, PokemonTypes,
                                     Rarities)
-from spirit.game.card_effects.support_common import pokemon_can_still_evolve
+from spirit.game.card_effects.support_common import evolves_from, pokemon_can_still_evolve
 from spirit.game.data_utils import Attack, PokemonCardDef
 from spirit.game.session.effects import is_pokemon_of_type
 from spirit.game.session.legal_actions import attack_cost_satisfied
@@ -61,7 +61,7 @@ async def super_growth(ctx):
         return
     logic_name = target.get_attribute(AttrID.EVOLUTION_LOGIC_NAME)
     picks = await ctx.search_deck(
-        lambda c, name=logic_name: c.get_attribute(AttrID.EVOLUTION_LOGIC_FROM) == name,
+        lambda c, name=logic_name: evolves_from(c, name),
         count=1, minimum=0,
         prompt="Choose a card that evolves from that Pokémon.")
     if not picks or not await ctx.evolve_pokemon(target, picks[0]):
@@ -72,7 +72,7 @@ async def super_growth(ctx):
         stage1_name = evolved.get_attribute(AttrID.EVOLUTION_LOGIC_NAME)
         more = await ctx.search_deck(
             lambda c, name=stage1_name: (
-                c.get_attribute(AttrID.EVOLUTION_LOGIC_FROM) == name
+                evolves_from(c, name)
                 and c.get_attribute(AttrID.STAGE) == PokemonStage.STAGE2.value),
             count=1, minimum=0,
             prompt="Choose a Stage 2 Pokémon that evolves from that Pokémon.")
