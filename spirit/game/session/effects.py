@@ -3002,6 +3002,15 @@ async def resolve_attack(session, player_id: str, attacker: PokemonEntity,
     # ON_DAMAGED_BY_ATTACK fires after the attack choreography but BEFORE the
     # knockout stacks move ("even if this Pokemon is Knocked Out").
     await _fire_damaged_by_attack_triggers(session, ctx)
+    # A Stadium the attack discarded (Sky Field, Area Zero Underdepths --
+    # Roaring Moon ex, Lugia VSTAR) shrinks the Benches the moment it
+    # leaves, and the knockout check comes after the attack: each player
+    # discards down to their Bench size first, then the Knocked Out
+    # Pokemon go and a new Active is chosen from what is left (pool ruling).
+    await session.enforce_bench_capacity()
+    ctx.knockouts = [p for p in ctx.knockouts
+                     if p.owning_player_id is not None
+                     and p in session.board_state.pokemon_in_play(p.owning_player_id)]
     ctx.knockouts_resolved = list(ctx.knockouts)
     await session.resolve_knockouts(ctx)
     for hook in ctx.after_effect_actions + ctx.deferred_actions:

@@ -2782,7 +2782,9 @@ class GameSession:
 
     async def _discard_bench_stack(self, player_id: str, pokemon):
         """Discards a benched stack (Pokemon + attachments) for the bench-shrink
-        ruling: everything to the owner's discard in one GroupedMove bracket."""
+        ruling: everything to the owner's discard in one GroupedMove bracket.
+        Prism Star cards go to the Lost Zone instead, card by card, as they
+        do from every other discard path (discard_area_name)."""
         discard = self.board_state.find_player_area(player_id, "discard")
         if not discard:
             return
@@ -2793,10 +2795,12 @@ class GameSession:
             stack = [m for m in stack if m is not pokemon]
         else:
             for entity in stack:
-                position = len(discard.children)
-                if self.board_state.move_card(entity.entity_id, discard.entity_id):
+                pile = self.board_state.find_player_area(
+                    player_id, discard_area_name(entity.archetype_id)) or discard
+                position = len(pile.children)
+                if self.board_state.move_card(entity.entity_id, pile.entity_id):
                     moves.append(self._entity_moved_msg(
-                        entity.entity_id, discard.entity_id, position
+                        entity.entity_id, pile.entity_id, position
                     ))
         for member in stack:
             if isinstance(member, PokemonEntity):
