@@ -58,6 +58,17 @@ FOLLOW_UP_TIMEOUT_MS = 60_000
 DEFAULT_SEQUENCE_DURATION_SECONDS = 1.0
 MAX_CLIENT_CATCHUP_SECONDS = 20.0
 CLIENT_CATCHUP_BUFFER_SECONDS = 0.4
+# Taken off every bracket's estimate EXCEPT one that shows a card to a player
+# who could not see it (RevealCardToAllEffect & co.): those keep the full
+# time so the opponent can read the card before the next offer lands.
+NON_REVEAL_DURATION_CUT_SECONDS = 0.6
+# Inner messages that present hidden cards to a viewer.
+REVEAL_MESSAGE_NAMES = frozenset({
+    "RevealCardToAllEffect",
+    "RevealCardsToAllEffect",
+    "RevealCardsToPlayerEffect",
+    "MulliganRevealCardsEffect",
+})
 SEQUENCE_DURATION_SECONDS = {
     "Attack": 3.4,
     "PokeAbility": 2.2,

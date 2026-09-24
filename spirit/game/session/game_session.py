@@ -24,6 +24,8 @@ from .constants import (
     ACTION_COUNTDOWN_DURATION_MS,
     ACTION_TIMEOUT_MS,
     DEFAULT_SEQUENCE_DURATION_SECONDS,
+    NON_REVEAL_DURATION_CUT_SECONDS,
+    REVEAL_MESSAGE_NAMES,
     MAX_CLIENT_CATCHUP_SECONDS,
     CLIENT_CATCHUP_BUFFER_SECONDS,
     SEQUENCE_DURATION_SECONDS,
@@ -357,14 +359,31 @@ class GameSession:
         if self.choreography_pauses:
             await asyncio.sleep(seconds)
 
-    def _note_client_animation(self, sequence_name: str, player_id: Optional[str]):
-        """Extends the estimated time until `player_id`'s sequence pump is idle."""
+    @staticmethod
+    def _bracket_reveals_cards(inner_messages) -> bool:
+        """True when a bracket (nested children included) presents a hidden
+        card to its viewer."""
+        for msg in inner_messages:
+            if isinstance(msg, NestedSequence):
+                if GameSession._bracket_reveals_cards(msg.messages):
+                    return True
+            elif isinstance(msg, dict) and msg.get("name") in REVEAL_MESSAGE_NAMES:
+                return True
+        return False
+
+    def _note_client_animation(self, sequence_name: str, player_id: Optional[str],
+                               reveals_cards: bool = False):
+        """Extends the estimated time until `player_id`'s sequence pump is idle.
+        Brackets that do not reveal a card are charged
+        NON_REVEAL_DURATION_CUT_SECONDS less."""
         if player_id is None:
             return
         name = getattr(sequence_name, "value", sequence_name) or ""
         duration = SEQUENCE_DURATION_SECONDS.get(
             name, DEFAULT_SEQUENCE_DURATION_SECONDS
         )
+        if not reveals_cards:
+            duration = max(0.0, duration - NON_REVEAL_DURATION_CUT_SECONDS)
         now = time.monotonic()
         current = self._client_caught_up_at.get(player_id, 0.0)
         self._client_caught_up_at[player_id] = max(current, now) + duration
@@ -705,12 +724,13 @@ class GameSession:
                 {"gameID": self.game_id, "sequenceID": sequence_id, "name": name},
             ))
         )
+        reveals_cards = self._bracket_reveals_cards(inner_messages)
         async with self._wire_lock:
             for player_id, player in self._unique_recipients(players):
                 for packet in packets:
                     await player.send_packet(OutboundMsg.SEQUENCE_MESSAGE.value, packet)
                 if isinstance(player, NetworkPlayer):
-                    self._note_client_animation(name, player_id)
+                    self._note_client_animation(name, player_id, reveals_cards)
             self._last_sequence_sent_at = time.monotonic()
 
     def _nested_sequence_envelopes(self, nested: NestedSequence) -> List[Dict[str, Any]]:
