@@ -263,9 +263,12 @@ class GameSession:
         # Keeps Start/inner/Stop runs contiguous with reconnect control packets.
         self._wire_lock = asyncio.Lock()
         self._last_sequence_sent_at: float = 0.0
-        # Monotonic timestamp when the human client's sequence pump should
-        # have finished playing brackets already sent.
-        self._client_caught_up_at: float = 0.0
+        # Per human player: monotonic timestamp when THAT client's sequence
+        # pump should have finished playing the brackets sent to it. Each
+        # client plays its own stream, so a bracket sent to both viewers
+        # separately (hidden information) costs each of them one playback,
+        # not the sum of the two.
+        self._client_caught_up_at: Dict[str, float] = {}
         # Cleared while an authoritative state transition is being applied.
         self._state_checkpoint = asyncio.Event()
         self._state_checkpoint.set()
@@ -354,25 +357,35 @@ class GameSession:
         if self.choreography_pauses:
             await asyncio.sleep(seconds)
 
-    def _note_client_animation(self, sequence_name: str):
-        """Extends the estimated time until the human client's sequence pump is idle."""
+    def _note_client_animation(self, sequence_name: str, player_id: Optional[str]):
+        """Extends the estimated time until `player_id`'s sequence pump is idle."""
+        if player_id is None:
+            return
         name = getattr(sequence_name, "value", sequence_name) or ""
         duration = SEQUENCE_DURATION_SECONDS.get(
             name, DEFAULT_SEQUENCE_DURATION_SECONDS
         )
         now = time.monotonic()
-        self._client_caught_up_at = max(self._client_caught_up_at, now) + duration
+        current = self._client_caught_up_at.get(player_id, 0.0)
+        self._client_caught_up_at[player_id] = max(current, now) + duration
 
-    def _client_catchup_remaining(self) -> float:
-        """Seconds until queued playmat animations are estimated to finish."""
+    def _client_catchup_remaining(self, player_id: Optional[str] = None) -> float:
+        """Seconds until queued playmat animations are estimated to finish --
+        on `player_id`'s client, or on the slowest human client when None."""
         if not self.choreography_pauses:
             return 0.0
-        remaining = self._client_caught_up_at - time.monotonic()
+        if player_id is not None:
+            caught_up = self._client_caught_up_at.get(player_id, 0.0)
+        else:
+            caught_up = max(self._client_caught_up_at.values(), default=0.0)
+        remaining = caught_up - time.monotonic()
         return min(MAX_CLIENT_CATCHUP_SECONDS, max(0.0, remaining))
 
-    async def _wait_for_client_catchup(self, extra_seconds: float = 0.0):
-        """Blocks until estimated client playback has caught up with the wire."""
-        remaining = self._client_catchup_remaining()
+    async def _wait_for_client_catchup(self, extra_seconds: float = 0.0,
+                                       player_id: Optional[str] = None):
+        """Blocks until estimated client playback has caught up with the wire
+        (on `player_id`'s client, or every human client when None)."""
+        remaining = self._client_catchup_remaining(player_id)
         if remaining > 0:
             remaining += max(0.0, extra_seconds)
         if remaining <= 0:
@@ -692,16 +705,13 @@ class GameSession:
                 {"gameID": self.game_id, "sequenceID": sequence_id, "name": name},
             ))
         )
-        sent_to_human = False
         async with self._wire_lock:
-            for _, player in self._unique_recipients(players):
+            for player_id, player in self._unique_recipients(players):
                 for packet in packets:
                     await player.send_packet(OutboundMsg.SEQUENCE_MESSAGE.value, packet)
                 if isinstance(player, NetworkPlayer):
-                    sent_to_human = True
+                    self._note_client_animation(name, player_id)
             self._last_sequence_sent_at = time.monotonic()
-            if sent_to_human:
-                self._note_client_animation(name)
 
     def _nested_sequence_envelopes(self, nested: NestedSequence) -> List[Dict[str, Any]]:
         """Builds the Start/inner/Stop envelope run for a child sequence.
@@ -760,7 +770,9 @@ class GameSession:
             # SetIdleTimer is processed immediately, while the offer waits on
             # the sequence pump. Hold both until animations should have landed
             # so the 15s inactivity window is not consumed by playback.
-            await self._wait_for_client_catchup(CLIENT_CATCHUP_BUFFER_SECONDS)
+            # Only the offered player's own playback matters for their timer.
+            offered_id = next((pid for pid, p in self.players.items() if p is player), None)
+            await self._wait_for_client_catchup(CLIENT_CATCHUP_BUFFER_SECONDS, offered_id)
             await self._wait_for_connection_resume()
             if self.game_phase == GamePhase.GAME_OVER:
                 raise GameOver()
