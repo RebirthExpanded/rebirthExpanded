@@ -60,6 +60,9 @@ async def stinger_gx(ctx):
         for entry in dealt:
             ctx._queue(ctx.session._entity_moved_msg(
                 entry["entity_id"], entry["destination_id"], entry["position"]))
+            # Re-hide it: a card the client has already seen (a deck search
+            # introduces the whole deck) would otherwise land face up.
+            ctx._queue(ctx.session._attributes_reset_msg(entry["entity_id"]))
         # deal_from_deck ADDS to the running total; this attack replaces the
         # spread, so the count is the pile itself.
         board.prizes_dealt[pid] = len(area.children)

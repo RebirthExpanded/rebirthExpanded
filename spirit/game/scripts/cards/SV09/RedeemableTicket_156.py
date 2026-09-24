@@ -53,6 +53,9 @@ async def redeemable_ticket(ctx):
     for entry in dealt:
         ctx._queue(ctx.session._entity_moved_msg(
             entry["entity_id"], entry["destination_id"], entry["position"]))
+        # Re-hide it: a card the client has already seen (a deck search
+        # introduces the whole deck) would otherwise land face up.
+        ctx._queue(ctx.session._attributes_reset_msg(entry["entity_id"]))
     # Same count out, same count in: the Prizes already taken are unchanged.
     board.prizes_dealt[pid] = dealt_before
     ctx._queue(ctx.session._refresh_prize_gaps(pid, area))
