@@ -1564,6 +1564,11 @@ class GameSession:
         for key in [k for k in state.attack_locks if k[0] == entity_id]:
             state.attack_locks.pop(key, None)
         state.retreat_locks.pop(entity_id, None)
+        # "At the end of your opponent's next turn, the DEFENDING Pokemon
+        # will be Knocked Out" (Pale Moon-GX): an effect of an attack on the
+        # Defending Pokemon, so leaving the Active Spot takes it off the
+        # schedule -- a retreat or a switch saves the Pokemon for good.
+        state.scheduled_knockouts.pop(entity_id, None)
         state.attach_restrictions.pop(entity_id, None)
         state.attack_flip_checks.pop(entity_id, None)
         state.ignore_target_effects_entities.discard(entity_id)
