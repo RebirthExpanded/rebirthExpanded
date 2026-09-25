@@ -416,11 +416,13 @@ class EffectContext:
         return calc.amount
 
     def _queue_effect_prevented(self, target: PokemonEntity):
+        # Trainer/Checkup contexts may have no source card to fly the shield from.
+        source = self.attacker if self.attacker is not None else target
         self._queue(self.session._build_msg(
             OutboundMsg.SHIELD_TARGETS_EFFECT.value,
             {
                 "gameID": self.game_id,
-                "source": self.attacker.entity_id,
+                "source": source.entity_id,
                 "targets": [target.entity_id],
                 "wasDamage": False,
             },

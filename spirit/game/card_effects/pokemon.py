@@ -1046,10 +1046,12 @@ async def delayed_knockout(ctx):
     """At the end of your opponent's next turn, the Defending Pokemon will
     be Knocked Out (dropped if it leaves the Active spot or evolves)."""
     target = ctx.defender
+    if target is None:
+        return
     # Play the orb regardless if the attack was blocked or not (shield trigger)
     ctx.visual_targets = [target.entity_id]
-    if target is None or ctx.effects_blocked(target):
-        ctx.queue_effect_blocked(target)
+    if ctx.effects_blocked(target):
+        ctx._queue_effect_prevented(target)
         return
     owner_id = target.owning_player_id
     target_id = target.entity_id
