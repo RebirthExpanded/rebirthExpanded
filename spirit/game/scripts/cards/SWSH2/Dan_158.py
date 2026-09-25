@@ -1,10 +1,14 @@
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import Rarities
+from spirit.game.card_effects.support_common import rock_paper_scissors
 
 
 async def dan(ctx):
-    """Draw 2 cards. (Rock-Paper-Scissors bonus draw is unscripted -- no RPS engine capability.)"""
+    """Draw 2 cards. You and your opponent play Rock-Paper-Scissors; if you
+    win, draw 2 more cards (a tie is replayed, see rock_paper_scissors)."""
     await ctx.draw_cards(2)
+    if await rock_paper_scissors(ctx):
+        await ctx.draw_cards(2)
 
 
 card = SupporterCardDef(
