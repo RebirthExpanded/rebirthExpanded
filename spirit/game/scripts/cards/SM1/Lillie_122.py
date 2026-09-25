@@ -5,18 +5,21 @@ Supporter.
   "Draw cards until you have 6 cards in your hand. If it's your first turn,
    draw cards until you have 8 cards in your hand."
 
-"Your first turn" is turn 1 for the player going first and turn 2 for the
-player going second (a Supporter is only ever played on its owner's turn).
+Under current rules the player going first cannot play a Supporter on
+their first turn, so "your first turn" can only be the second player's
+first turn -- turn 2 of the game (house ruling; the 8-card case dates from
+when the first player could).
 The JP SM7 reprint has no English Celestial Storm print, so the card sits
 at its original Sun & Moon number.
 """
 
 from spirit.game.attributes import Rarities
+from spirit.game.card_effects.trainers import second_players_first_turn
 from spirit.game.data_utils import SupporterCardDef
 
 
 async def lillie(ctx):
-    first_turn = ctx.session.turn_state.turn_number <= 2
+    first_turn = second_players_first_turn(ctx.board, ctx.player_id)
     await ctx.draw_until(8 if first_turn else 6)
 
 
