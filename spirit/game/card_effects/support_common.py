@@ -859,3 +859,33 @@ def more_prizes_remaining_than_opponent(board, player_id, pokemon=None):
     mine = board.find_player_area(player_id, "prizePile")
     theirs = board.find_player_area(opponent, "prizePile") if opponent else None
     return len(mine.children if mine else []) > len(theirs.children if theirs else [])
+
+
+# --- Rock-Paper-Scissors -------------------------------------------------------
+
+RPS_PLAYS = ["Rock", "Paper", "Scissors"]
+
+
+async def rock_paper_scissors(ctx) -> bool:
+    """"You and your opponent play Rock-Paper-Scissors": replayed on a tie
+    until someone wins (the Japanese rule for ジャンケン); True when the
+    effect's owner wins. Each player picks without seeing the other's play.
+    An AI player is shown the three plays in a shuffled order, since it
+    answers a choice with the first button."""
+    import random
+    from spirit.game.session.ai_player import AIPlayer
+
+    async def play(player_id, prompt):
+        is_ai = isinstance(ctx.session.players.get(player_id), AIPlayer)
+        order = random.sample(RPS_PLAYS, 3) if is_ai else list(RPS_PLAYS)
+        pick = await ctx.choose(prompt, order, player_id=player_id, use_panel=False)
+        return RPS_PLAYS.index(order[pick])
+
+    prompt = "Rock-Paper-Scissors: choose your play."
+    for _ in range(100):
+        mine = await play(ctx.player_id, prompt)
+        theirs = await play(ctx.opponent_id, prompt)
+        if mine != theirs:
+            return (mine - theirs) % 3 == 1
+        prompt = "It's a tie! Rock-Paper-Scissors: choose your play."
+    return False

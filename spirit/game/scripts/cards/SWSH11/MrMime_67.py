@@ -1,28 +1,15 @@
-import random
-
 from spirit.game.data_utils import PokemonCardDef, Attack
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.passives_common import apply_protection
-
-_RPS = ["Rock", "Paper", "Scissors"]
+from spirit.game.card_effects.support_common import rock_paper_scissors
 
 
 async def tricky_slap(ctx):
     """Play Rock-Paper-Scissors until someone wins; if the attacker wins,
     shield this Pokemon from all damage/effects next turn."""
     await ctx.deal_damage()
-    prompt = "Rock-Paper-Scissors: choose your play."
-    for _ in range(100):
-        mine = await ctx.choose(prompt, _RPS)
-        # Opponent sees a shuffled order so an AI (auto-first-button) plays randomly.
-        order = random.sample(_RPS, 3)
-        pick = await ctx.choose(prompt, order, player_id=ctx.opponent_id)
-        theirs = _RPS.index(order[pick])
-        if mine != theirs:
-            if (mine - theirs) % 3 == 1:
-                await apply_protection(ctx, prevent=True, effects_too=True)
-            return
-        prompt = "It's a tie! Rock-Paper-Scissors: choose your play."
+    if await rock_paper_scissors(ctx):
+        await apply_protection(ctx, prevent=True, effects_too=True)
 
 
 card = PokemonCardDef(
