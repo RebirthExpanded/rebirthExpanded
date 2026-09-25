@@ -243,11 +243,15 @@ def get_merged_collection_payload(account_id):
     """The player's owned collection. Only DB-owned items plus unlimited basic energy."""
     cl = []
     seen_guids = set()
+    free_energy = _free_energy_guids()
 
-    # 1. Items the account actually owns in the database
+    # 1. Items the account actually owns in the database. A stored row for a
+    #    free basic Energy (a booster pack's Energy slot) must not stand in
+    #    for the unlimited entry: the client would see e.g. 1 owned copy and
+    #    split an 18-Energy deck into a 1-card and a 17-card stack.
     for item in get_collection_by_account_id(account_id):
         guid = item["archetype_id"].lower()
-        if guid in seen_guids:
+        if guid in seen_guids or guid in free_energy:
             continue
         seen_guids.add(guid)
         cl.append({
@@ -257,7 +261,7 @@ def get_merged_collection_payload(account_id):
         })
 
     # 2. Basic energy is free/unlimited for everyone (matches live PTCGO)
-    for guid in _free_energy_guids():
+    for guid in free_energy:
         if guid in seen_guids:
             continue
         seen_guids.add(guid)
@@ -348,6 +352,8 @@ def add_many_to_collection(account_id, grants, is_tradable=False):
 
     Replaces N per-row db_session round trips (account creation issued ~140) with a
     single bulk-read + upsert, mirroring grant_all_cards' pattern."""
+    # Free basic Energy is unlimited already; storing copies only shadows it.
+    grants = {g: n for g, n in grants.items() if g.lower() not in _free_energy_guids()}
     if not grants:
         return True
     try:
@@ -373,6 +379,8 @@ def add_many_to_collection(account_id, grants, is_tradable=False):
 
 def add_to_collection(account_id, archetype_id, count=1, is_tradable=False):
     """Adds an item to the account's collection."""
+    if archetype_id.lower() in _free_energy_guids():
+        return True  # free basic Energy is unlimited; see get_merged_collection_payload
     logging.info(f"[DB] Adding {count}x {archetype_id} (tradable={is_tradable}) to account {account_id}")
     try:
         with db_session() as session:
