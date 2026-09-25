@@ -271,6 +271,11 @@ class GameSession:
         # separately (hidden information) costs each of them one playback,
         # not the sum of the two.
         self._client_caught_up_at: Dict[str, float] = {}
+        # The same clock charged at the full table durations (no
+        # NON_REVEAL_DURATION_CUT_SECONDS): the offer may go out on the cut
+        # clock, but the player's idle timer starts on this one, when the
+        # client should really have finished playing the brackets before it.
+        self._client_full_caught_up_at: Dict[str, float] = {}
         # Cleared while an authoritative state transition is being applied.
         self._state_checkpoint = asyncio.Event()
         self._state_checkpoint.set()
@@ -383,21 +388,26 @@ class GameSession:
         duration = SEQUENCE_DURATION_SECONDS.get(
             name, DEFAULT_SEQUENCE_DURATION_SECONDS
         )
+        now = time.monotonic()
+        full = self._client_full_caught_up_at.get(player_id, 0.0)
+        self._client_full_caught_up_at[player_id] = max(full, now) + duration
         if not reveals_cards:
             duration = max(0.0, duration - NON_REVEAL_DURATION_CUT_SECONDS)
-        now = time.monotonic()
         current = self._client_caught_up_at.get(player_id, 0.0)
         self._client_caught_up_at[player_id] = max(current, now) + duration
 
-    def _client_catchup_remaining(self, player_id: Optional[str] = None) -> float:
+    def _client_catchup_remaining(self, player_id: Optional[str] = None,
+                                  full: bool = False) -> float:
         """Seconds until queued playmat animations are estimated to finish --
-        on `player_id`'s client, or on the slowest human client when None."""
+        on `player_id`'s client, or on the slowest human client when None.
+        full=True reads the uncut clock (idle-timer start)."""
         if not self.choreography_pauses:
             return 0.0
+        clock = self._client_full_caught_up_at if full else self._client_caught_up_at
         if player_id is not None:
-            caught_up = self._client_caught_up_at.get(player_id, 0.0)
+            caught_up = clock.get(player_id, 0.0)
         else:
-            caught_up = max(self._client_caught_up_at.values(), default=0.0)
+            caught_up = max(clock.values(), default=0.0)
         remaining = caught_up - time.monotonic()
         return min(MAX_CLIENT_CATCHUP_SECONDS, max(0.0, remaining))
 
@@ -803,6 +813,9 @@ class GameSession:
             await self._wait_for_connection_resume()
             if self.game_phase == GamePhase.GAME_OVER:
                 raise GameOver()
+            # The offer can go now; the client shows it only after playing
+            # what is queued before it, which the uncut clock estimates.
+            timer_delay = self._client_catchup_remaining(offered_id, full=True)
             if isinstance(value, dict):
                 # Zero-length custom choices hide the prompt bar, not the
                 # server deadline (Spirit-PTCGO 8ec0c9d7).
@@ -812,7 +825,7 @@ class GameSession:
                 )
                 value = dict(value,
                              offerLength=0 if hide_choice_timer else idle_timeout_ms,
-                             startingTimestamp=int(time.time() * 1000))
+                             startingTimestamp=int((time.time() + timer_delay) * 1000))
         envelope = self._sequence_envelope(
             EMPTY_SEQUENCE_ID, self._build_msg(msg_name, value)
         )
@@ -823,11 +836,14 @@ class GameSession:
         timer_running = False
         async with self._wire_lock:
             await player.send_packet(OutboundMsg.SEQUENCE_MESSAGE.value, envelope)
-            if timed:
-                await player.send_packet(
-                    OutboundMsg.SET_IDLE_TIMER.value,
-                    self._idle_timer_payload(player.account_id, idle_timeout_ms or 0),
-                )
+        if timed:
+            # Start the stock timer when the offer should be on screen, not
+            # while the client is still animating the opponent's turn. A reply
+            # before then (estimates run long) skips the start entirely.
+            if timer_delay > 0:
+                await asyncio.wait({player.pending_choice_future}, timeout=timer_delay)
+            if not player.pending_choice_future.done():
+                await self._send_idle_timer(player, idle_timeout_ms or 0)
                 timer_running = remaining > 0
         try:
             while True:
