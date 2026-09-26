@@ -6,10 +6,9 @@ from spirit.game.card_effects.attacks_common import snipe_attack
 async def explosion_y(ctx):
     """Discard 3 Energy from this Pokémon, and this attack does 280 damage
     to 1 of your opponent's Pokémon."""
-    await ctx.discard_energy_from(
+    await ctx.discard_energy_units_from(
         ctx.attacker, 3,
-        prompt="Choose 3 Energy to discard from this Pokémon",
-    )
+        prompt="Choose 3 Energy to discard from this Pokémon", partial=True)
     await snipe_attack(280, pool="any")(ctx)
 
 

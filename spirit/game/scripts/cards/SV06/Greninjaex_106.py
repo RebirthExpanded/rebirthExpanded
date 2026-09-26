@@ -20,10 +20,9 @@ async def shinobi_blade(ctx):
 async def mirage_barrage(ctx):
     """Discard 2 Energy, then 120 to 2 of your opponent's Pokémon.
     (No W/R for Benched Pokémon.)"""
-    await ctx.discard_energy_from(
+    await ctx.discard_energy_units_from(
         ctx.attacker, 2,
-        prompt="Choose 2 Energy to discard from this Pokémon",
-    )
+        prompt="Choose 2 Energy to discard from this Pokémon", partial=True)
     await snipe_attack(
         120, pool="any", count=2,
         apply_modifiers=None,

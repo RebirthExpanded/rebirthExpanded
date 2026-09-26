@@ -6,17 +6,12 @@ from spirit.game.card_effects.pokemon import energy_provides_type
 async def spiky_knuckle(ctx):
     """200. Put 2 Darkness Energy attached to this Pokemon into your hand."""
     await ctx.deal_damage()
-    energies = [
-        e for e in ctx.attached_energies(ctx.source)
-        if energy_provides_type(e, PokemonTypes.DARKNESS)
-    ]
-    if not energies:
-        return
-    picks = await ctx.choose_cards(
-        energies, 2,
-        prompt="Choose up to 2 Darkness Energy to put into your hand.",
-    )
-    await ctx.put_in_hand(picks, reveal=False)
+    picks = await ctx.select_energy_units(
+        ctx.source, 2, partial=True,
+        predicate=lambda e: energy_provides_type(e, PokemonTypes.DARKNESS),
+        prompt="Choose 2 Darkness Energy to put into your hand.")
+    if picks:
+        await ctx.put_in_hand(picks, reveal=False)
 
 
 card = PokemonCardDef(

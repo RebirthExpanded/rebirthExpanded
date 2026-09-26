@@ -7,14 +7,11 @@ _magical_fire_base = snipe_attack(120, also_base=True)
 
 async def magical_fire(ctx):
     """Put 2 Energy attached to this Pokemon in the Lost Zone. Also does 120 damage to 1 of your opponent's Benched Pokemon (no W/R)."""
-    energies = ctx.attached_energies(ctx.attacker)
-    if energies:
-        picks = await ctx.choose_cards(
-            energies, min(2, len(energies)),
-            prompt="Put 2 Energy attached to this Pokémon in the Lost Zone",
-        )
-        if picks:
-            await ctx.move_to_lost_zone(picks)
+    picks = await ctx.select_energy_units(
+        ctx.attacker, 2, partial=True,
+        prompt="Put 2 Energy attached to this Pokémon in the Lost Zone")
+    if picks:
+        await ctx.move_to_lost_zone(picks)
     await _magical_fire_base(ctx)
 
 

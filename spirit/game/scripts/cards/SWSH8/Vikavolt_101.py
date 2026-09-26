@@ -7,11 +7,10 @@ from spirit.game.card_effects.pokemon import energy_provides_type
 async def electro_blaster(ctx):
     """Discard 2 Lightning Energy from this Pokemon. 200 damage to 1 of your
     opponent's Pokemon (no W/R on Benched)."""
-    await ctx.discard_energy_from(
+    await ctx.discard_energy_units_from(
         ctx.attacker, 2,
         predicate=lambda c: energy_provides_type(c, PokemonTypes.LIGHTNING.value),
-        prompt="Choose 2 Lightning Energy to discard from this Pokémon",
-    )
+        prompt="Choose 2 Lightning Energy to discard from this Pokémon", partial=True)
     await snipe_attack(200, pool="any", count=1)(ctx)
 
 

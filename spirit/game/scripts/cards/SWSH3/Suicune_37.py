@@ -5,15 +5,12 @@ from spirit.game.card_effects.pokemon import energy_provides_type
 
 async def _aurora_loop(ctx):
     await ctx.deal_damage()
-    water_energies = [
-        e for e in ctx.attached_energies(ctx.attacker)
-        if energy_provides_type(e, PokemonTypes.WATER.value)
-    ]
-    picks = await ctx.choose_cards(
-        water_energies, 2,
-        prompt="Choose 2 Water Energy to put into your hand",
-    )
-    await ctx.put_in_hand(picks, reveal=False)
+    picks = await ctx.select_energy_units(
+        ctx.attacker, 2, partial=True,
+        predicate=lambda e: energy_provides_type(e, PokemonTypes.WATER.value),
+        prompt="Choose 2 Water Energy to put into your hand")
+    if picks:
+        await ctx.put_in_hand(picks, reveal=False)
 
 
 card = PokemonCardDef(

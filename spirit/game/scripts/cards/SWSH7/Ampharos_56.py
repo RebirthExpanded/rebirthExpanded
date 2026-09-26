@@ -7,11 +7,11 @@ from spirit.game.card_effects.pokemon import is_lightning_energy
 async def electron_crush(ctx):
     """100 damage; you may discard 3 Lightning Energy from this Pokémon for +120."""
     amount = 100
-    if await ctx.ask_yes_no("Discard 3 Lightning Energy from this Pokémon?"):
-        discarded = await ctx.discard_energy_from(
+    if ctx.energy_units_on(ctx.attacker, is_lightning_energy) >= 3 and await ctx.ask_yes_no(
+            "Discard 3 Lightning Energy from this Pokémon?"):
+        discarded = await ctx.discard_energy_units_from(
             ctx.attacker, 3, predicate=is_lightning_energy,
-            prompt="Discard 3 Lightning Energy",
-        )
+            prompt="Discard 3 Lightning Energy")
         if discarded:
             amount += 120
     await ctx.deal_damage(amount)

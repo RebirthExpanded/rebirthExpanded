@@ -10,12 +10,10 @@ def _is_water_energy(card):
 
 async def dynamic_wave(ctx):
     """Put 3 Energy attached to this Pokemon into hand; 180 to 1 of opponent's Pokemon."""
-    attached = ctx.attached_energies(ctx.attacker)
-    if attached:
-        picks = await ctx.choose_cards(
-            attached, 3,
-            prompt="Choose 3 Energy attached to this Pokémon to put into your hand",
-        )
+    picks = await ctx.select_energy_units(
+        ctx.attacker, 3, partial=True,
+        prompt="Choose 3 Energy attached to this Pokémon to put into your hand")
+    if picks:
         await ctx.put_in_hand(picks, reveal=False)
     target = await ctx.choose_pokemon(
         ctx.opponent_pokemon_in_play(), "Choose 1 of your opponent's Pokémon"

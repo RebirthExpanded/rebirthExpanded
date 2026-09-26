@@ -12,14 +12,13 @@ async def metallic_hammer(ctx):
     """150, +150 more if you discard 3 Metal Energy from this Pokemon."""
     bonus = 0
     metal = [e for e in ctx.attached_energies(ctx.attacker) if _is_metal_energy(e)]
-    if len(metal) >= 3 and await ctx.ask_yes_no(
+    if ctx.energy_units_on(ctx.attacker, _is_metal_energy) >= 3 and await ctx.ask_yes_no(
         "Discard 3 Metal Energy from this Pokémon and have this attack do 150 more damage?"
     ):
-        discarded = await ctx.discard_energy_from(
+        discarded = await ctx.discard_energy_units_from(
             ctx.attacker, 3, predicate=_is_metal_energy,
-            prompt="Choose 3 Metal Energy to discard from this Pokémon",
-        )
-        if len(discarded) >= 3:
+            prompt="Choose 3 Metal Energy to discard from this Pokémon")
+        if discarded:
             bonus = 150
     await ctx.deal_damage(150 + bonus)
 

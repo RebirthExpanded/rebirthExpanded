@@ -517,10 +517,9 @@ def heal_attack(amount=None, all_damage=False, discard_energy=0, target="self"):
         if pokemon is None:
             return
         if discard_energy > 0:
-            await ctx.discard_energy_from(
+            await ctx.discard_energy_units_from(
                 pokemon, discard_energy,
-                prompt=f"Discard {discard_energy} Energy",
-            )
+                prompt=f"Discard {discard_energy} Energy", partial=True)
         heal_amount = (ctx.max_hp(pokemon) - pokemon.get_attribute(AttrID.HP, 0)) \
             if all_damage else (amount or 0)
         if heal_amount > 0:

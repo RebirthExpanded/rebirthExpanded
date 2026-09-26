@@ -34,13 +34,11 @@ async def body_surf(ctx):
 async def ocean_loop(ctx):
     """210 damage, then put 2 Water Energy attached to this Pokémon into your hand."""
     await ctx.deal_damage()
-    attached = [c for c in ctx.attached_energies(ctx.source) if _is_water_energy(c)]
-    if not attached:
-        return
-    picks = await ctx.choose_cards(
-        attached, 2, prompt="Choose 2 Water Energy to put into your hand.",
-    )
-    await ctx.put_in_hand(picks, reveal=False)
+    picks = await ctx.select_energy_units(
+        ctx.source, 2, predicate=_is_water_energy, partial=True,
+        prompt="Choose 2 Water Energy to put into your hand.")
+    if picks:
+        await ctx.put_in_hand(picks, reveal=False)
 
 
 card = PokemonCardDef(

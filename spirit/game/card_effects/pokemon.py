@@ -882,9 +882,8 @@ async def concealed_cards(ctx):
 async def moonlight_shuriken(ctx):
     """Discard 2 Energy from this Pokemon; 90 damage to 2 of the opponent's
     Pokemon (no Weakness/Resistance for Benched Pokemon)."""
-    await ctx.discard_energy_from(
-        ctx.attacker, 2, prompt="Discard 2 Energy from Radiant Greninja"
-    )
+    await ctx.discard_energy_units_from(
+        ctx.attacker, 2, prompt="Discard 2 Energy from Radiant Greninja", partial=True)
     await _damage_up_to_two(
         ctx, ctx.opponent_pokemon_in_play(), 90,
         "Choose a Pokémon to take 90 damage",
@@ -1010,10 +1009,9 @@ async def electromagnetic_sonar(ctx):
 async def targeted_bolt(ctx):
     """Discard 2 Lightning Energy from this Pokemon; 120 damage to 1 of the
     opponent's Benched Pokemon."""
-    await ctx.discard_energy_from(
+    await ctx.discard_energy_units_from(
         ctx.attacker, 2, predicate=is_lightning_energy,
-        prompt="Discard 2 Lightning Energy from Regieleki",
-    )
+        prompt="Discard 2 Lightning Energy from Regieleki", partial=True)
     bench = ctx.opponent_bench()
     if not bench:
         return

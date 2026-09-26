@@ -1742,21 +1742,38 @@ class EffectContext:
         self, pokemon: PokemonEntity, amount: int,
         predicate: Optional[Callable[[CardEntity], bool]] = None,
         prompt: str = "Choose Energy",
+        partial: bool = False,
     ) -> List[CardEntity]:
         """Picks attached cards providing at least ``amount`` Energy ("3
         Energy" counts provided Energy, not cards: a Double Turbo Energy is
         2 of them) without moving anything; [] when the Pokemon cannot
-        supply ``amount``. The caller decides where the cards go
-        (discard_energy_units_from discards; Torrential Pump shuffles)."""
+        supply ``amount`` -- or, with partial=True (an after-effect such as
+        "put 2 Energy into your hand"), every matching card. The caller
+        decides where the cards go (discard_energy_units_from discards;
+        Torrential Pump shuffles)."""
         energies = [
             energy for energy in self.attached_energies(pokemon)
             if predicate is None or predicate(energy)
         ]
         total = sum(energy_provided_count(energy, self.board) for energy in energies)
-        if amount <= 0 or total < amount:
+        if amount <= 0:
             return []
+        if total < amount:
+            return energies if partial else []
+        owner = getattr(pokemon, "owning_player_id", None)
         if total == amount:
             picked = energies
+        elif owner is not None and owner != self.player_id:
+            # The unit tray is the cost picker for the player's own Pokemon;
+            # on an opponent's Pokemon pick card by card until covered.
+            picked, got, pool = [], 0, list(energies)
+            while got < amount and pool:
+                one = await self.choose_cards(pool, 1, minimum=1, prompt=prompt)
+                if not one:
+                    break
+                picked.append(one[0])
+                pool.remove(one[0])
+                got += energy_provided_count(one[0], self.board)
         else:
             picked_ids = await self.session.prompt_energy_unit_picker(
                 self.player_id,

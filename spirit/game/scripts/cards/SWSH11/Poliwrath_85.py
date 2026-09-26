@@ -6,15 +6,10 @@ from spirit.game.card_effects.attacks_common import condition_attack
 async def splash_loop(ctx):
     """160. Put 2 Energy attached to this Pokémon into your hand."""
     await ctx.deal_damage()
-    energies = ctx.attached_energies(ctx.source)
-    if not energies:
-        return
-    count = min(2, len(energies))
-    picks = await ctx.choose_cards(
-        energies, count, minimum=count,
-        prompt="Choose Energy to put into your hand",
-    )
-    await ctx.put_in_hand(picks, reveal=False)
+    picks = await ctx.select_energy_units(
+        ctx.source, 2, partial=True, prompt="Choose 2 Energy to put into your hand")
+    if picks:
+        await ctx.put_in_hand(picks, reveal=False)
 
 
 card = PokemonCardDef(

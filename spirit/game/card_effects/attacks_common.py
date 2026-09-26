@@ -486,9 +486,9 @@ def discard_opponent_energy_attack(count: int = 1, special_only: bool = False,
         target = ctx.opponent_active()
         if target is None or ctx.effects_blocked(target):
             return
-        await ctx.discard_energy_from(
+        await ctx.discard_energy_units_from(
             target, count, predicate=pred,
-            prompt="Choose Energy to discard from the Defending Pokémon")
+            prompt="Choose Energy to discard from the Defending Pokémon", partial=True)
 
     async def effect(ctx):
         if after_damage:
