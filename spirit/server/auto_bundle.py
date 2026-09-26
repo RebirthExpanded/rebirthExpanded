@@ -350,18 +350,66 @@ def generate_energy_pip_png(png_path, set_code, asset_name, out_dir=None,
                              wide=wide)
 
 
-def generate_tool_pip_png(png_path, set_code, asset_name, out_dir=None):
-    """Art-window crop for an attached tool's pip.
+# Tool pip = the card's whole art window, at the art window's own aspect
+# (~1.6:1). The client stretches the texture over its landscape pip frame, so
+# a square crop showed a distorted middle slice. Fractions of the card face:
+# the normal frame's art box (above the "Pokemon Tool" bar at ~0.51h, EN and
+# JP layouts alike), and for full-art prints a box of the same shape below
+# their Tool reminder box (~0.14-0.20h) over the main illustration.
+# The name strip reaches ~0.13h on the BW/XY Japanese frames (0.105h on SWSH)
+# and older frames carry side stripes, so the normal box starts at 0.14h and
+# stays inside 0.085-0.915w. ACE SPEC frames run a vertical "ACE SPEC" band
+# down the right edge from ~0.87w. SWSH gold full arts print the Tool
+# reminder box down to ~0.19h, so theirs starts at 0.20h.
+TOOL_PIP_BOX_NORMAL = (0.085, 0.14, 0.915, 0.495)
+TOOL_PIP_BOX_ACE_SPEC = (0.07, 0.135, 0.87, 0.495)
+TOOL_PIP_BOX_FULL_ART = (0.07, 0.20, 0.93, 0.585)
+# BW/XY frames (mostly the Japanese art here) run the name bar down to ~0.155h
+# with the Tool bar at ~0.49h; a narrower box keeps the same ~1.6 aspect.
+TOOL_PIP_BOX_BW_XY = (0.125, 0.16, 0.875, 0.49)
+FULL_ART_RARITIES = frozenset({"RareSecret", "RareUltra", "RareRainbow",
+                               "ChrRareSecret", "ChrRareUltra"})
+
+
+def _is_full_art(card_def) -> bool:
+    """Full-art print (SR/SAR, gold). The SV ACE SPEC Tools are Ultra Rare
+    but printed on the normal ACE SPEC frame."""
+    if "ACE SPEC" in (getattr(card_def, "subtypes", None) or []):
+        return False
+    rarity = getattr(card_def, "rarity", None)
+    return getattr(rarity, "name", None) in FULL_ART_RARITIES
+
+
+def _tool_pip_box(card_def):
+    set_code = str(getattr(card_def, "set_code", "") or "")
+    if set_code.startswith(("BW", "XY")) and not _is_full_art(card_def):
+        return TOOL_PIP_BOX_BW_XY
+    if "ACE SPEC" in (getattr(card_def, "subtypes", None) or []):
+        return TOOL_PIP_BOX_ACE_SPEC
+    return TOOL_PIP_BOX_FULL_ART if _is_full_art(card_def) else TOOL_PIP_BOX_NORMAL
+
+
+def generate_tool_pip_png(png_path, set_code, asset_name, out_dir=None,
+                          box=TOOL_PIP_BOX_NORMAL):
+    """Whole-art crop for an attached tool's pip.
 
     ToolPipTextureRenderer requests "{set}/{num}_toolpip" for every attached
-    tool; without it the generic wrench icon shows. Tool art has no fixed
-    emblem shape, so the crop is a centered window (no detection). The band
-    0.21-0.51h is text-free on BOTH tool layouts: regular tools put the
-    "Pokemon Tool" reminder box at ~0.52h, full-arts put it at ~0.14-0.20h.
+    tool; without it the generic wrench icon shows. The crop is the card's art
+    window at its natural aspect (TOOL_PIP_BOX_*), so the pip shows the full
+    illustration the way a card icon does; full-art prints (SR/SAR, gold) get
+    the same shape over their main illustration.
     """
-    return _generate_pip_png(png_path, set_code, asset_name, "toolpip",
-                             detect=False, art_window=(0.21, 0.51),
-                             out_dir=out_dir)
+    out_dir = out_dir or PIP_CACHE_DIR
+    out_path = os.path.join(out_dir, f"{set_code}_{asset_name}_toolpip.png")
+    stale_after = max(os.path.getmtime(png_path), os.path.getmtime(__file__))
+    if os.path.exists(out_path) and os.path.getmtime(out_path) >= stale_after:
+        return out_path
+    os.makedirs(out_dir, exist_ok=True)
+    img = Image.open(png_path).convert("RGBA")
+    w, h = img.size
+    x0, y0, x1, y1 = box
+    img.crop((int(w * x0), int(h * y0), int(w * x1), int(h * y1))).save(out_path)
+    return out_path
 
 
 def check_and_generate_bundles() -> int:
@@ -456,7 +504,8 @@ def check_and_generate_bundles() -> int:
                 if pip_path:
                     card_assets[f"{asset_name}_energypip"] = pip_path
             elif _is_pokemon_tool(card_def) and os.path.exists(png_path):
-                pip_path = generate_tool_pip_png(png_path, set_code, asset_name)
+                pip_path = generate_tool_pip_png(png_path, set_code, asset_name,
+                                                 box=_tool_pip_box(card_def))
                 if pip_path:
                     card_assets[f"{asset_name}_toolpip"] = pip_path
 
