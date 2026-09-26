@@ -1723,21 +1723,38 @@ class EffectContext:
         and takes whatever is attached.
         """
 
+        if amount <= 0:
+            return []
+        if partial:
+            energies = [
+                energy for energy in self.attached_energies(pokemon)
+                if predicate is None or predicate(energy)
+            ]
+            if sum(energy_provided_count(e, self.board) for e in energies) < amount:
+                await self.discard_cards(energies)
+                return energies
+        picked = await self.select_energy_units(pokemon, amount, predicate, prompt)
+        if picked:
+            await self.discard_cards(picked)
+        return picked
+
+    async def select_energy_units(
+        self, pokemon: PokemonEntity, amount: int,
+        predicate: Optional[Callable[[CardEntity], bool]] = None,
+        prompt: str = "Choose Energy",
+    ) -> List[CardEntity]:
+        """Picks attached cards providing at least ``amount`` Energy ("3
+        Energy" counts provided Energy, not cards: a Double Turbo Energy is
+        2 of them) without moving anything; [] when the Pokemon cannot
+        supply ``amount``. The caller decides where the cards go
+        (discard_energy_units_from discards; Torrential Pump shuffles)."""
         energies = [
             energy for energy in self.attached_energies(pokemon)
             if predicate is None or predicate(energy)
         ]
-        total = sum(
-            energy_provided_count(energy, self.board) for energy in energies
-        )
-        if amount <= 0:
+        total = sum(energy_provided_count(energy, self.board) for energy in energies)
+        if amount <= 0 or total < amount:
             return []
-        if total < amount:
-            if not partial:
-                return []
-            await self.discard_cards(energies)
-            return energies
-
         if total == amount:
             picked = energies
         else:
@@ -1751,16 +1768,21 @@ class EffectContext:
             by_id = {energy.entity_id: energy for energy in energies}
             picked = [by_id[entity_id] for entity_id in picked_ids
                       if entity_id in by_id]
-
         paid = sum(energy_provided_count(energy, self.board) for energy in picked)
         if paid < amount:
             logging.warning(
-                f"[Effects {self.game_id}] Energy payment {amount} resolved "
-                f"with only {paid}; no cards discarded."
+                f"[Effects {self.game_id}] Energy selection {amount} resolved "
+                f"with only {paid}; nothing selected."
             )
             return []
-        await self.discard_cards(picked)
         return picked
+
+    def energy_units_on(self, pokemon: PokemonEntity,
+                        predicate: Optional[Callable[[CardEntity], bool]] = None) -> int:
+        """Energy a Pokemon provides in total (units, not cards)."""
+        return sum(energy_provided_count(e, self.board)
+                   for e in self.attached_energies(pokemon)
+                   if predicate is None or predicate(e))
 
     async def move_to_lost_zone(self, cards: List[CardEntity]):
         """Moves cards to their owner's Lost Zone (a public zone)."""

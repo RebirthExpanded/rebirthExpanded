@@ -18,17 +18,17 @@ async def torrential_pump(ctx):
     Benched Pokémon (no W/R for Benched)."""
     await ctx.deal_damage()
 
-    energies = list(ctx.attached_energies(ctx.attacker))
-    if len(energies) < 3:
+    # "3 Energy" counts provided Energy, not cards: a card providing 2
+    # (Double Turbo Energy) covers 2 of the 3.
+    if ctx.energy_units_on(ctx.attacker) < 3:
         return
     if not await ctx.ask_yes_no(
         "Shuffle 3 Energy attached to this Pokémon into your deck?"
     ):
         return
-    picks = await ctx.choose_cards(
-        energies, 3,
-        prompt="Choose 3 Energy attached to this Pokémon to shuffle into your deck."
-    )
+    picks = await ctx.select_energy_units(
+        ctx.attacker, 3,
+        prompt="Choose 3 Energy attached to this Pokémon to shuffle into your deck.")
     if not picks:
         return
     await ctx.shuffle_into_deck(picks, player_id=ctx.player_id)
