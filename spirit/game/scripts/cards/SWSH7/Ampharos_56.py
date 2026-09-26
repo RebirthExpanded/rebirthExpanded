@@ -5,13 +5,18 @@ from spirit.game.card_effects.pokemon import is_lightning_energy
 
 
 async def electron_crush(ctx):
-    """100 damage; you may discard 3 Lightning Energy from this Pokémon for +120."""
+    """100 damage; you may discard 3 Lightning Energy from this Pokémon for +120.
+
+    House ruling: the bonus needs only something discarded -- with fewer than
+    3 Lightning Energy attached, choosing to discard takes all of them and
+    still adds 120. With 3 or more, 3 are chosen (provided Energy, not cards).
+    """
     amount = 100
-    if ctx.energy_units_on(ctx.attacker, is_lightning_energy) >= 3 and await ctx.ask_yes_no(
+    if ctx.energy_units_on(ctx.attacker, is_lightning_energy) >= 1 and await ctx.ask_yes_no(
             "Discard 3 Lightning Energy from this Pokémon?"):
         discarded = await ctx.discard_energy_units_from(
             ctx.attacker, 3, predicate=is_lightning_energy,
-            prompt="Discard 3 Lightning Energy")
+            prompt="Discard 3 Lightning Energy", partial=True)
         if discarded:
             amount += 120
     await ctx.deal_damage(amount)
