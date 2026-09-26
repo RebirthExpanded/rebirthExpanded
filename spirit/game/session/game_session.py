@@ -5770,10 +5770,13 @@ class GameSession:
         ]
         for eid in discard_ids:
             # A passive may redirect a retreat-cost energy (Skaters' Park
-            # returns basic Energy to "hand") instead of the discard pile.
+            # returns basic Energy to "hand") instead of the discard pile;
+            # otherwise the card's own discard-from-play destination applies
+            # (Recycle Energy: "put it into your hand instead").
             energy = self.board_state.get_entity(eid)
             dest_area = discard_area
-            dest_name = retreat_energy_destination(self.board_state, card, energy) \
+            dest_name = (retreat_energy_destination(self.board_state, card, energy)
+                         or discard_destination_for(self.board_state, energy)) \
                 if energy is not None else None
             if dest_name:
                 dest_area = self.board_state.find_player_area(
