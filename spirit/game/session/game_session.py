@@ -5079,6 +5079,8 @@ class GameSession:
                 f"target ({target_ids}); re-offering."
             )
             return
+        if not await self._trainer_use_flip(player_id, card):
+            return
         max_before = effective_max_hp(self.board_state, target)
         position = len(target.children)
         if not self.board_state.attach_card(card.entity_id, target_id):
@@ -5564,12 +5566,64 @@ class GameSession:
         )
         return incoming
 
+    async def _trainer_use_flip(self, player_id: str, card) -> bool:
+        """Quaking Fist: while a trainer flip check is on `player_id`, each
+        Trainer card they try to use from hand needs heads; tails discards
+        it unused (it never counts as played). Returns True to proceed."""
+        title = self.turn_state.trainer_flip_check(player_id)
+        if title is None or card._containing_area_name() != "hand":
+            return True
+        flip = random.choice([0, 1])
+        if coin_flips_forced_tails(self.board_state, player_id):
+            flip = 1
+        heads = flip == 0
+        self.stat_add(player_id, "headsflipped", 1 if heads else 0)
+        self.stat_add(player_id, "tailsflipped", 0 if heads else 1)
+        await self.send_game_sequence(
+            list(self.players.values()), GameSequence.POKE_ABILITY,
+            [self._build_msg(
+                OutboundMsg.MULTIPLE_COIN_FLIP_WITH_CONTEXT_EFFECT.value,
+                {
+                    "gameID": self.game_id,
+                    "resultLst": [flip],
+                    "title": {"id": title or TEXT_ATTACK_FLIP_CHECK},
+                    "gameText": {"id": TEXT_ATTACK_FLIP_PROCEEDS if heads
+                                 else TEXT_ATTACK_FLIP_FAILS},
+                    "source": card.entity_id,
+                    "targets": [card.entity_id],
+                },
+            )],
+        )
+        await self.choreo_pause(2.0)
+        if heads:
+            return True
+        discard_area = self.board_state.find_player_area(player_id, "discard")
+        if discard_area is not None:
+            position = len(discard_area.children)
+            if self.board_state.move_card(card.entity_id, discard_area.entity_id):
+                card.owning_player_id = player_id
+                opponent = self.players.get(self._opponent_id(player_id))
+                if opponent is not None:
+                    await self.send_game_sequence(
+                        [opponent], GameSequence.SERIAL_SEQUENCE,
+                        [self._entity_introduced_msg(card)])
+                await self.send_game_sequence(
+                    list(self.players.values()), GameSequence.GROUPED_MOVE,
+                    [self._entity_moved_msg(card.entity_id, discard_area.entity_id, position)])
+        logging.info(
+            f"[Session {self.game_id}] {self.players[player_id].screen_name}'s "
+            f"trainer {card.entity_id} was discarded by a failed flip."
+        )
+        return False
+
     async def _execute_play_trainer(self, player_id, card, play_target=None) -> bool:
         """Plays an Item/Supporter: revealed onto activeTrainer, effect resolves,
         then discarded. Returns True when the effect ended the turn (Rotom Bike)."""
         trainer_area = self.board_state.find_global_area("activeTrainer")
         discard_area = self.board_state.find_player_area(player_id, "discard")
         if not trainer_area or not discard_area:
+            return False
+        if not await self._trainer_use_flip(player_id, card):
             return False
         if not self.board_state.move_card(card.entity_id, trainer_area.entity_id):
             return False
@@ -5654,6 +5708,8 @@ class GameSession:
         companion_fn = getattr(definition, "companion", None)
         partner = companion_fn(self.board_state, player_id, card) if companion_fn else None
         if companion_fn is not None and partner is None:
+            return
+        if not await self._trainer_use_flip(player_id, card):
             return
         incoming = [card]
         if partner is not None:

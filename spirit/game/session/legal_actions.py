@@ -213,6 +213,9 @@ class TurnState:
     # entity_id -> (through_turn, flip_title): a Smokescreen-family check --
     # this entity must flip a coin to attack, tails cancels the attack.
     attack_flip_checks: Dict[str, Tuple[int, str]] = field(default_factory=dict)
+    # player_id -> (through_turn, title): flip before using a Trainer card
+    # from hand; tails = discarded unused (Seismitoad's Quaking Fist).
+    trainer_flip_checks: Dict[str, Tuple[int, str]] = field(default_factory=dict)
     # Entities whose attacks ignore effects on the opponent's Active THIS turn
     # (Phoebe); cleared every begin_turn.
     ignore_target_effects_entities: Set[str] = field(default_factory=set)
@@ -316,6 +319,10 @@ class TurnState:
             eid: entry for eid, entry in self.attack_flip_checks.items()
             if entry[0] >= self.turn_number
         }
+        self.trainer_flip_checks = {
+            pid: entry for pid, entry in self.trainer_flip_checks.items()
+            if entry[0] >= self.turn_number
+        }
         self.ignore_target_effects_entities = set()
         # "For the rest of this game" watches (Altered Creation-GX) survive
         # the turn rollover; the rest are this-turn only.
@@ -337,7 +344,8 @@ class TurnState:
     # ------------------------------------------------------------------
 
     _DICT_EFFECT_STORES = ("attack_locks", "retreat_locks", "attach_restrictions",
-                           "attack_flip_checks", "scheduled_knockouts")
+                           "attack_flip_checks", "scheduled_knockouts",
+                           "trainer_flip_checks")
     _LIST_EFFECT_STORES = ("damage_modifiers", "extra_prize_watchers", "gx_blocks")
 
     def _prune_attack_effects(self) -> None:
@@ -508,6 +516,22 @@ class TurnState:
     def attack_flip_check(self, entity_id: str) -> Optional[str]:
         """The flip title when `entity_id` must flip to attack this turn, else None."""
         entry = self.attack_flip_checks.get(entity_id)
+        if entry is not None and self.turn_number <= entry[0]:
+            return entry[1]
+        return None
+
+    def set_trainer_flip_check(self, player_id: str, through_turn: Optional[int] = None,
+                               title: str = ""):
+        """Requires `player_id` to flip before each Trainer card they use from
+        hand (tails = discarded unused); default: through their next turn."""
+        self.trainer_flip_checks[player_id] = (
+            self.turn_number + 1 if through_turn is None else through_turn,
+            title,
+        )
+
+    def trainer_flip_check(self, player_id: str) -> Optional[str]:
+        """The flip title when `player_id` must flip to use a Trainer this turn."""
+        entry = self.trainer_flip_checks.get(player_id)
         if entry is not None and self.turn_number <= entry[0]:
             return entry[1]
         return None

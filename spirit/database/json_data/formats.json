@@ -25,7 +25,8 @@
         "SVP",
         "ME6",
         "ME6A",
-        "MEP"
+        "MEP",
+        "CEL30"
       ],
       "allSets": false,
       "bannedCards": [],
@@ -79,6 +80,8 @@
         "ME6",
         "ME6A",
         "MEP",
+        "CEL30",
+        "MP",
         "MEM",
         "SV1",
         "SM5",
@@ -230,6 +233,7 @@
         "ME6",
         "ME6A",
         "MEP",
+        "CEL30",
         "SVP"
       ],
       "allSets": false,

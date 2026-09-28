@@ -843,6 +843,17 @@ class EffectContext:
             title if title is not None else (self.ability.title if self.ability else ""),
         )
 
+    def require_trainer_flip(self, player_id: str, through_turn: Optional[int] = None,
+                             title: Optional[str] = None) -> None:
+        """"During your opponent's next turn, whenever they try to use a
+        Trainer card from their hand, they flip a coin. If tails, they
+        discard that card instead of using it" (Quaking Fist)."""
+        if self._player_attack_effect_blocked(player_id):
+            return
+        self.session.turn_state.set_trainer_flip_check(
+            player_id, through_turn,
+            title if title is not None else (self.ability.title if self.ability else ""))
+
     def ignore_own_target_effects(self, entity: PokemonEntity) -> None:
         """"During this turn, <entity>'s attacks aren't affected by effects on
         the opponent's Active" (Phoebe); cleared at begin_turn."""
