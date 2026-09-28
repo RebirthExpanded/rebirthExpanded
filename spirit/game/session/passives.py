@@ -402,6 +402,13 @@ class Passive:
         """True to forbid `player_id` playing `card` from hand (Vileplume)."""
         return False
 
+    def blocks_pokemon_play(
+        self, card: BoardEntity, player_id: str, carrier: BoardEntity
+    ) -> bool:
+        """True to forbid `player_id` playing the Pokemon `card` from hand --
+        onto the Bench or to evolve (Team Rocket's Arbok's Potent Glare)."""
+        return False
+
     def may_evolve_early(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
         """True to exempt `pokemon` from the just-played/first-turn evolution
         gates (Caterpie's Adaptive Evolution)."""
@@ -1466,6 +1473,15 @@ def putting_into_play_blocked(board: BoardState, player_id: str, card: BoardEnti
     play (Eternal Zone and a non-Darkness Pokemon)."""
     return any(
         passive.blocks_putting_into_play(card, player_id, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def pokemon_play_blocked(board: BoardState, player_id: str, card: BoardEntity) -> bool:
+    """Whether a continuous passive forbids playing the Pokemon `card` from
+    hand, to the Bench or to evolve (Potent Glare)."""
+    return any(
+        passive.blocks_pokemon_play(card, player_id, carrier)
         for passive, carrier in active_passives(board)
     )
 

@@ -61,6 +61,7 @@ from .passives import (
     retreat_blocked,
     tool_slots_free,
     trainer_play_blocked,
+    pokemon_play_blocked,
 )
 
 
@@ -693,7 +694,8 @@ def compute_legal_actions(
             # of the fossils. Every Item/Supporter/Energy lock in the pool
             # takes a predicate that says no to a Pokemon, so nothing else
             # changes.
-            if state.play_locked(player_id, card):
+            if (state.play_locked(player_id, card)
+                    or pokemon_play_blocked(board, player_id, card)):
                 continue
             stage = card.get_attribute(AttrID.STAGE)
             if unplayable_from_hand_now(board, player_id, card):
