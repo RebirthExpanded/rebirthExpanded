@@ -237,10 +237,14 @@ def reprint(
             granted_abilities=[
                 _clone_ability(a) for a in getattr(base, "granted_abilities", []) or []
             ],
+            abilities=[
+                _clone_ability(a) for a in getattr(base, "abilities", []) or []
+            ],
             display_name=base.display_name,
             searchable_by=list(base.searchable_by or []),
             subtypes=list(base.subtypes or []),
             regulation_mark=new_reg,
+            pip_wide=getattr(base, "pip_wide", False),
         )
 
     raise TypeError(f"reprint() unsupported for {type(base).__name__}")
@@ -1334,6 +1338,8 @@ class EnergyCardDef(CardDefinition):
     granted_abilities -- Abilities the energy grants its holder while attached
                         (Spiky Energy's ON_DAMAGED_BY_ATTACK), mirrored onto
                         PIE_ABILITIES like Pokemon Tool grants.
+    abilities        -- the card's own triggers off the board (Treasure
+                        Energy's ON_TAKEN_AS_PRIZE), scanned like a Trainer's.
     """
     def __init__(
         self,
@@ -1355,6 +1361,7 @@ class EnergyCardDef(CardDefinition):
         on_discarded_by_carrier_attack: Optional[Any] = None,
         passive: Optional[Any] = None,
         granted_abilities: Optional[List[Ability]] = None,
+        abilities: Optional[List[Ability]] = None,
         display_name: Optional[str] = None,
         searchable_by: Optional[List[str]] = None,
         subtypes: Optional[List[str]] = None,
@@ -1393,6 +1400,14 @@ class EnergyCardDef(CardDefinition):
             if not a.ability_id:
                 a.ability_id = ability_id_for(guid, idx)
             a.is_granted = True
+            ABILITIES_BY_ID[a.ability_id] = a
+        # The card's own triggers while it is NOT attached (Treasure Energy's
+        # ON_TAKEN_AS_PRIZE window) -- registered for the session's trigger
+        # scans only, like a Trainer's declared abilities.
+        self.abilities: List[Ability] = abilities or []
+        for idx, a in enumerate(self.abilities):
+            if not a.ability_id:
+                a.ability_id = ability_id_for(guid, idx + 100)
             ABILITIES_BY_ID[a.ability_id] = a
 
         options = [[t.value for t in option] for option in provides] \

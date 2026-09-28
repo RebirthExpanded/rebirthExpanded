@@ -1,16 +1,7 @@
-from spirit.game.data_utils import EnergyCardDef
-from spirit.game.attributes import PokemonTypes, Rarities
+from spirit.game.data_utils import reprint, sibling_card
+from spirit.game.attributes import Rarities
 
-card = EnergyCardDef(
-    guid="40417df0-ec7f-5d30-90a8-6123062625b4",
-    key="SWSH3",
-    name="Capture Energy",
-    display_name="Capture Energy",
-    searchable_by=["Capture Energy", "Special"],
-    subtypes=["Special"],
-    collector_number=201,
-    set_code="SWSH3",
-    rarity=Rarities.RareSecret,
-    energy_type=PokemonTypes.COLORLESS,
-    is_special=True
-)
+card = reprint(sibling_card(__file__, "../SWSH2/CaptureEnergy_171.py"),
+               guid="40417df0-ec7f-5d30-90a8-6123062625b4",
+               collector_number=201, rarity=Rarities.RareSecret,
+               set_code="SWSH3", key="SWSH3")
