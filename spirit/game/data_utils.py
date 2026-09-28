@@ -536,6 +536,9 @@ class Triggers:
     # effect (Amoonguss "Surprise Spores"); fires via the acting ctx's
     # deferred_actions, after that effect's choreography flushes.
     ON_DISCARDED_FROM_HAND = "on_discarded_from_hand"
+    # Discarded from its owner's deck by the opponent's attack, Ability,
+    # Item or Supporter during the opponent's turn (Ferrothorn CRI).
+    ON_DISCARDED_FROM_DECK = "on_discarded_from_deck"
     # This card was discarded from its owner's hand BY ROXIE (Koffing and
     # Weezing "Blow-Away Bomb"). The printed text names that one Supporter,
     # so nothing else opens this window -- not another hand discard, and not

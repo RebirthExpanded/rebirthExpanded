@@ -1805,6 +1805,18 @@ class EffectContext:
         """Moves cards to their owner's Lost Zone (a public zone)."""
         await self._move_to_public_pile(cards, "lostZone")
 
+    def _opponent_card_effect_kind(self) -> bool:
+        """Whether this ctx is an attack, a Pokemon's Ability, or an Item /
+        Supporter card -- the effect kinds Startling Drop answers to (a
+        Stadium's effect is none of them)."""
+        if self.is_attack_effect():
+            return True
+        source = self.source
+        if isinstance(source, PokemonEntity) and self.ability is not None:
+            return True
+        trainer_type = source.get_attribute(AttrID.TRAINER_TYPE) if source is not None else None
+        return trainer_type in (TrainerType.ITEM.value, TrainerType.SUPPORTER.value)
+
     async def _move_to_public_pile(self, cards: List[CardEntity], area_name: str):
         cards = self._depart_legends(cards, area_name)
         for card in cards:
@@ -1864,6 +1876,17 @@ class EffectContext:
                     await self.session._fire_triggered_abilities(
                         owner, card, Triggers.ON_DISCARDED_FROM_HAND)
                 self.deferred_actions.append(_fire_hand_discard)
+            if (area_name == "discard" and owner != self.player_id
+                    and source is not None
+                    and source.get_attribute(AttrID.NAME) == "deck"
+                    and self.session.turn_state.active_player_id == self.player_id
+                    and self._opponent_card_effect_kind()):
+                # Milled by the opponent during their turn (Ferrothorn's
+                # Startling Drop), fired after this flush like the hand case.
+                async def _fire_deck_discard(card=card, owner=owner):
+                    await self.session._fire_triggered_abilities(
+                        owner, card, Triggers.ON_DISCARDED_FROM_DECK)
+                self.deferred_actions.append(_fire_deck_discard)
 
     async def look_at_prizes_take(self, predicate=None, minimum: int = 0,
                                   prompt: Optional[str] = None) -> bool:
