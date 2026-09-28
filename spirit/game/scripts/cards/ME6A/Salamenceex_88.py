@@ -1,3 +1,6 @@
+"""Salamence ex (JP M6a 088/103 -- 30th Celebrations; English 30C 109).
+"""
+
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.attacks_common import mill_attack
@@ -18,14 +21,14 @@ async def booming_call(ctx):
         await ctx.bench_pokemon(pick)
 
 card = PokemonCardDef(
-    guid="58a2e9fe-e818-513b-9ebf-ca994e4a92e7",
-    key="CEL30",
+    guid="780b361b-b116-5a9e-baa1-2134d15c0b6e",
+    key="ME6A",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Salamenceex.Name",
     display_name="Salamence ex",
     searchable_by=["Salamence ex", "Stage 2", "ex", "Salamenceex"],
     subtypes=["Stage 2", "ex"],
-    collector_number=109,
-    set_code="CEL30",
+    collector_number=88,
+    set_code="ME6A",
     regulation_mark="J",
     rarity=Rarities.RareHoloEX,
     hp=330,

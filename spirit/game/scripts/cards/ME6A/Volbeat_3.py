@@ -1,3 +1,6 @@
+"""Volbeat (JP M6a 003/103 -- 30th Celebrations; English 30C 3).
+"""
+
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.support_common import _gust
@@ -9,14 +12,14 @@ async def luring_glow(ctx):
         await _gust(ctx)
 
 card = PokemonCardDef(
-    guid="8968d82b-340e-5993-9b87-623e0dfd76ba",
-    key="CEL30",
+    guid="911a7da9-8f6b-585f-b8e4-233ed2b83af0",
+    key="ME6A",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Volbeat.Name",
     display_name="Volbeat",
     searchable_by=["Volbeat", "Basic", "Volbeat"],
     subtypes=["Basic"],
     collector_number=3,
-    set_code="CEL30",
+    set_code="ME6A",
     regulation_mark="J",
     rarity=Rarities.Common,
     hp=80,

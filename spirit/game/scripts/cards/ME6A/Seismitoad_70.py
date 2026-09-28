@@ -1,3 +1,6 @@
+"""Seismitoad (JP M6a 070/103 -- 30th Celebrations; English 30C 84).
+"""
+
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 
@@ -8,14 +11,14 @@ async def quaking_fist(ctx):
     ctx.require_trainer_flip(ctx.opponent_id)
 
 card = PokemonCardDef(
-    guid="93e529fc-0699-5dec-9270-77178d131fc7",
-    key="CEL30",
+    guid="f4661c92-7693-5af5-9ad5-0678c2926b17",
+    key="ME6A",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Seismitoad.Name",
     display_name="Seismitoad",
     searchable_by=["Seismitoad", "Stage 2", "Seismitoad"],
     subtypes=["Stage 2"],
-    collector_number=84,
-    set_code="CEL30",
+    collector_number=70,
+    set_code="ME6A",
     regulation_mark="J",
     rarity=Rarities.Common,
     hp=160,

@@ -1,3 +1,6 @@
+"""Wishiwashi (JP M6a 016/103 -- 30th Celebrations; English 30C 22).
+"""
+
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.data_utils import def_for
@@ -24,14 +27,14 @@ class CounterattackGroupingPassive(Passive):
         return None
 
 card = PokemonCardDef(
-    guid="b17abedb-8564-5eca-971f-234f3aaaee6a",
-    key="CEL30",
+    guid="cbde8338-ea53-5c0d-8c42-04777a0bdc83",
+    key="ME6A",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Wishiwashi.Name",
     display_name="Wishiwashi",
     searchable_by=["Wishiwashi", "Basic", "Wishiwashi"],
     subtypes=["Basic"],
-    collector_number=22,
-    set_code="CEL30",
+    collector_number=16,
+    set_code="ME6A",
     regulation_mark="J",
     rarity=Rarities.Common,
     hp=30,

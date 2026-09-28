@@ -1982,22 +1982,6 @@
     "promo": false
   },
   {
-    "name": "CEL30",
-    "externalId": "30C",
-    "number": 1360,
-    "count": 8,
-    "filter": true,
-    "block": "NONE",
-    "legalFormats": [
-      "6402e830-7fed-4cd1-b172-2a320047c2bb",
-      "98c83df9-ec82-4193-84a8-104115ce4e25",
-      "6a1dec5a-34db-4cee-a503-4ee759304135"
-    ],
-    "featuredArchetypes": [],
-    "visibleUnfilterable": false,
-    "promo": false
-  },
-  {
     "name": "MP",
     "externalId": "MP",
     "number": 1365,

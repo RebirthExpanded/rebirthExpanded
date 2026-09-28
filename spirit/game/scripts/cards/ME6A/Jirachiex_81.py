@@ -1,3 +1,6 @@
+"""Jirachi ex (JP M6a 081/103 -- 30th Celebrations; English 30C 102).
+"""
+
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 
@@ -12,14 +15,14 @@ async def swift(ctx):
     await ctx.deal_damage(ignore_weakness=True, ignore_resistance=True, ignore_target_effects=True)
 
 card = PokemonCardDef(
-    guid="433f423e-6197-5891-a18f-c11717bfaa8e",
-    key="CEL30",
+    guid="87f3d5ff-739e-5b24-94e3-19c1ff150e12",
+    key="ME6A",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Jirachiex.Name",
     display_name="Jirachi ex",
     searchable_by=["Jirachi ex", "Basic", "ex", "Jirachiex"],
     subtypes=["Basic", "ex"],
-    collector_number=102,
-    set_code="CEL30",
+    collector_number=81,
+    set_code="ME6A",
     regulation_mark="J",
     rarity=Rarities.RareHoloEX,
     hp=160,

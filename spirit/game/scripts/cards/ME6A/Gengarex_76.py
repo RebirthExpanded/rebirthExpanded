@@ -1,3 +1,6 @@
+"""Gengar ex (JP M6a 076/103 -- 30th Celebrations; English 30C 90).
+"""
+
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.data_utils import Triggers
@@ -22,14 +25,14 @@ async def chaotic_pain(ctx):
         await ctx.deal_damage(130, target=target, apply_modifiers=False, as_counters=True)
 
 card = PokemonCardDef(
-    guid="23077070-384f-56ef-8d15-471d678c4188",
-    key="CEL30",
+    guid="354a6f1e-c067-5ef4-a3a0-34b0af21b978",
+    key="ME6A",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Gengarex.Name",
     display_name="Gengar ex",
     searchable_by=["Gengar ex", "Stage 2", "ex", "Gengarex"],
     subtypes=["Stage 2", "ex"],
-    collector_number=90,
-    set_code="CEL30",
+    collector_number=76,
+    set_code="ME6A",
     regulation_mark="J",
     rarity=Rarities.RareHoloEX,
     hp=280,

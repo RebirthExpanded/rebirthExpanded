@@ -1,3 +1,6 @@
+"""Illumise (JP M6a 004/103 -- 30th Celebrations; English 30C 4).
+"""
+
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.attributes import AttrID
@@ -15,14 +18,14 @@ def _volbeat_in_play(calc, carrier) -> bool:
         for p in board.pokemon_in_play(carrier.owning_player_id))
 
 card = PokemonCardDef(
-    guid="e8ab1e53-9749-5b5e-895f-056584767e93",
-    key="CEL30",
+    guid="c39f2804-e939-5527-ac95-3390b862e9ea",
+    key="ME6A",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Illumise.Name",
     display_name="Illumise",
     searchable_by=["Illumise", "Basic", "Illumise"],
     subtypes=["Basic"],
     collector_number=4,
-    set_code="CEL30",
+    set_code="ME6A",
     regulation_mark="J",
     rarity=Rarities.Common,
     hp=80,
