@@ -434,6 +434,14 @@ class Passive:
         """True to forbid `player_id` evolving `target` at all (Dracovish)."""
         return False
 
+    def keeps_confusion_through_evolution(
+        self, pokemon: PokemonEntity, carrier: BoardEntity
+    ) -> bool:
+        """True to keep a Confused Pokemon Confused when it evolves or
+        devolves (Dizzying Valley); every other Special Condition still
+        comes off."""
+        return False
+
     def modify_burn_counters(
         self, counters: int, pokemon: PokemonEntity, carrier: BoardEntity
     ) -> int:
@@ -1473,6 +1481,15 @@ def putting_into_play_blocked(board: BoardState, player_id: str, card: BoardEnti
     play (Eternal Zone and a non-Darkness Pokemon)."""
     return any(
         passive.blocks_putting_into_play(card, player_id, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def confusion_survives_evolution(board: BoardState, pokemon: BoardEntity) -> bool:
+    """Whether a passive keeps Confusion on `pokemon` through an evolution
+    or devolution (Dizzying Valley)."""
+    return any(
+        passive.keeps_confusion_through_evolution(pokemon, carrier)
         for passive, carrier in active_passives(board)
     )
 

@@ -134,6 +134,7 @@ from .passives import (
     burn_recovery_blocked, discard_destination_for,
     effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, effective_turn_draw, energy_attach_taxer, evolve_heal_amount,
+    confusion_survives_evolution,
     granted_extra_attacks, player_visualizations,
     mega_evolution_ends_turn, retreat_energy_destination,
     sleep_checkup_coin_count, tool_slots_free,
@@ -1588,6 +1589,20 @@ class GameSession:
         self.sleep_checkup_coins.pop(entity_id, None)
         self.poison_counters.pop(entity_id, None)
         self.paralyzed_since.pop(entity_id, None)
+
+    async def _carry_confusion(self, pokemon):
+        """Re-marks `pokemon` Confused after an evolve/devolve wiped its
+        conditions (Dizzying Valley)."""
+        conditions = list(pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
+        name = CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.CONFUSED]
+        if name in conditions:
+            return
+        pokemon.set_attribute(AttrID.SPECIAL_CONDITIONS, conditions + [name])
+        await self.send_game_sequence(
+            list(self.players.values()), GameSequence.ADD_SPECIAL_CONDITION,
+            [self._entity_id_data_effect_msg("Target", pokemon.entity_id),
+             self._condition_attr_msg(pokemon)],
+        )
 
     def clear_pokemon_effects(self, pokemon) -> bool:
         """Wipes every effect that ends when a Pokemon leaves the Active spot
@@ -5238,6 +5253,12 @@ class GameSession:
             f"evolved {target.entity_id} into {card.entity_id}."
         )
 
+        # Dizzying Valley: a Confused Pokemon stays Confused through the
+        # evolution (asked before the wipe, of the new top card).
+        keep_confused = (
+            CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.CONFUSED]
+            in (target.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
+            and confusion_survives_evolution(self.board_state, card))
         # needs live client verification: condition marker clears on evolve
         if self.clear_pokemon_effects(target):
             await self.send_game_sequence(
@@ -5245,6 +5266,8 @@ class GameSession:
                 [self._entity_id_data_effect_msg("Target", target.entity_id),
                  self._condition_attr_msg(target)],
             )
+        if keep_confused:
+            await self._carry_confusion(card)
 
         # Wyndon Stadium: heal a Pokemon just evolved from hand (deck-sourced
         # evolutions ride from_zone_intro and are not "played from hand").
@@ -5329,7 +5352,11 @@ class GameSession:
         # devolves prints it, so it belongs here rather than on each of them.
         self.turn_state.devolved_this_turn.add(prev.entity_id)
         # Devolving removes Special Conditions (not damage); the removed card
-        # leaves play as a fresh card.
+        # leaves play as a fresh card. Dizzying Valley keeps Confusion.
+        keep_confused = (
+            CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.CONFUSED]
+            in (pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
+            and confusion_survives_evolution(self.board_state, prev))
         self.clear_pokemon_effects(pokemon)
         self.reset_pokemon_damage(pokemon)
         self.reset_ability_usage(pokemon)
@@ -5365,6 +5392,8 @@ class GameSession:
             list(self.players.values()), GameSequence.DEVOLVE,
             data_effects + moves + attrs,
         )
+        if keep_confused:
+            await self._carry_confusion(prev)
         await self.refresh_granted_abilities(prev)
         logging.info(
             f"[Session {self.game_id}] {pokemon.entity_id} devolved into "
