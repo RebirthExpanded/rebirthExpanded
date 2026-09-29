@@ -434,6 +434,13 @@ class Passive:
         """True to forbid `player_id` evolving `target` at all (Dracovish)."""
         return False
 
+    def attacks_ignore_target_effects(
+        self, attacker: PokemonEntity, carrier: BoardEntity
+    ) -> bool:
+        """True when damage from `attacker`'s attacks isn't affected by any
+        effects on the opponent's Active (Walking Wake ex's Azure Seas)."""
+        return False
+
     def keeps_confusion_through_evolution(
         self, pokemon: PokemonEntity, carrier: BoardEntity
     ) -> bool:
@@ -1481,6 +1488,15 @@ def putting_into_play_blocked(board: BoardState, player_id: str, card: BoardEnti
     play (Eternal Zone and a non-Darkness Pokemon)."""
     return any(
         passive.blocks_putting_into_play(card, player_id, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def attacks_ignore_target_effects(board: BoardState, attacker: BoardEntity) -> bool:
+    """Whether a passive makes `attacker`'s attack damage ignore effects on
+    the opponent's Active (Azure Seas)."""
+    return attacker is not None and any(
+        passive.attacks_ignore_target_effects(attacker, carrier)
         for passive, carrier in active_passives(board)
     )
 

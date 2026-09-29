@@ -68,6 +68,7 @@ from .passives import (
     effective_max_hp,
     tool_slots_free,
     effective_pokemon_types,
+    attacks_ignore_target_effects,
     energy_removal_blocked,
     healing_blocked,
     supporter_effect_replacement,
@@ -473,6 +474,10 @@ class EffectContext:
         if not ignore_target_effects and self.attacker is not None \
                 and self.attacker.entity_id in \
                 self.session.turn_state.ignore_target_effects_entities:
+            ignore_target_effects = True
+        # An always-on version on an Ability (Walking Wake ex's Azure Seas).
+        if (not ignore_target_effects and is_attack and self.attacker is not None
+                and attacks_ignore_target_effects(self.board, self.attacker)):
             ignore_target_effects = True
 
         if as_counters:
