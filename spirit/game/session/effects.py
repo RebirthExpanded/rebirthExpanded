@@ -403,18 +403,47 @@ class EffectContext:
         Miracle ruling)."""
         self._in_interceptor = True
         try:
+            survivors = []
             for passive, carrier in active_passives(self.board):
                 interceptor = getattr(passive, "damage_interceptor", None)
                 if interceptor is None:
                     continue
                 if calc.ignore_target_effects and carrier_pokemon(carrier) is target:
                     continue
+                if getattr(passive, "ko_survive", False):
+                    survivors.append((passive, carrier))
+                    continue
                 new_amount = await interceptor(self, calc, target, carrier)
                 if new_amount is not None:
                     calc.amount = max(0, int(new_amount))
+            await self._run_ko_survivors(calc, target, survivors)
         finally:
             self._in_interceptor = False
         return calc.amount
+
+    async def _run_ko_survivors(self, calc, target: PokemonEntity, survivors) -> None:
+        """"It is not Knocked Out, and its remaining HP becomes 10" effects run
+        last, once the final damage is known. When more than one could save
+        the Pokemon (Durable Body and Survival Brace), the Pokemon's owner
+        chooses which applies first; one that saves it leaves the others
+        nothing to do, and a failed flip hands the choice back."""
+        remaining = [(p, c) for p, c in survivors
+                     if p.survive_applies(calc, target, c)]
+        while remaining:
+            index = 0
+            if len(remaining) > 1:
+                index = await self.present_card_choice(
+                    target, "Choose which effect to apply first",
+                    [getattr(p, "title", "") or "Effect" for p, _ in remaining],
+                    player_id=target.owning_player_id)
+                if not isinstance(index, int) or not 0 <= index < len(remaining):
+                    index = 0
+            passive, carrier = remaining.pop(index)
+            new_amount = await passive.damage_interceptor(self, calc, target, carrier)
+            if new_amount is not None:
+                calc.amount = max(0, int(new_amount))
+            remaining = [(p, c) for p, c in remaining
+                         if p.survive_applies(calc, target, c)]
 
     def _queue_effect_prevented(self, target: PokemonEntity):
         # Trainer/Checkup contexts may have no source card to fly the shield from.

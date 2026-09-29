@@ -28,10 +28,13 @@ class FocusSashPassive(GutsSurvivePassive):
         super().__init__(hp_floor=10, title="Focus Sash", flip=False,
                          require_full_hp=True)
 
-    async def damage_interceptor(self, ctx, calc, target, carrier):
+    def survive_applies(self, calc, target, carrier) -> bool:
         holder = carrier_pokemon(carrier)
         if holder is None or not _is_fighting(holder):
-            return None
+            return False
+        return super().survive_applies(calc, target, carrier)
+
+    async def damage_interceptor(self, ctx, calc, target, carrier):
         amount = await super().damage_interceptor(ctx, calc, target, carrier)
         if amount is not None:
             await ctx.discard_cards([carrier])

@@ -583,16 +583,28 @@ class GutsSurvivePassive(Passive):
         self.require_full_hp = require_full_hp
         self.protects = _protects_pred(protects)
 
-    async def damage_interceptor(self, ctx, calc, target, carrier):
+    # KO-survive effects are one family: when two of them could save the same
+    # Pokemon (Durable Body + Survival Brace), its owner picks which goes
+    # first (EffectContext._run_damage_interceptors).
+    ko_survive = True
+
+    def survive_applies(self, calc, target, carrier) -> bool:
+        """Whether this would step in against this hit (before any flip)."""
         if not (calc.is_attack and calc.is_opposing and calc.amount > 0):
-            return None
+            return False
         if not self.protects(target, carrier):
-            return None
+            return False
         current = target.get_attribute(AttrID.HP, 0)
         if calc.amount < current:
-            return None  # would not Knock Out
+            return False  # would not Knock Out
         if self.require_full_hp and current < effective_max_hp(calc.board, target):
+            return False
+        return True
+
+    async def damage_interceptor(self, ctx, calc, target, carrier):
+        if not self.survive_applies(calc, target, carrier):
             return None
+        current = target.get_attribute(AttrID.HP, 0)
         if self.flip:
             heads = await ctx.flip_coins(1, self.title,
                                          source=carrier_pokemon(carrier) or carrier)
