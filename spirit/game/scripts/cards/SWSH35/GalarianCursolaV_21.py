@@ -3,15 +3,22 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.pokemon import in_active_spot
 
 
-async def gnawing_aura(ctx):
+def _gnawing_aura_applies(ctx) -> bool:
     if not in_active_spot(ctx.board, ctx.player_id, ctx.source):
-        return
+        return False
     if ctx.attaching_player_id != ctx.opponent_id:
-        return
+        return False
     receiver = ctx.energy_receiver
-    if receiver is None or receiver.owning_player_id != ctx.opponent_id:
-        return
-    await ctx.deal_damage(30, target=receiver, as_counters=True)
+    if receiver is None or receiver.owning_player_id is None:
+        return False
+    if receiver not in ctx.board.pokemon_in_play(receiver.owning_player_id):
+        return False
+    return receiver.owning_player_id == ctx.opponent_id
+
+
+async def gnawing_aura(ctx):
+    if _gnawing_aura_applies(ctx):
+        await ctx.deal_damage(30, target=ctx.energy_receiver, as_counters=True)
 
 
 async def hollow_missile(ctx):
@@ -43,6 +50,7 @@ card = PokemonCardDef(
             game_text="As long as this Pok\u00e9mon is in the Active Spot, whenever your opponent attaches an Energy card from their hand to 1 of their Pok\u00e9mon, put 3 damage counters on that Pok\u00e9mon.",
             trigger=Triggers.ON_ENERGY_ATTACHED,
             effect=gnawing_aura,
+            trigger_applies=_gnawing_aura_applies,
         ),
         Attack(
             title="Hollow Missile",

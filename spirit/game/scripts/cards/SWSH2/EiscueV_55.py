@@ -6,12 +6,20 @@ from spirit.game.card_effects.attacks_common import spread_damage
 
 async def cold_absorption(ctx):
     """Whenever you attach a Water Energy card from your hand to this Pokemon, heal 30 damage from it."""
+    if _cold_absorption_applies(ctx):
+        await ctx.heal(30, ctx.source)
+
+
+def _cold_absorption_applies(ctx) -> bool:
     if ctx.attaching_player_id != ctx.player_id or ctx.energy_receiver is not ctx.source:
-        return
+        return False
+    receiver = ctx.energy_receiver
+    if receiver is None or receiver.owning_player_id is None:
+        return False
+    if receiver not in ctx.board.pokemon_in_play(receiver.owning_player_id):
+        return False
     energy = ctx.attached_energy
-    if energy is None or not energy_provides_type(energy, PokemonTypes.WATER.value):
-        return
-    await ctx.heal(30, ctx.source)
+    return energy is not None and energy_provides_type(energy, PokemonTypes.WATER.value)
 
 
 card = PokemonCardDef(
@@ -36,6 +44,7 @@ card = PokemonCardDef(
             game_text="Whenever you attach a Water Energy card from your hand to this Pok\u00e9mon during your turn, heal 30 damage from it.",
             trigger=Triggers.ON_ENERGY_ATTACHED,
             effect=cold_absorption,
+            trigger_applies=_cold_absorption_applies,
         ),
         Attack(
             title="Blizzard",

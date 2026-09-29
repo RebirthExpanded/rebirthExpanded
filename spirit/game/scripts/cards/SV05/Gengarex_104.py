@@ -3,14 +3,23 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.data_utils import Triggers
 
 
+def _gnawing_curse_applies(ctx) -> bool:
+    if ctx.attaching_player_id == ctx.player_id:
+        return False
+    receiver = ctx.energy_receiver
+    if receiver is None or receiver.owning_player_id is None:
+        return False
+    if receiver not in ctx.board.pokemon_in_play(receiver.owning_player_id):
+        return False
+    return True
+
+
 async def gnawing_curse(ctx):
     """Arctozolt's Biting Whirlpool: 2 counters on the opponent's Pokemon
     they attach an Energy card to from hand."""
-    if ctx.attaching_player_id == ctx.player_id:
-        return
-    receiver = ctx.energy_receiver
-    if receiver is not None:
-        await ctx.deal_damage(20, target=receiver, apply_modifiers=False, as_counters=True)
+    if _gnawing_curse_applies(ctx):
+        await ctx.deal_damage(20, target=ctx.energy_receiver, apply_modifiers=False,
+                              as_counters=True)
 
 
 async def tricky_steps(ctx):
@@ -55,6 +64,7 @@ card = PokemonCardDef(
             game_text="Whenever your opponent attaches an Energy card from their hand to 1 of their Pok\u00e9mon, put 2 damage counters on that Pok\u00e9mon.",
             trigger=Triggers.ON_ENERGY_ATTACHED,
             effect=gnawing_curse,
+            trigger_applies=_gnawing_curse_applies,
         ),
         Attack(
             title="Tricky Steps",

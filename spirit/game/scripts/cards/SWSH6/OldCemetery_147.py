@@ -5,14 +5,19 @@ from spirit.game.attributes import Rarities, AttrID, PokemonTypes
 async def old_cemetery_watch(ctx):
     """2 damage counters on any non-Psychic Pokemon an Energy was just
     manually attached to (either player)."""
+    if _old_cemetery_applies(ctx):
+        await ctx.deal_damage(20, target=ctx.energy_receiver, apply_modifiers=False,
+                              as_counters=True)
+
+
+def _old_cemetery_applies(ctx) -> bool:
     receiver = ctx.energy_receiver
-    if receiver is None:
-        return
+    if receiver is None or receiver.owning_player_id is None:
+        return False
+    if receiver not in ctx.board.pokemon_in_play(receiver.owning_player_id):
+        return False
     types = receiver.get_attribute(AttrID.POKEMON_TYPES) or []
-    if PokemonTypes.PSYCHIC.value in types:
-        return
-    await ctx.deal_damage(20, target=receiver, apply_modifiers=False,
-                          as_counters=True)
+    return PokemonTypes.PSYCHIC.value not in types
 
 
 card = StadiumCardDef(
@@ -31,6 +36,7 @@ card = StadiumCardDef(
             game_text="Whenever any player attaches an Energy card from their hand to 1 of their non-Psychic Pokémon, put 2 damage counters on that Pokémon.",
             trigger=Triggers.ON_ENERGY_ATTACHED,
             effect=old_cemetery_watch,
+            trigger_applies=_old_cemetery_applies,
         ),
     ],
 )

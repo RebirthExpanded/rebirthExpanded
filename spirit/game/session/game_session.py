@@ -4330,6 +4330,15 @@ class GameSession:
         so the extra call here is empty-safe. Returns True when a resolved
         trigger ends the turn (Climactic Gate's "your turn ends")."""
         ends_turn = False
+        for ability in self._abilities_of(card):
+            if ability.has_trigger(trigger):
+                if await self._run_triggered(player_id, card, ability,
+                                             ctx_setup, ignore_locks):
+                    ends_turn = True
+        return ends_turn
+
+    def _abilities_of(self, card) -> list:
+        """The card's PIE_ABILITIES plus its definition's declared abilities."""
         seen = set()
         abilities = []
         for entry in card.get_attribute(AttrID.PIE_ABILITIES) or []:
@@ -4344,25 +4353,68 @@ class GameSession:
             if ability.ability_id not in seen:
                 seen.add(ability.ability_id)
                 abilities.append(ability)
-        for ability in abilities:
-            if ability.has_trigger(trigger):
-                # "1 per turn" abilities shared by name across copies (Dark Asset).
-                if ability.shared_once_per_turn \
-                        and ability.shared_once_per_turn in self.turn_state.used_named_abilities:
-                    continue
-                trigger_ctx = await resolve_triggered_ability(
-                    self, player_id, card, ability, ctx_setup=ctx_setup,
-                    ignore_locks=ignore_locks)
-                # Only a resolved effect (not a declined "you may") consumes the
-                # shared-name turn limit.
-                if ability.shared_once_per_turn and trigger_ctx is not None \
-                        and trigger_ctx._messages:
-                    self.turn_state.used_named_abilities.add(ability.shared_once_per_turn)
-                if trigger_ctx is not None and trigger_ctx.knockouts:
-                    await self.resolve_knockouts(trigger_ctx)
-                if trigger_ctx is not None and trigger_ctx.ends_turn:
-                    ends_turn = True
-        return ends_turn
+        return abilities
+
+    async def _run_triggered(self, player_id: str, card, ability, ctx_setup=None,
+                             ignore_locks: bool = False) -> bool:
+        """One triggered ability; True when it ends the turn."""
+        # "1 per turn" abilities shared by name across copies (Dark Asset).
+        if ability.shared_once_per_turn \
+                and ability.shared_once_per_turn in self.turn_state.used_named_abilities:
+            return False
+        trigger_ctx = await resolve_triggered_ability(
+            self, player_id, card, ability, ctx_setup=ctx_setup,
+            ignore_locks=ignore_locks)
+        # Only a resolved effect (not a declined "you may") consumes the
+        # shared-name turn limit.
+        if ability.shared_once_per_turn and trigger_ctx is not None \
+                and trigger_ctx._messages:
+            self.turn_state.used_named_abilities.add(ability.shared_once_per_turn)
+        if trigger_ctx is not None and trigger_ctx.knockouts:
+            await self.resolve_knockouts(trigger_ctx)
+        return bool(trigger_ctx is not None and trigger_ctx.ends_turn)
+
+    def _trigger_goes_off(self, player_id: str, card, ability, ctx_setup) -> bool:
+        """A declared trigger_applies that says yes, on an Ability not
+        switched off by an Ability lock."""
+        applies = getattr(ability, "trigger_applies", None)
+        if applies is None:
+            return False
+        if abilities_disabled(self.board_state, card) and not ability.is_granted:
+            return False
+        probe = EffectContext(self, player_id, card, ability)
+        if ctx_setup is not None:
+            ctx_setup(probe)
+        return bool(applies(probe))
+
+    async def _run_simultaneous_triggers(self, entries, ctx_setup, chooser_id: str,
+                                         shown_card=None) -> None:
+        """Triggers set off by one event. Those without trigger_applies run
+        first in board order (they check their own text); the ones that
+        declare it and go off are ordered by `chooser_id` when there are two
+        or more, re-checked after each resolves (a Knock Out ends the rest)."""
+        declared = []
+        for entry in entries:
+            if getattr(entry[2], "trigger_applies", None) is None:
+                await self._run_triggered(*entry, ctx_setup)
+            else:
+                declared.append(entry)
+        while True:
+            live = [e for e in declared if self._trigger_goes_off(*e, ctx_setup)]
+            if not live:
+                return
+            index = 0
+            if len(live) > 1:
+                ask = EffectContext(self, chooser_id, None, None)
+                index = await ask.present_card_choice(
+                    shown_card if shown_card is not None else live[0][1],
+                    "Choose which effect to resolve first",
+                    [e[2].title for e in live], player_id=chooser_id)
+                if not isinstance(index, int) or not 0 <= index < len(live):
+                    index = 0
+            chosen = live[index]
+            declared.remove(chosen)
+            await self._run_triggered(*chosen, ctx_setup)
 
     async def fire_energy_attached_triggers(self, attaching_player_id: str,
                                             energy, receiver):
@@ -4373,12 +4425,23 @@ class GameSession:
             c.attaching_player_id = attaching_player_id
             c.attached_energy = energy
             c.energy_receiver = receiver
+        trigger = Triggers.ON_ENERGY_ATTACHED
+        entries = []
         for pid in self._turn_order():
             for pokemon in list(self.board_state.pokemon_in_play(pid)):
-                await self._fire_triggered_abilities(
-                    pid, pokemon, Triggers.ON_ENERGY_ATTACHED, ctx_setup=_setup)
-        await self._fire_stadium_triggers(
-            attaching_player_id, Triggers.ON_ENERGY_ATTACHED, _setup)
+                entries.extend((pid, pokemon, ability)
+                               for ability in self._abilities_of(pokemon)
+                               if ability.has_trigger(trigger))
+        # The Stadium's own watch (Old Cemetery) runs as the attaching player.
+        area = self.board_state.find_global_area("activeStadium")
+        for stadium in list(area.children if area else []):
+            entries.extend((attaching_player_id, stadium, ability)
+                           for ability in self._abilities_of(stadium)
+                           if ability.has_trigger(trigger))
+        # Auto Heal and Gnawing Curse off the same attachment: the player who
+        # attached (the receiving Pokemon's owner) picks the order.
+        await self._run_simultaneous_triggers(
+            entries, _setup, attaching_player_id, shown_card=receiver)
 
     async def _fire_ally_evolved_triggers(self, player_id: str, evolution_card,
                                           pre_evolution):

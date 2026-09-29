@@ -5,10 +5,18 @@ from spirit.game.card_effects.attacks_common import snipe_attack
 
 async def shocking_block(ctx):
     """Whenever any player attaches an Energy from hand to their Pokemon V, put 2 damage counters on it."""
+    if _shocking_block_applies(ctx):
+        await ctx.deal_damage(20, target=ctx.energy_receiver, apply_modifiers=False,
+                              as_counters=True)
+
+
+def _shocking_block_applies(ctx) -> bool:
     receiver = ctx.energy_receiver
-    if receiver is None or not is_pokemon_v(receiver.archetype_id):
-        return
-    await ctx.deal_damage(20, target=receiver, apply_modifiers=False, as_counters=True)
+    if receiver is None or receiver.owning_player_id is None:
+        return False
+    if receiver not in ctx.board.pokemon_in_play(receiver.owning_player_id):
+        return False
+    return is_pokemon_v(receiver.archetype_id)
 
 
 card = PokemonCardDef(
@@ -33,6 +41,7 @@ card = PokemonCardDef(
             game_text="Whenever any player attaches an Energy card from their hand to 1 of their Pok\u00e9mon V, put 2 damage counters on that Pok\u00e9mon.",
             trigger=Triggers.ON_ENERGY_ATTACHED,
             effect=shocking_block,
+            trigger_applies=_shocking_block_applies,
         ),
         Attack(
             title="Linear Attack",

@@ -595,8 +595,15 @@ class Ability:
         usable_from: Optional[str] = None,
         rules_text: bool = False,
         self_knockout: bool = False,
+        trigger_applies: Optional[Callable] = None,
     ):
         self.title = title
+        # `trigger_applies(ctx) -> bool` for a triggered Ability: whether this
+        # event actually sets it off (ctx is prepared like the effect's). When
+        # two or more declared triggers go off on the same event, the player
+        # whose action caused it picks their order (Magearna's Auto Heal and
+        # Gengar ex's Gnawing Curse on one Energy attachment).
+        self.trigger_applies = trigger_applies
         # True for a card's own rules text that is offered LIKE an Ability
         # but is not one (a fossil's "you may discard this card", Lillie's
         # Poke Doll's return to the deck): Ability locks -- Garbotoxin, Path
