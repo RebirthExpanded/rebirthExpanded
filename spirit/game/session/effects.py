@@ -821,6 +821,18 @@ class EffectContext:
         self.session.turn_state.schedule_knockout(
             target.entity_id, self.session.turn_state.turn_number + turns_ahead)
 
+    def schedule_counters(self, target: PokemonEntity, counters: int,
+                          turns_ahead: int = 1) -> None:
+        """"At the end of your opponent's next turn, put N damage counters on
+        the Defending Pokemon" (Permeating Chill); dropped when it leaves the
+        Active Spot or evolves, and by Pokemon Ranger."""
+        if target is None or counters <= 0:
+            return
+        self.session.turn_state.schedule_counters(
+            target.entity_id, self.session.turn_state.turn_number + turns_ahead,
+            counters, self.player_id,
+            self.attacker.entity_id if self.attacker is not None else None)
+
     def lock_plays(self, player_id: str, predicate: Callable[[CardEntity], bool],
                    through_turn: Optional[int] = None) -> None:
         """"<player> can't play <cards matching predicate>" (default: through

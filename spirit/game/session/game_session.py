@@ -1639,6 +1639,7 @@ class GameSession:
         # Defending Pokemon, so leaving the Active Spot takes it off the
         # schedule -- a retreat or a switch saves the Pokemon for good.
         state.scheduled_knockouts.pop(entity_id, None)
+        state.scheduled_counters.pop(entity_id, None)
         state.attach_restrictions.pop(entity_id, None)
         state.attack_flip_checks.pop(entity_id, None)
         state.ignore_target_effects_entities.discard(entity_id)
@@ -4439,6 +4440,7 @@ class GameSession:
         it, and a Pokemon that has already left play is simply dropped.
         """
         state = self.turn_state
+        await self._resolve_scheduled_counters()
         due = [entity_id for entity_id, turn in state.scheduled_knockouts.items()
                if turn <= state.turn_number]
         if not due:
@@ -4457,6 +4459,36 @@ class GameSession:
         if ctx.knockouts:
             await self.resolve_knockouts(ctx)
             await self.enforce_bench_capacity()
+
+    async def _resolve_scheduled_counters(self):
+        """"At the end of your opponent's next turn, put N damage counters on
+        the Defending Pokemon" (Permeating Chill). The effect was already
+        placed when the attack hit, so nothing that arrived since shields it;
+        a Pokemon that has left play is dropped."""
+        state = self.turn_state
+        due = [(entity_id, value) for entity_id, value in state.scheduled_counters.items()
+               if value[0] <= state.turn_number]
+        for entity_id, (_turn, counters, player_id, source_id) in due:
+            state.scheduled_counters.pop(entity_id, None)
+            pokemon = self.board_state.get_entity(entity_id)
+            if pokemon is None or pokemon.owning_player_id is None:
+                continue
+            if pokemon not in self.board_state.pokemon_in_play(pokemon.owning_player_id):
+                continue
+            source = self.board_state.get_entity(source_id) if source_id else None
+            if source is None:
+                if await self._apply_raw_damage(pokemon, counters * 10,
+                                                GameSequence.GROUPED_MOVE.value):
+                    await self._resolve_raw_knockout(pokemon)
+                    await self.enforce_bench_capacity()
+                continue
+            ctx = EffectContext(self, player_id, source, None)
+            await ctx.deal_damage(counters * 10, target=pokemon, as_counters=True)
+            if ctx._messages:
+                await self._flush_effect_runs(ctx)
+            if ctx.knockouts:
+                await self.resolve_knockouts(ctx)
+                await self.enforce_bench_capacity()
 
     async def _fire_stadium_triggers(self, acting_player_id: str, trigger: str,
                                      ctx_setup=None):

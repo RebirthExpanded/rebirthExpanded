@@ -198,6 +198,11 @@ class TurnState:
     # be Knocked Out" -- Pale Moon-GX). Not a per-turn ledger: entries sit
     # here until they fire or the Pokemon leaves play.
     scheduled_knockouts: Dict[str, int] = field(default_factory=dict)
+    # entity_id -> (turn, counters, placing player, source Pokemon): "At the end of your
+    # opponent's next turn, put N damage counters on the Defending Pokemon"
+    # (Glaceon's Permeating Chill). An effect of an attack on the Defending
+    # Pokemon, so it goes with the Active Spot and with Pokemon Ranger.
+    scheduled_counters: Dict[str, Tuple[int, int, str, Optional[str]]] = field(default_factory=dict)
     # Pokemon that were devolved this turn: "(That Pokemon can't evolve this
     # turn.)" Kept apart from entered_play_turn, which means "came into play
     # this turn" and is read by cards asking whether this Pokemon EVOLVED
@@ -351,7 +356,7 @@ class TurnState:
 
     _DICT_EFFECT_STORES = ("attack_locks", "retreat_locks", "attach_restrictions",
                            "attack_flip_checks", "scheduled_knockouts",
-                           "trainer_flip_checks")
+                           "trainer_flip_checks", "scheduled_counters")
     _LIST_EFFECT_STORES = ("damage_modifiers", "extra_prize_watchers", "gx_blocks")
 
     def _prune_attack_effects(self) -> None:
@@ -486,6 +491,16 @@ class TurnState:
         current = self.scheduled_knockouts.get(entity_id)
         if current is None or at_end_of_turn < current:
             self.scheduled_knockouts[entity_id] = at_end_of_turn
+
+    def schedule_counters(self, entity_id: str, at_end_of_turn: int,
+                          counters: int, player_id: str,
+                          source_id: Optional[str] = None):
+        """Puts `counters` damage counters on a Pokemon at the end of
+        `at_end_of_turn` (a second one for the same turn adds up)."""
+        current = self.scheduled_counters.get(entity_id)
+        if current is not None and current[0] == at_end_of_turn:
+            counters += current[1]
+        self.scheduled_counters[entity_id] = (at_end_of_turn, counters, player_id, source_id)
 
     def lock_plays(self, player_id: str, predicate, through_turn: Optional[int] = None):
         """Forbids `player_id` playing hand cards matching `predicate`
