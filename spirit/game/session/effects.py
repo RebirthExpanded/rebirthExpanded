@@ -3069,10 +3069,22 @@ def is_basic_energy(card: CardEntity) -> bool:
     return is_energy_card(card) and not is_special_energy(card)
 
 
+def special_energy_off_pokemon(card: CardEntity) -> bool:
+    """A Special Energy card that is not attached to a Pokemon. It provides
+    its type only while attached (Heat Fire Energy, Burning Energy), so in
+    the hand, deck or discard pile it is no "[R] Energy card": Heat Factory,
+    Fiery Torch and Welder can't take it."""
+    if not is_special_energy(card):
+        return False
+    return not isinstance(getattr(card, "parent", None), PokemonEntity)
+
+
 def is_energy_of_type(card: CardEntity, energy_type) -> bool:
-    """"a {L} Energy card": an Energy card carrying that type."""
+    """"a {L} Energy card": an Energy card carrying that type (a Special
+    Energy only while it is attached to a Pokemon)."""
     types = card.get_attribute(AttrID.POKEMON_TYPES) or []
-    return is_energy_card(card) and         getattr(energy_type, "value", energy_type) in types
+    return (is_energy_card(card) and not special_energy_off_pokemon(card)
+            and getattr(energy_type, "value", energy_type) in types)
 
 
 def full_stack(pokemon: PokemonEntity) -> List[CardEntity]:
