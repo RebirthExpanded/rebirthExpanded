@@ -40,6 +40,7 @@ card = PokemonCardDef(
             game_text="If this Pokémon is in the Active Spot and is Knocked Out by damage from an opponent's attack, flip a coin. If heads, the Attacking Pokémon is Knocked Out.",
             trigger=Triggers.ON_KNOCKED_OUT,
             effect=perish_body,
+            trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),
         Attack(
             title="Corner",

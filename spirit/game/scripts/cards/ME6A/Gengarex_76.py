@@ -48,6 +48,7 @@ card = PokemonCardDef(
             game_text="If this Pok\u00e9mon is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, flip a coin. If heads, the Attacking Pok\u00e9mon is Knocked Out.",
             trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=fainting_spell,
+            trigger_applies=lambda c: bool(c.ko_from_attack),
         ),
         Attack(
             title="Chaotic Pain",

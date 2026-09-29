@@ -57,6 +57,8 @@ card = PokemonCardDef(
             game_text="When 1 of your Basic Pokémon V is Knocked Out by damage from an attack from your opponent's Pokémon, you may move a basic Energy card from that Pokémon to another of your Pokémon.",
             trigger=Triggers.ON_ALLY_KNOCKED_OUT,
             effect=wish_connector,
+            trigger_applies=lambda c: bool(c.ko_from_attack and c.ko_pokemon is not None
+                                     and _is_basic_pokemon_v(c.ko_pokemon)),
         ),
         Attack(
             title="Hypnostrike",

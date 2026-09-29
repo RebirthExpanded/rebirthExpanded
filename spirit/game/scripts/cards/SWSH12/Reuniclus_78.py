@@ -49,6 +49,7 @@ card = PokemonCardDef(
             game_text="If this Pok\u00e9mon is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, put it into your hand instead of the discard pile. (Discard all attached cards.)",
             trigger=Triggers.ON_KNOCKED_OUT,
             effect=persistent_cells,
+            trigger_applies=lambda c: bool(c.ko_from_attack),
         ),
         Attack(
             title="Cell Fork",

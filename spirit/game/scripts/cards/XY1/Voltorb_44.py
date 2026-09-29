@@ -53,6 +53,7 @@ card = PokemonCardDef(
             game_text="If this Pokémon is your Active Pokémon and is Knocked Out by damage from an opponent's attack, flip a coin. If heads, put 5 damage counters on the Attacking Pokémon.",
             trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=destiny_burst,
+            trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),
         Attack(
             title="Rollout",

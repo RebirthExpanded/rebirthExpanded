@@ -37,6 +37,8 @@ card = PokemonToolCardDef(
             game_text="When your Active Pok\u00e9mon is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, you may move a Basic Energy from that Pok\u00e9mon to the Pok\u00e9mon this card is attached to.",
             trigger=Triggers.ON_ALLY_KNOCKED_OUT,
             effect=exp_share,
+            trigger_applies=lambda c: bool(c.ko_from_attack and c.ko_pokemon is not None
+                                     and c.board.active_pokemon(c.player_id) is c.ko_pokemon),
         ),
     ],
 )

@@ -24,6 +24,7 @@ card = PokemonToolCardDef(
             title="Lucky Egg",
             trigger=Triggers.ON_KNOCKED_OUT,
             effect=lucky_egg_ko_effect,
+            trigger_applies=lambda c: bool(c.ko_from_attack),
         ),
     ],
 )

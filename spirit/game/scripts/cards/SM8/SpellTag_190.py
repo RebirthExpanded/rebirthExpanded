@@ -40,6 +40,7 @@ card = PokemonToolCardDef(
             game_text="If the Pokémon this card is attached to is Knocked Out by damage from an opponent's attack, put 4 damage counters on your opponent's Pokémon in any way you like.",
             trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=spell_tag,
+            trigger_applies=lambda c: bool(c.ko_from_attack),
         ),
     ],
 )

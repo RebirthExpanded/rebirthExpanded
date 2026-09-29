@@ -24,6 +24,7 @@ card = PokemonCardDef(
             game_text="If this Pok\u00e9mon is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, discard the top 2 cards of your opponent's deck.",
             trigger=Triggers.ON_KNOCKED_OUT,
             effect=final_dig,
+            trigger_applies=lambda c: bool(c.ko_from_attack),
         ),
         Attack(
             title="Ram",

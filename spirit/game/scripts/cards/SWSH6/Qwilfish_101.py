@@ -39,6 +39,7 @@ card = PokemonCardDef(
             game_text="If this Pok\u00e9mon is in the Active Spot and is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, put 6 damage counters on the Attacking Pok\u00e9mon.",
             trigger=Triggers.ON_KNOCKED_OUT,
             effect=bursting_needles,
+            trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),
         Attack(
             title="Poison Jab",

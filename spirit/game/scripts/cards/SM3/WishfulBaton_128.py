@@ -52,6 +52,7 @@ card = PokemonToolCardDef(
             game_text="If the Pokémon this card is attached to is your Active Pokémon and is Knocked Out by damage from an opponent's attack, move up to 3 basic Energy cards from that Pokémon to 1 of your Benched Pokémon.",
             trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=wishful_baton,
+            trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),
     ],
 )

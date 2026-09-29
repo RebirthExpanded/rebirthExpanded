@@ -46,6 +46,8 @@ card = PokemonCardDef(
             game_text="When your Active Pok\u00e9mon is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, you may move any amount of Water Energy from that Pok\u00e9mon to this Pok\u00e9mon.",
             trigger=Triggers.ON_ALLY_KNOCKED_OUT,
             effect=deep_sea_king,
+            trigger_applies=lambda c: bool(c.ko_from_attack and c.ko_pokemon is not None
+                                     and c.board.active_pokemon(c.player_id) is c.ko_pokemon),
         ),
         Attack(
             title="Aqua Burst",

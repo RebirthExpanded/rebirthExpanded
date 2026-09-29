@@ -56,6 +56,7 @@ card = PokemonToolCardDef(
             game_text="If the Pokémon this card is attached to has a Retreat Cost of exactly 4, is in the Active Spot, and is Knocked Out by damage from an attack from your opponent's Pokémon, move up to 3 Basic Energy cards from that Pokémon to your Benched Pokémon in any way you like.",
             trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=heavy_baton,
+            trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),
     ],
 )

@@ -2371,7 +2371,7 @@ class GameSession:
         def _damage_ko(pokemon) -> bool:
             return ctx.is_attack_effect() \
                 and pokemon.entity_id in ctx.attack_damage
-        energy_ko_hooks: List[Tuple[str, Any]] = []
+        energy_ko_hooks: List[Tuple[str, Any, Any]] = []
         for pokemon in ctx.knockouts:
             owner_id = pokemon.owning_player_id
             if owner_id is None or not _damage_ko(pokemon) \
@@ -2381,7 +2381,7 @@ class GameSession:
                 definition = def_for(energy.archetype_id)
                 hook = getattr(definition, "on_carrier_knocked_out", None)
                 if hook is not None and hook is not unimplemented:
-                    energy_ko_hooks.append((owner_id, hook))
+                    energy_ko_hooks.append((owner_id, hook, energy))
 
         # Prize counts/destinations evaluate BEFORE any stack moves so the
         # KO'd Pokemon's own passives and Special Conditions still count.
@@ -2462,6 +2462,16 @@ class GameSession:
         # ON_KNOCKED_OUT_IN_PLAY / ON_ALLY_KNOCKED_OUT fire pre-discard: the
         # KO'd stack is still on board with its energies attached (the
         # Batons and Exp. Share move Energy off it).
+        # Several "when Knocked Out" effects at once: with ONE Pokemon Knocked
+        # Out its owner orders them; with two or more, the turn player does
+        # (official Q&A: Exp. Share / Amulet of Hope / Surprise Pumpkin).
+        # Only effects that actually go off are offered; the ones that don't
+        # are no-ops anyway.
+        order_chooser = (self.turn_state.active_player_id
+                         if len(ctx.knockouts) > 1
+                         else ctx.knockouts[0].owning_player_id)
+        order_shown = ctx.knockouts[0]
+        pre_entries = []
         for victim, owner_id, ability, from_attack, was_active in self_triggers:
             def _self_setup(c, _victim=victim, _from_attack=from_attack,
                             _was_active=was_active):
@@ -2469,29 +2479,31 @@ class GameSession:
                 c.ko_from_attack = _from_attack
                 c.ko_attacker = ctx.attacker if _from_attack else None
                 c.was_active_at_ko = _was_active
-            await resolve_triggered_ability(
-                self, owner_id, victim, ability, ctx_setup=_self_setup,
-                _ko_depth=_ko_depth + 1,
-            )
+            pre_entries.append(self._ko_entry(
+                owner_id, victim, ability, _self_setup, from_attack, _ko_depth))
         for ally, owner_id, ability, victim, from_attack in ally_triggers:
             def _ally_setup(c, _victim=victim, _from_attack=from_attack):
                 c.ko_pokemon = _victim
                 c.ko_from_attack = _from_attack
                 c.ko_attacker = ctx.attacker if _from_attack else None
-            await resolve_triggered_ability(
-                self, owner_id, ally, ability, ctx_setup=_ally_setup,
-                _ko_depth=_ko_depth + 1,
-            )
+            pre_entries.append(self._ko_entry(
+                owner_id, ally, ability, _ally_setup, from_attack, _ko_depth))
 
         # Special-Energy leave-play hooks (Gift Energy's draw) run BEFORE the
         # stack moves: with Splash Energy on the same Pokemon the owner
         # draws up to 7 first and the Pokemon then comes back to hand as an
         # 8th card, not the other way round.
-        for owner_id, hook in energy_ko_hooks:
-            hook_ctx = EffectContext(self, owner_id, ctx.attacker, None)
-            await hook(hook_ctx)
-            if hook_ctx._messages:
-                await self._flush_effect_runs(hook_ctx)
+        for owner_id, hook, energy in energy_ko_hooks:
+            async def _run_hook(_owner=owner_id, _hook=hook):
+                hook_ctx = EffectContext(self, _owner, ctx.attacker, None)
+                await _hook(hook_ctx)
+                if hook_ctx._messages:
+                    await self._flush_effect_runs(hook_ctx)
+            pre_entries.append({
+                "title": getattr(def_for(energy.archetype_id), "display_name", "") or "Energy",
+                "applies": lambda: True, "run": _run_hook})
+        await self._run_ko_effects_in_order(pre_entries, order_chooser,
+                                            order_shown)
 
         promotions: List[str] = []
         for pokemon in ctx.knockouts:
@@ -2646,23 +2658,24 @@ class GameSession:
                     f"depth exceeded ({_ko_depth}); skipping further triggers."
                 )
             else:
+                post_entries = []
                 for pokemon, owner_id, ability, was_active in ko_triggers:
                     ko_from_attack = _damage_ko(pokemon) \
                         and ctx.attacker.owning_player_id != owner_id
                     ko_attacker = ctx.attacker if ko_from_attack else None
 
                     def _setup(c, _from_attack=ko_from_attack, _attacker=ko_attacker,
-                               _was_active=was_active):
+                               _was_active=was_active, _victim=pokemon):
                         c.ko_from_attack = _from_attack
                         c.ko_attacker = _attacker
                         c.was_active_at_ko = _was_active
+                        c.ko_pokemon = _victim
 
-                    trigger_ctx = await resolve_triggered_ability(
-                        self, owner_id, pokemon, ability, ctx_setup=_setup,
-                        _ko_depth=_ko_depth + 1,
-                    )
-                    if trigger_ctx is not None:
-                        trigger_ctxs.append(trigger_ctx)
+                    post_entries.append(self._ko_entry(
+                        owner_id, pokemon, ability, _setup, ko_from_attack,
+                        _ko_depth, collect=trigger_ctxs))
+                await self._run_ko_effects_in_order(post_entries, order_chooser,
+                                                    order_shown)
 
         # A player left with no Pokemon in play has lost the game right
         # here; the Prize fan and flight for that Knock Out are skipped and
@@ -2699,6 +2712,51 @@ class GameSession:
         for trigger_ctx in trigger_ctxs:
             if trigger_ctx.knockouts:
                 await self.resolve_knockouts(trigger_ctx, _ko_depth=_ko_depth + 1)
+
+    def _ko_entry(self, owner_id: str, card, ability, setup, from_attack: bool,
+                  ko_depth: int, collect: Optional[List[EffectContext]] = None):
+        """One "when Knocked Out" effect for _run_ko_effects_in_order. It
+        goes off per the Ability's trigger_applies when it declares one
+        (every such card in the pool does); one that doesn't is always run,
+        as before, and checks its own text."""
+        def _applies() -> bool:
+            # Ability locks were settled when the triggers were collected.
+            test = getattr(ability, "trigger_applies", None)
+            if test is None:
+                return True
+            probe = EffectContext(self, owner_id, card, ability)
+            setup(probe)
+            return bool(test(probe))
+
+        async def _run():
+            trigger_ctx = await resolve_triggered_ability(
+                self, owner_id, card, ability, ctx_setup=setup,
+                _ko_depth=ko_depth + 1)
+            if collect is not None and trigger_ctx is not None:
+                collect.append(trigger_ctx)
+        return {"title": ability.title, "applies": _applies, "run": _run}
+
+    async def _run_ko_effects_in_order(self, entries, chooser_id: Optional[str],
+                                       shown_card) -> None:
+        """Runs the effects that go off, `chooser_id` picking the next one
+        whenever two or more are left; each is re-checked after the one
+        before it resolves."""
+        remaining = list(entries)
+        while remaining:
+            live = [e for e in remaining if e["applies"]()]
+            if not live:
+                return
+            index = 0
+            if len(live) > 1 and chooser_id is not None:
+                ask = EffectContext(self, chooser_id, None, None)
+                index = await ask.present_card_choice(
+                    shown_card, "Choose which effect to resolve first",
+                    [e["title"] for e in live], player_id=chooser_id)
+                if not isinstance(index, int) or not 0 <= index < len(live):
+                    index = 0
+            chosen = live[index]
+            remaining.remove(chosen)
+            await chosen["run"]()
 
     async def enforce_bench_capacity(self):
         """Bench-shrink ruling (Collapsed Stadium): every over-capacity player

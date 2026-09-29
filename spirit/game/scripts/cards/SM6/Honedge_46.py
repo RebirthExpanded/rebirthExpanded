@@ -39,6 +39,7 @@ card = PokemonCardDef(
             game_text="If this Pok\u00e9mon is your Active Pok\u00e9mon and is Knocked Out by damage from an opponent's attack, put 3 damage counters on 1 of your opponent's Pok\u00e9mon.",
             trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=final_hour,
+            trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),
         Attack(
             title="Slash",

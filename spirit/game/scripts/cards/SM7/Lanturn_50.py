@@ -74,6 +74,8 @@ card = PokemonCardDef(
             game_text="When 1 of your Pokémon is Knocked Out by damage from an opponent's attack, you may move a basic Energy card from that Pokémon to this Pokémon.",
             trigger=Triggers.ON_ALLY_KNOCKED_OUT,
             effect=energy_grounding,
+            trigger_applies=lambda c: bool(c.ko_from_attack and c.ko_pokemon is not None
+                                     and c.ko_pokemon is not c.source),
         ),
         Attack(title="Lightning Strike", game_text="You may discard all Lightning Energy from this Pokémon. If you do, this attack does 70 more damage.",
                cost={PokemonTypes.LIGHTNING: 2, PokemonTypes.COLORLESS: 1}, damage=70, damage_operator="+",
