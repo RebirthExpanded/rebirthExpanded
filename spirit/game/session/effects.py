@@ -1303,7 +1303,7 @@ class EffectContext:
         count = available if max_count is None else min(available, max_count)
         if count <= 0:
             return 0
-        if moving_damage_counters_blocked(self.board):
+        if moving_damage_counters_blocked(self.board, source):
             # Watchful Eye (Patrat): the counters still come off the source
             # -- that half of "move" is not what the lock names -- but they
             # cannot be put on another Pokemon, so the move ends there.
@@ -2608,7 +2608,7 @@ class EffectContext:
             await self.flush_choreography()
             if lifted <= 0:
                 break
-            if moving_damage_counters_blocked(self.board):
+            if moving_damage_counters_blocked(self.board, source):
                 # Watchful Eye (Patrat): the counter is off its Pokemon but
                 # cannot be put on another, so it stays off and the Ability
                 # ends here.

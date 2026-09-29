@@ -42,7 +42,7 @@ async def adrena_brain(ctx):
             "How many damage counters will you move?",
             [str(n) for n in range(1, max_move + 1)],
         )
-    if moving_damage_counters_blocked(ctx.board):
+    if moving_damage_counters_blocked(ctx.board, source):
         await ctx.remove_damage_counters(source, count)
         return
     dest = await ctx.choose_pokemon(

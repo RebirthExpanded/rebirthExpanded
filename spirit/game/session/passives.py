@@ -1475,12 +1475,26 @@ def damage_counters_blocked(board: BoardState, target: PokemonEntity) -> bool:
     )
 
 
-def moving_damage_counters_blocked(board: BoardState) -> bool:
-    """Whether a passive forbids moving damage counters between Pokémon."""
-    return any(
-        passive.blocks_moving_damage_counters(carrier)
-        for passive, carrier in active_passives(board)
-    )
+def moving_damage_counters_blocked(board: BoardState,
+                                   source: Optional[PokemonEntity] = None) -> bool:
+    """Whether a passive forbids moving the damage counters on `source` to
+    another Pokemon (Patrat's Watchful Eye).
+
+    The lock is an effect of an Ability on the Pokemon carrying the
+    counters, so a Pokemon that takes no effects of the opponent's
+    Abilities (Corviknight VMAX's Armored Flock) is out of reach of the
+    OPPONENT's Patrat and its counters move as usual; its own side's Patrat
+    still holds them."""
+    for passive, carrier in active_passives(board):
+        if not passive.blocks_moving_damage_counters(carrier):
+            continue
+        holder = carrier_pokemon(carrier)
+        if (source is not None and holder is not None
+                and holder.owning_player_id != source.owning_player_id
+                and ability_effects_blocked(board, source)):
+            continue
+        return True
+    return False
 
 
 def putting_into_play_blocked(board: BoardState, player_id: str, card: BoardEntity) -> bool:

@@ -42,7 +42,7 @@ async def painful_spoons(ctx):
             "How many damage counters will you move?",
             [str(n) for n in range(1, count + 1)],
         )
-    if moving_damage_counters_blocked(ctx.board):
+    if moving_damage_counters_blocked(ctx.board, source):
         await ctx.remove_damage_counters(source, count)
         return
     targets = [p for p in ctx.opponent_pokemon_in_play() if p is not source]
