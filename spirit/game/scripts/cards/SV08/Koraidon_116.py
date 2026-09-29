@@ -7,8 +7,11 @@ Basic Fighting Pokemon (Ancient). HP 130, weakness Grass x2, retreat 2.
                                    this attack does 150 more damage.
   Hammer In              [FCC] 110
 
-The condition reads the attacks-used ledger of my previous turn: any
-Ancient Pokemon of mine other than this one, whatever it attacked with.
+The condition reads the attacks declared during MY previous turn (not the
+opponent's turn in between): any Ancient Pokemon of mine other than this
+one, whatever it attacked with, even if it has left play since. It is a
+record of what happened, not an effect of an attack, so Pokemon Ranger
+doesn't erase it.
 """
 
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
@@ -21,11 +24,9 @@ BONUS = 150
 def _other_ancient_attacked_last_turn(ctx) -> bool:
     attacker = ctx.attacker
     board = ctx.board
-    for used_id, archetype_id, _title in board.turn_state.attacks_used_last_turn:
+    history = board.turn_state.attacks_prev_turn_by_player.get(ctx.player_id) or []
+    for used_id, archetype_id, _title in history:
         if attacker is not None and used_id == attacker.entity_id:
-            continue
-        user = board.get_entity(used_id)
-        if user is not None and user.owning_player_id != ctx.player_id:
             continue
         if "Ancient" in subtypes_for(archetype_id):
             return True

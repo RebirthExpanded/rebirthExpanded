@@ -222,6 +222,11 @@ class TurnState:
     # player_id -> attack titles that player declared on THEIR previous turn
     # ("If 1 of your Pokemon used Yoga Loop during your last turn...").
     attack_titles_prev_turn_by_player: Dict[str, List[str]] = field(default_factory=dict)
+    # player_id -> (entity, archetype, title) of every attack declared on
+    # THEIR previous turn. A record of what happened, not an effect of an
+    # attack, so Pokemon Ranger leaves it alone (Koraidon's Unrelenting
+    # Onslaught).
+    attacks_prev_turn_by_player: Dict[str, List[Tuple[str, str, str]]] = field(default_factory=dict)
     # This-turn bonus-prize watches (Sky Seal Stone's Star Order):
     # {player_id, attacker_predicate, target_predicate, prizes}; consulted by
     # resolve_knockouts on attack-damage KOs, cleared every begin_turn.
@@ -267,6 +272,7 @@ class TurnState:
             self.attack_titles_prev_turn_by_player[self.active_player_id] = [
                 title for _, _, title in self.attacks_used
             ]
+            self.attacks_prev_turn_by_player[self.active_player_id] = list(self.attacks_used)
         self.turn_number += 1
         self.active_player_id = player_id
         self.supporter_played = False
