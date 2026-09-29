@@ -1,11 +1,11 @@
 """Koraidon (SV - Surging Sparks 116/191 -- JP SV8 069/106, the art here).
 
-Basic Fighting Pokemon (Ancient). HP 130, weakness Grass x2, retreat 2.
+Basic Fighting Pokemon (Ancient). HP 130, weakness Psychic x2, retreat 2.
 
-  Unrelenting Onslaught  [FC] 30+  If 1 of your OTHER Ancient Pokemon
+  Unrelenting Onslaught  [CC] 30+  If 1 of your OTHER Ancient Pokemon
                                    used an attack during your last turn,
                                    this attack does 150 more damage.
-  Hammer In              [FCC] 110
+  Hammer In              [FFC] 110
 
 The condition reads the attacks declared during MY previous turn (not the
 opponent's turn in between): any Ancient Pokemon of mine other than this
@@ -43,18 +43,18 @@ card = PokemonCardDef(
     collector_number=116,
     set_code="SV08",
     regulation_mark="H",
-    rarity=Rarities.Rare,
+    rarity=Rarities.Uncommon,
     hp=130,
     elements=[PokemonTypes.FIGHTING],
     stage=PokemonStage.BASIC,
     retreat_cost=2,
-    weakness_type=PokemonTypes.GRASS,
+    weakness_type=PokemonTypes.PSYCHIC,
     family_id=1007,
     abilities=[
         Attack(
             title="Unrelenting Onslaught",
             game_text="If 1 of your other Ancient Pokémon used an attack during your last turn, this attack does 150 more damage.",
-            cost={PokemonTypes.FIGHTING: 1, PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.COLORLESS: 2},
             damage=30,
             damage_operator="+",
             effect=bonus_if(_other_ancient_attacked_last_turn, BONUS),
@@ -62,7 +62,7 @@ card = PokemonCardDef(
         Attack(
             title="Hammer In",
             game_text="",
-            cost={PokemonTypes.FIGHTING: 1, PokemonTypes.COLORLESS: 2},
+            cost={PokemonTypes.FIGHTING: 2, PokemonTypes.COLORLESS: 1},
             damage=110,
         ),
     ],
