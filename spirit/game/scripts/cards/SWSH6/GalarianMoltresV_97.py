@@ -3,9 +3,12 @@ from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.attacks_common import recoil_attack
 from spirit.game.card_effects.pokemon import is_energy_card
 from spirit.game.card_effects.support_common import attach_from_discard, requires_discard
+from spirit.game.session.effects import special_energy_off_pokemon
 
 
 def is_darkness_energy_card(card):
+    if special_energy_off_pokemon(card):
+        return False
     return is_energy_card(card) and PokemonTypes.DARKNESS.value in (card.get_attribute(AttrID.POKEMON_TYPES) or [])
 
 

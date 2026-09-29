@@ -3,11 +3,14 @@ from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.attacks_common import count_energy
 from spirit.game.card_effects.pokemon import is_energy_card
 from spirit.game.card_effects.support_common import attach_from_discard
+from spirit.game.session.effects import special_energy_off_pokemon
 
 _ENERGY_ON_SELF = count_energy("self")
 
 
 def is_fire_energy_card(card):
+    if special_energy_off_pokemon(card):
+        return False
     return is_energy_card(card) and PokemonTypes.FIRE.value in (card.get_attribute(AttrID.POKEMON_TYPES) or [])
 
 

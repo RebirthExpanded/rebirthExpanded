@@ -2019,8 +2019,7 @@ async def brandon(ctx):
 # --- Candice (SWSH12) --------------------------------------------------------
 
 def is_water_energy_card(card) -> bool:
-    types = card.get_attribute(AttrID.POKEMON_TYPES) or []
-    return is_energy_card(card) and PokemonTypes.WATER.value in types
+    return is_energy_of_type(card, PokemonTypes.WATER)
 
 
 def candice_predicate(card) -> bool:

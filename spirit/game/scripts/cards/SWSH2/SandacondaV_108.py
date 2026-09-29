@@ -3,9 +3,12 @@ from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.attacks_common import self_energy_discard_attack
 from spirit.game.card_effects.support_common import attach_from_discard
 from spirit.game.card_effects.pokemon import is_energy_card
+from spirit.game.session.effects import special_energy_off_pokemon
 
 
 def _is_fighting_energy(card):
+    if special_energy_off_pokemon(card):
+        return False
     types = card.get_attribute(AttrID.POKEMON_TYPES) or []
     return is_energy_card(card) and PokemonTypes.FIGHTING.value in types
 

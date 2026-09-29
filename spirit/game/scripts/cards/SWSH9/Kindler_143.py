@@ -2,9 +2,12 @@ from spirit.game.data_utils import SupporterCardDef
 from spirit.game.attributes import AttrID, PokemonTypes, Rarities
 from spirit.game.card_effects.pokemon import is_energy_card
 from spirit.game.card_effects.support_common import look_at_top
+from spirit.game.session.effects import special_energy_off_pokemon
 
 
 def _is_fire_energy_card(card) -> bool:
+    if special_energy_off_pokemon(card):
+        return False
     types = card.get_attribute(AttrID.POKEMON_TYPES) or []
     return is_energy_card(card) and PokemonTypes.FIRE.value in types
 

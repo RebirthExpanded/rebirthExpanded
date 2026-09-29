@@ -47,6 +47,8 @@ from spirit.network.message_names import OutboundMsg
 from spirit.game.game_sequence_packets import NestedSequence
 from .constants import PROMPT_CHOOSE_A_PRIZE, PROMPT_NO, PROMPT_YES
 from .passives import (
+    _scanning_passives,
+    special_energy_suppressed,
     putting_into_play_blocked,
     TempPassive,
     ability_effects_blocked,
@@ -3079,12 +3081,29 @@ def special_energy_off_pokemon(card: CardEntity) -> bool:
     return not isinstance(getattr(card, "parent", None), PokemonEntity)
 
 
+def special_energy_neutralized(card: CardEntity) -> bool:
+    """An attached Special Energy whose effects a passive has switched off
+    (Temple of Sinnoh, Dusknoir's Spooky Shot): it provides only [C], so
+    for now it is no "[P] Energy". Asked from inside a passive scan it says
+    no rather than start another scan."""
+    if not is_special_energy(card):
+        return False
+    board = board_of(card)
+    if board is None or _scanning_passives(board):
+        return False
+    return special_energy_suppressed(board, card)
+
+
 def is_energy_of_type(card: CardEntity, energy_type) -> bool:
     """"a {L} Energy card": an Energy card carrying that type (a Special
-    Energy only while it is attached to a Pokemon)."""
-    types = card.get_attribute(AttrID.POKEMON_TYPES) or []
-    return (is_energy_card(card) and not special_energy_off_pokemon(card)
-            and getattr(energy_type, "value", energy_type) in types)
+    Energy only while it is attached to a Pokemon, and only [C] while its
+    effects are switched off)."""
+    if not is_energy_card(card) or special_energy_off_pokemon(card):
+        return False
+    type_value = getattr(energy_type, "value", energy_type)
+    if special_energy_neutralized(card):
+        return type_value == PokemonTypes.COLORLESS.value
+    return type_value in (card.get_attribute(AttrID.POKEMON_TYPES) or [])
 
 
 def full_stack(pokemon: PokemonEntity) -> List[CardEntity]:

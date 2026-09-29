@@ -19,6 +19,7 @@ from spirit.game.session.effects import (
     is_basic_pokemon,
     is_colorless_no_rule_box,
     is_energy_of_type,
+    special_energy_neutralized,
     special_energy_off_pokemon,
     is_pokemon_card,
     is_special_energy,
@@ -617,6 +618,8 @@ def energy_provides_type(card, type_value) -> bool:
     declare provided types via ENERGY_INFO, not POKEMON_TYPES — Aurora)."""
     if not is_energy_card(card) or special_energy_off_pokemon(card):
         return False
+    if special_energy_neutralized(card):
+        return type_value == PokemonTypes.COLORLESS.value
     info = card.get_attribute(AttrID.ENERGY_INFO) or {}
     for option in info.get("options", []):
         if type_value in option:
