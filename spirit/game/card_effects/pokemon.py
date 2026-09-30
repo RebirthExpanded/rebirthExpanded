@@ -1499,11 +1499,16 @@ def has_printed_ability(card) -> bool:
     so the same question works on a card in hand (Chimecho's Bell of
     Silence) as on one in play (Froslass, Cofagrigus). It is the PRINTED
     Ability: an ability lock switches one off, it does not unprint it.
+
+    Only a real Ability counts: an Ancient Trait (Omega Barrier, Alpha
+    Growth), a card's own rules text offered like one (a fossil's discard)
+    and an attack are not Abilities, so Green's Exploration stays playable
+    next to Primal Groudon-EX.
     """
     for entry in card.get_attribute(AttrID.PIE_ABILITIES) or []:
         if not isinstance(entry, dict):
             continue
-        if entry.get("abilityType") == "Attack":
+        if entry.get("abilityType") != "PokeAbility":
             continue
         return True
     return False

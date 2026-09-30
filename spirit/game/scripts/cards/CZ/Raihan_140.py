@@ -14,7 +14,12 @@ async def _raihan_search(ctx, picks):
 
 
 def _raihan_condition(board, player_id):
-    return bool(board.turn_state.pokemon_lost_last_turn(player_id))
+    """A Pokemon of mine was Knocked Out during the opponent's last turn,
+    and there is a basic Energy card in my discard pile to attach."""
+    if not board.turn_state.pokemon_lost_last_turn(player_id):
+        return False
+    discard = board.find_player_area(player_id, "discard")
+    return any(is_basic_energy_card(c) for c in (discard.children if discard else []))
 
 
 card = SupporterCardDef(

@@ -1,6 +1,6 @@
 from spirit.game.data_utils import ItemCardDef
 from spirit.game.attributes import Rarities, AttrID
-from spirit.game.card_effects.support_common import search_to_bench
+from spirit.game.card_effects.support_common import requires_bench_space, search_to_bench
 from spirit.game.session.effects import is_basic_pokemon
 
 
@@ -19,6 +19,8 @@ card = ItemCardDef(
     set_code="SV05",
     regulation_mark="H",
     rarity=Rarities.Uncommon,
+    # Nothing to do with a full Bench, so it can't be played then.
+    condition=requires_bench_space(1),
     effect=search_to_bench(
         _poffin_basic, count=2,
         prompt="Choose up to 2 Basic Pokémon with 70 HP or less to put onto your Bench.",
