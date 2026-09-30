@@ -317,10 +317,12 @@ class TurnState:
         self.attack_coin_reroll_used = False
         self.forced_first_flip = None
         self.gx_reuse = {}
+        # Keep the entries themselves: the attack-effect ledger (Pokemon
+        # Ranger) knows them by identity.
         self.play_locks = {
             pid: kept for pid, locks in self.play_locks.items()
-            if (kept := [(p, exp) for p, exp in locks
-                         if exp is None or exp >= self.turn_number])
+            if (kept := [entry for entry in locks
+                         if entry[1] is None or entry[1] >= self.turn_number])
         }
         self.attach_restrictions = {
             eid: exp for eid, exp in self.attach_restrictions.items()
@@ -359,25 +361,37 @@ class TurnState:
                            "trainer_flip_checks", "scheduled_counters")
     _LIST_EFFECT_STORES = ("damage_modifiers", "extra_prize_watchers", "gx_blocks")
 
+    def has_attack_effects(self, board: Optional[Any] = None) -> bool:
+        """Whether anything an attack left behind is still in force -- what
+        Pokemon Ranger would take away. With nothing there, Ranger has no
+        effect and can't be played."""
+        if any(self._attack_effect_alive(n, k) for n, k in self.attack_effects):
+            return True
+        return any(getattr(tp, "from_attack", False)
+                   for tp in (getattr(board, "temporary_passives", None) or []))
+
     def _prune_attack_effects(self) -> None:
         """Forget ledger entries whose store entry already expired, so a
         later same-keyed entry made by an Ability is not mistaken for it."""
-        def alive(name, key) -> bool:
-            if name in self._DICT_EFFECT_STORES:
-                store = getattr(self, name)
-                if key not in store:
-                    return False
-                # These stores keep expired entries around; an entry whose
-                # "through turn" has passed is spent.
-                value = store[key]
-                through = value[0] if isinstance(value, tuple) else value
-                return not isinstance(through, int) or through >= self.turn_number
-            if name in self._LIST_EFFECT_STORES:
-                return any(x is key for x in getattr(self, name))
-            if name == "play_locks":
-                return any(x is key for locks in self.play_locks.values() for x in locks)
-            return False
-        self.attack_effects = [(n, k) for n, k in self.attack_effects if alive(n, k)]
+        self.attack_effects = [(n, k) for n, k in self.attack_effects
+                               if self._attack_effect_alive(n, k)]
+
+    def _attack_effect_alive(self, name, key) -> bool:
+        """Whether one ledger entry's store entry is still in force."""
+        if name in self._DICT_EFFECT_STORES:
+            store = getattr(self, name)
+            if key not in store:
+                return False
+            # These stores keep expired entries around; an entry whose
+            # "through turn" has passed is spent.
+            value = store[key]
+            through = value[0] if isinstance(value, tuple) else value
+            return not isinstance(through, int) or through >= self.turn_number
+        if name in self._LIST_EFFECT_STORES:
+            return any(x is key for x in getattr(self, name))
+        if name == "play_locks":
+            return any(x is key for locks in self.play_locks.values() for x in locks)
+        return False
 
     def snapshot_effect_stores(self, board: Optional[Any] = None) -> Dict[str, Any]:
         """What the effect stores hold right now, for record_attack_effects."""

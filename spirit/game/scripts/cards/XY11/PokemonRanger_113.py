@@ -17,10 +17,18 @@ attack"), and anything an Ability or Trainer put in place -- Garbotoxin's
 Ability lock, an Item lock from an Ability, a Supporter's coin choice.
 The engine keeps a ledger of which entries the attacks wrote
 (TurnState.attack_effects) so the two are never confused.
+
+With no effect of an attack in force on either side, Ranger would do
+nothing, so it can't be played then.
 """
 
 from spirit.game.attributes import Rarities
 from spirit.game.data_utils import SupporterCardDef
+
+
+def _any_attack_effect(board, player_id, card=None) -> bool:
+    turn_state = getattr(board, "turn_state", None)
+    return turn_state is not None and turn_state.has_attack_effects(board)
 
 
 async def pokemon_ranger(ctx):
@@ -37,5 +45,6 @@ card = SupporterCardDef(
     collector_number=113,
     set_code="XY11",
     rarity=Rarities.Uncommon,
+    condition=_any_attack_effect,
     effect=pokemon_ranger,
 )
