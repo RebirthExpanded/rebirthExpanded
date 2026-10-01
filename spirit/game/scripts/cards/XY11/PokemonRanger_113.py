@@ -19,11 +19,14 @@ The engine keeps a ledger of which entries the attacks wrote
 (TurnState.attack_effects) so the two are never confused.
 
 With no effect of an attack in force on either side, Ranger would do
-nothing, so it can't be played then.
+nothing, so it can't be played then. A Pokemon its effects can't reach
+(Ariados's Trapping Thread) keeps the attack effects on it, Trapping
+Thread itself included.
 """
 
 from spirit.game.attributes import Rarities
 from spirit.game.data_utils import SupporterCardDef
+from spirit.game.session.passives import own_trainer_effect_blocked
 
 
 def _any_attack_effect(board, player_id, card=None) -> bool:
@@ -32,7 +35,14 @@ def _any_attack_effect(board, player_id, card=None) -> bool:
 
 
 async def pokemon_ranger(ctx):
-    ctx.session.turn_state.clear_attack_effects(ctx.board)
+    board, card = ctx.board, ctx.source
+
+    def _spared(entity_id) -> bool:
+        # A Pokemon this Supporter can't reach (Trapping Thread) keeps the
+        # effects of attacks on it -- Trapping Thread included.
+        pokemon = board.get_entity(entity_id)
+        return pokemon is not None and own_trainer_effect_blocked(board, pokemon, card)
+    ctx.session.turn_state.clear_attack_effects(board, spared=_spared)
 
 
 card = SupporterCardDef(

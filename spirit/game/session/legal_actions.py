@@ -433,12 +433,20 @@ class TurnState:
             if id(tp) not in snapshot["temporary_passives"]:
                 tp.from_attack = True
 
-    def clear_attack_effects(self, board: Optional[Any] = None) -> int:
+    def clear_attack_effects(self, board: Optional[Any] = None, spared=None) -> int:
         """Pokemon Ranger: drops every listed attack effect from the stores
         (Special Conditions and damage are not effects of attacks and stay).
-        Returns how many entries went."""
+        `spared(entity_id)` names Pokemon the remover can't reach (Trapping
+        Thread keeps its owner's own Supporter off it): effects on those
+        stay. Returns how many entries went."""
         removed = 0
+        kept_ledger = []
         for name, key in self.attack_effects:
+            entity_id = key[0] if isinstance(key, tuple) and key and isinstance(key[0], str) \
+                else key if isinstance(key, str) else None
+            if spared is not None and entity_id is not None and spared(entity_id):
+                kept_ledger.append((name, key))
+                continue
             if name in self._DICT_EFFECT_STORES:
                 if key in getattr(self, name):
                     del getattr(self, name)[key]
@@ -453,10 +461,11 @@ class TurnState:
                     if any(x is key for x in locks):
                         self.play_locks[pid] = [x for x in locks if x is not key]
                         removed += 1
-        self.attack_effects = []
+        self.attack_effects = kept_ledger
         if board is not None:
             kept = [tp for tp in (getattr(board, "temporary_passives", None) or [])
-                    if not getattr(tp, "from_attack", False)]
+                    if not getattr(tp, "from_attack", False)
+                    or (spared is not None and spared(tp.carrier_entity_id))]
             removed += len(board.temporary_passives) - len(kept)
             board.temporary_passives = kept
         return removed
