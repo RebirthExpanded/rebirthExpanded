@@ -8,6 +8,9 @@ Supporter.
 Effect attachments, not the turn's manual attach, so they do not spend it.
 "If you do" gates the draw on at least one card actually attached, and the
 card is only offered with a [R] Energy in hand to attach.
+The Energy comes from the hand, so it sets off "when you attach an Energy
+card from your hand" effects (Skiploom's Solar Evolution) -- once Welder
+is done, so its draw comes first (ruling).
 """
 
 from spirit.game.attributes import Rarities
@@ -31,7 +34,10 @@ async def welder(ctx):
         return
     attached = 0
     for energy in picks:
-        if await ctx.attach_energy(energy, target):
+        # From the hand, so "when you attach an Energy card from your hand"
+        # watchers (Solar Evolution) see it -- after Welder has finished,
+        # draw included (counts_as_attachment defers them).
+        if await ctx.attach_energy(energy, target, counts_as_attachment=True):
             attached += 1
     if attached:
         await ctx.draw_cards(3)
