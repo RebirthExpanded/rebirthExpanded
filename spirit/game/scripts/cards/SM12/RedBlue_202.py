@@ -20,7 +20,6 @@ for it is discarded, and with nothing evolved no Energy is attached
 from spirit.game.attributes import AttrID, Rarities
 from spirit.game.data_utils import SupporterCardDef, subtypes_for
 from spirit.game.session.effects import is_basic_energy, is_pokemon_card
-from spirit.game.session.passives import own_trainer_effect_blocked
 
 
 def _evolvable(board, player_id):
@@ -59,14 +58,10 @@ async def red_and_blue(ctx):
         _gx_from(target.get_attribute(AttrID.EVOLUTION_LOGIC_NAME)), count=1, minimum=0,
         prompt="Choose a Pokémon-GX that evolves from it.")
     evolved = None
-    if picks:
-        if own_trainer_effect_blocked(ctx.board, target, ctx.source):
-            # Trapping Thread: it can't be evolved by this card; the
-            # Pokemon-GX goes to the discard pile.
-            await ctx.discard_cards(picks)
-        else:
-            await ctx.evolve_pokemon(target, picks[0])
-            evolved = picks[0]
+    # evolve_pokemon refuses a Pokemon this card can't reach (Trapping
+    # Thread) and discards the Pokemon-GX found for it.
+    if picks and await ctx.evolve_pokemon(target, picks[0]):
+        evolved = picks[0]
     if paid and evolved is not None:
         energies = await ctx.search_deck(
             is_basic_energy, count=2, minimum=0,

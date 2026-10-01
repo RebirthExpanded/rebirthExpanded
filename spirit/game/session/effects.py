@@ -2294,6 +2294,12 @@ class EffectContext:
             # Palafin ex's Hero's Spirit: never evolved onto out of the deck
             # (no Ability lock reaches it there).
             return False
+        # A Trainer whose effects can't reach the Pokemon (Trapping Thread):
+        # it doesn't evolve, and the card chosen for it is discarded (ruling:
+        # Dusk Stone onto a Trapping Thread Misdreavus, Red & Blue).
+        if self.is_trainer_effect and own_trainer_effect_blocked(self.board, target, self.source):
+            await self.discard_cards([evolution_card])
+            return False
         owner = evolution_card.owning_player_id or self.player_id
         await self.flush_choreography()
         return await self.session.perform_evolution(
