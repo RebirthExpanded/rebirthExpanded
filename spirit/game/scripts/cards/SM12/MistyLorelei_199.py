@@ -13,12 +13,15 @@ search. The allowance is a this-turn entry in TurnState.gx_reuse keyed on
 the attacker's LIVE types, so a Stage 1 made Water by Vaporeon's Aqua
 Effect gets its GX attack back too. The attack still counts as the
 player's GX attack for the game.
+A Water Pokemon that the Supporter's effects can't reach (Ariados's
+Trapping Thread) doesn't get the allowance.
 """
 
 from spirit.game.attributes import PokemonTypes, Rarities
 from spirit.game.card_effects.trainers import is_water_energy_card
 from spirit.game.data_utils import SupporterCardDef
 from spirit.game.session.effects import is_pokemon_of_type
+from spirit.game.session.passives import own_trainer_effect_blocked
 
 
 def _is_water_pokemon(pokemon) -> bool:
@@ -31,7 +34,14 @@ async def misty_and_lorelei(ctx):
             "their GX attacks this turn?"):
         paid = await ctx.discard_from_hand(5, prompt="Discard 5 cards for Misty & Lorelei")
         if len(paid) == 5:
-            ctx.session.turn_state.allow_gx_reuse(ctx.player_id, _is_water_pokemon)
+            board, card = ctx.board, ctx.source
+
+            def _allowed(pokemon, _board=board, _card=card) -> bool:
+                # A Water Pokemon this Supporter's effects can't reach
+                # (Trapping Thread) gets no GX attack back.
+                return (_is_water_pokemon(pokemon)
+                        and not own_trainer_effect_blocked(_board, pokemon, _card))
+            ctx.session.turn_state.allow_gx_reuse(ctx.player_id, _allowed)
     picks = await ctx.search_deck(
         is_water_energy_card, count=3, minimum=0,
         prompt="Choose up to 3 [W] Energy cards to put into your hand.")
