@@ -2677,11 +2677,13 @@ class EffectContext:
         if self._trainer_blocked(old_active if object_is_active else new_active):
             return False
         # Trapping Thread keeps the player's own Item / Supporter off its
-        # Pokemon whichever side of the switch it is on: a Switch or an
-        # Escape Rope can't move it out of the Active Spot (nor bring it up).
+        # Pokemon: a Switch can't move it out of the Active Spot (nor bring
+        # it up). An effect done to the Active only (Escape Rope) asks just
+        # the Active.
+        involved = (old_active,) if object_is_active else (old_active, new_active)
         if self.is_trainer_effect and any(
                 own_trainer_effect_blocked(board, p, self.source)
-                for p in (old_active, new_active) if p is not None):
+                for p in involved if p is not None):
             return False
         active_area = board.find_player_area(player_id, "activePokemonArea")
         bench_area = board.find_player_area(player_id, "bench")

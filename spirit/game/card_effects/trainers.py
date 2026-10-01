@@ -714,7 +714,10 @@ async def escape_rope(ctx):
         target = await ctx.choose_pokemon(
             my_bench, "Choose your new Active Pokémon", player_id=ctx.player_id
         )
-        await ctx.switch_active(ctx.player_id, target or my_bench[0])
+        # Done to the Active on this side too: only whether the Active can be
+        # affected by Trainers matters, not the Pokemon coming up.
+        await ctx.switch_active(ctx.player_id, target or my_bench[0],
+                                object_is_active=True)
 
 
 async def lost_vacuum(ctx):
