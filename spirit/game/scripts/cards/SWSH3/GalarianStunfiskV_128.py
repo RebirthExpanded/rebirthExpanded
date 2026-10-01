@@ -4,6 +4,7 @@ from spirit.game.data_utils import (
 from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.pokemon import energy_provides_type
 from spirit.game.session.passives import Passive
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 _GUID = "51e663e4-700f-5619-a1b0-ffbe09ca6c2f"
 
@@ -32,6 +33,7 @@ async def _trapping_bite_trigger(ctx):
 TRAPPING_BITE_GRANTED = Ability(
     title="Trapping Bite",
     trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+    trigger_applies=lambda c: (c.damaged_by is not None and getattr(c.source, '_trapping_bite_until', None) is not None and c.session.turn_state.turn_number <= c.source._trapping_bite_until),
     effect=_trapping_bite_trigger,
 )
 TRAPPING_BITE_GRANTED.ability_id = ability_id_for(_GUID, 90)

@@ -15,6 +15,7 @@ from spirit.game.attributes import Rarities
 from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.data_utils import Ability, PokemonToolCardDef, Triggers, def_for, subtypes_for
 from spirit.game.session.effects import full_stack, is_pokemon_tool
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 def _mega(pokemon) -> bool:
@@ -54,6 +55,7 @@ card = PokemonToolCardDef(
             title="Tremendous Bomb",
             game_text="If the Pokémon this card is attached to isn't a Mega Evolution Pokémon ex, is in the Active Spot, and takes 240 or more damage from an attack from your opponent's Mega Evolution Pokémon ex (even if this Pokémon is Knocked Out), place 12 damage counters on the Attacking Pokémon. If you placed any damage counters in this way, discard this card.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: (hit_in_active_by_opponent(c) and not _mega(c.source) and _mega(c.damaged_by) and (getattr(c, 'damage_amount', 0) or 0) >= 240),
             effect=_tremendous_bomb_trigger,
         ),
     ],

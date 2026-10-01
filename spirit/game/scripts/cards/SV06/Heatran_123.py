@@ -1,6 +1,7 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities, SpecialConditions
 from spirit.game.card_effects.pokemon import energy_provides_type, in_active_spot
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def incandescent_body(ctx):
@@ -53,6 +54,7 @@ card = PokemonCardDef(
             title="Incandescent Body",
             game_text="If this Pokémon is in the Active Spot and is damaged by an attack from your opponent's Pokémon (even if this Pokémon is Knocked Out), the Attacking Pokémon is now Burned.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c),
             effect=incandescent_body,
         ),
         Attack(

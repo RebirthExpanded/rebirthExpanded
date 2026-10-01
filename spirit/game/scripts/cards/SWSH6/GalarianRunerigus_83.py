@@ -2,6 +2,7 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.attacks_common import damage_per, count_energy
 from spirit.game.card_effects.pokemon import in_active_spot, is_pokemon_vmax
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def spiteful_slate(ctx):
@@ -40,6 +41,7 @@ card = PokemonCardDef(
             title="Spiteful Slate",
             game_text="If this Pok\u00e9mon is in the Active Spot and is damaged by an attack from your opponent's Pok\u00e9mon VMAX (even if this Pok\u00e9mon is Knocked Out), put damage counters on the Attacking Pok\u00e9mon equal to the damage done to this Pok\u00e9mon.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c) and is_pokemon_vmax(c.damaged_by.archetype_id) and bool(c.damage_amount),
             effect=spiteful_slate,
         ),
         Attack(

@@ -2,6 +2,7 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, SpecialConditions
 from spirit.game.card_effects.support_common import heal_attack
 from spirit.game.card_effects.pokemon import in_active_spot
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def hazard_sensor(ctx):
@@ -38,6 +39,7 @@ card = PokemonCardDef(
             title="Hazard Sensor",
             game_text="If this Pok\u00e9mon is in the Active Spot and is damaged by an attack from your opponent's Pok\u00e9mon (even if this Pok\u00e9mon is Knocked Out), the Attacking Pok\u00e9mon is now Confused.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c),
             effect=hazard_sensor,
         ),
         Attack(

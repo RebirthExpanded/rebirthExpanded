@@ -1,6 +1,7 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, AttrID
 from spirit.game.card_effects.attacks_common import place_counters
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def spiteful_magic(ctx):
@@ -37,6 +38,7 @@ card = PokemonCardDef(
             title="Spiteful Magic",
             game_text="If this Pok\u00e9mon has full HP and is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, put 8 damage counters on the Attacking Pok\u00e9mon.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: (c.damaged_by is not None and c.pre_hit_hp == c.max_hp(c.source) and c.source.get_attribute(AttrID.HP, 0) <= 0),
             effect=spiteful_magic,
         ),
         Attack(

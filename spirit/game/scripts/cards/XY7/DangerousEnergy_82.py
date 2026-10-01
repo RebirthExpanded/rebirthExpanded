@@ -17,6 +17,7 @@ from spirit.game.attributes import PokemonTypes, Rarities
 from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.data_utils import Ability, EnergyCardDef, Triggers, subtypes_for
 from spirit.game.session.effects import is_pokemon_of_type
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 def _darkness_pokemon(pokemon) -> bool:
@@ -55,6 +56,7 @@ card = EnergyCardDef(
             title="Dangerous Energy",
             game_text="If the Darkness Pokémon this card is attached to is your Active Pokémon and is damaged by an opponent's Pokémon-EX's attack, put 2 damage counters on the Attacking Pokémon.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c) and 'EX' in subtypes_for(c.damaged_by.archetype_id),
             effect=_dangerous_energy_trigger,
         ),
     ],

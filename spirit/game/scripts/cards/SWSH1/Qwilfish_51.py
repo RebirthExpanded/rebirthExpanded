@@ -2,6 +2,7 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, SpecialConditions
 from spirit.game.card_effects.attacks_common import condition_bonus_attack
 from spirit.game.card_effects.pokemon import in_active_spot
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def poison_point(ctx):
@@ -36,6 +37,7 @@ card = PokemonCardDef(
             title="Poison Point",
             game_text="If this Pok\u00e9mon is your Active Pok\u00e9mon and is damaged by an opponent's attack (even if this Pok\u00e9mon is Knocked Out), the Attacking Pok\u00e9mon is now Poisoned.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c),
             effect=poison_point,
         ),
         Attack(

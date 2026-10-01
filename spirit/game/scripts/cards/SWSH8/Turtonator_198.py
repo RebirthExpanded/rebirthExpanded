@@ -2,6 +2,7 @@ from spirit.game.data_utils import (
     PokemonCardDef, Attack, Ability, Triggers, ability_id_for, ABILITIES_BY_ID,
 )
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, AttrID
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 TURTONATOR_198_GUID = "ce380d56-f682-5267-b661-6afc1d22ea1a"
 
@@ -30,6 +31,7 @@ SHELL_TRAP_GRANTED = Ability(
     title="Shell Trap",
     game_text="During your opponent's next turn, if this Pokémon is damaged by an attack (even if it is Knocked Out), put 8 damage counters on the Attacking Pokémon.",
     trigger=(Triggers.ON_DAMAGED_BY_ATTACK, Triggers.BETWEEN_TURNS),
+    trigger_applies=lambda c: c.damaged_by is not None and getattr(c.source, '_shell_trap_until', None) == c.session.turn_state.turn_number,
     effect=_shell_trap_trigger,
 )
 SHELL_TRAP_GRANTED.ability_id = ability_id_for(TURTONATOR_198_GUID, 99)

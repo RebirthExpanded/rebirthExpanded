@@ -1,5 +1,6 @@
 from spirit.game.data_utils import PokemonToolCardDef, Ability, Triggers, is_pokemon_v
 from spirit.game.attributes import Rarities
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def box_of_disaster(ctx):
@@ -17,6 +18,13 @@ async def box_of_disaster(ctx):
     await ctx.deal_damage(80, target=attacker, apply_modifiers=False, as_counters=True)
 
 
+def _box_applies(ctx) -> bool:
+    attacker = ctx.damaged_by
+    return (attacker is not None and attacker.owning_player_id != ctx.source.owning_player_id
+            and is_pokemon_v(ctx.source.archetype_id)
+            and ctx.pre_hit_hp == ctx.max_hp(ctx.source) and ctx.damage_amount >= ctx.pre_hit_hp)
+
+
 card = PokemonToolCardDef(
     guid="568284e9-61ba-506a-b1e2-c41ec5276fa2",
     key="SWSH11",
@@ -32,6 +40,7 @@ card = PokemonToolCardDef(
             title="Box of Disaster",
             game_text="If the Pokémon V this card is attached to has full HP and is Knocked Out by damage from an attack from your opponent's Pokémon, put 8 damage counters on the Attacking Pokémon.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: _box_applies(c),
             effect=box_of_disaster,
         ),
     ],

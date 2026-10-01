@@ -1,6 +1,7 @@
 from spirit.game.data_utils import PokemonToolCardDef, Ability, Triggers
 from spirit.game.attributes import Rarities, PokemonTypes, SpecialConditions, AttrID
 from spirit.game.card_effects.passives_common import is_in_active_spot
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def _burning_scarf_trigger(ctx):
@@ -26,6 +27,7 @@ card = PokemonToolCardDef(
             title="Burning Scarf",
             game_text="If the Fire Pok\u00e9mon this card is attached to is in the Active Spot and is damaged by an opponent's attack (even if it is Knocked Out), the Attacking Pok\u00e9mon is now Burned.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c) and PokemonTypes.FIRE.value in (c.source.get_attribute(AttrID.POKEMON_TYPES) or []),
             effect=_burning_scarf_trigger,
         ),
     ],

@@ -15,6 +15,7 @@ from spirit.game.data_utils import EnergyCardDef, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, Rarities
 from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.session.effects import is_pokemon_of_type
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def _horror_psychic_trigger(ctx):
@@ -45,6 +46,7 @@ card = EnergyCardDef(
             title="Horror Psychic Energy",
             game_text="If the Psychic Pokémon this card is attached to is in the Active Spot and is damaged by an opponent's attack (even if it is Knocked Out), put 2 damage counters on the Attacking Pokémon.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c) and is_pokemon_of_type(c.source, PokemonTypes.PSYCHIC),
             effect=_horror_psychic_trigger,
         ),
     ],

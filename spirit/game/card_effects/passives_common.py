@@ -48,6 +48,15 @@ def is_in_active_spot(pokemon) -> bool:
     return bool(parent) and parent.get_attribute(AttrID.NAME) == "activePokemonArea"
 
 
+def hit_in_active_by_opponent(ctx) -> bool:
+    """ON_DAMAGED_BY_ATTACK trigger_applies: the Pokemon (ctx.source) is in
+    the Active Spot and was damaged by an attack from the opponent's
+    Pokemon (ctx.damaged_by)."""
+    pokemon, attacker = ctx.source, ctx.damaged_by
+    return (attacker is not None and is_in_active_spot(pokemon)
+            and attacker.owning_player_id != pokemon.owning_player_id)
+
+
 def opposing_pokemon(target, carrier) -> bool:
     """(target, carrier) pred: target belongs to the other player."""
     return target.owning_player_id != carrier.owning_player_id

@@ -1,5 +1,6 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def spark_trap_retaliate(ctx):
@@ -42,6 +43,7 @@ card = PokemonCardDef(
             title="Spark Trap",
             game_text="During your opponent's next turn, if this Pok\u00e9mon is damaged by an attack (even if it is Knocked Out), put 12 damage counters on the Attacking Pok\u00e9mon.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: c.damaged_by is not None and c.attack_used_last_turn(title="Spark Trap", entity=c.source),
             effect=spark_trap_retaliate,
         ),
         Attack(

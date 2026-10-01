@@ -1,6 +1,7 @@
 from spirit.game.data_utils import PokemonToolCardDef, Ability, Triggers
 from spirit.game.attributes import AttrID, PokemonTypes, Rarities
 from spirit.game.card_effects.passives_common import is_in_active_spot
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def _punk_helmet_trigger(ctx):
@@ -32,6 +33,7 @@ card = PokemonToolCardDef(
             title="Punk Helmet",
             game_text="If the Darkness Pokémon this card is attached to is in the Active Spot and is damaged by an attack from your opponent's Pokémon (even if this Pokémon is Knocked Out), place 4 damage counters on the Attacking Pokémon.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c) and PokemonTypes.DARKNESS.value in (c.source.get_attribute(AttrID.POKEMON_TYPES) or []),
             effect=_punk_helmet_trigger,
         ),
     ],

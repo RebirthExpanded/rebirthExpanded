@@ -1,6 +1,7 @@
 from spirit.game.data_utils import PokemonToolCardDef, Ability, Triggers
 from spirit.game.attributes import Rarities
 from spirit.game.card_effects.passives_common import is_in_active_spot
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def _rugged_helmet_trigger(ctx):
@@ -35,6 +36,7 @@ card = PokemonToolCardDef(
             title="Rugged Helmet",
             game_text="If the Pok\u00e9mon this card is attached to is in the Active Spot and is damaged by an attack from your opponent's Pok\u00e9mon (even if it is Knocked Out), put an Energy attached to the Attacking Pok\u00e9mon into your opponent's hand.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c) and bool(c.attached_energies(c.damaged_by)),
             effect=_rugged_helmet_trigger,
         ),
     ],

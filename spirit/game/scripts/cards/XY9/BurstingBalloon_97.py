@@ -16,6 +16,7 @@ end-of-opponent's-turn pass (discard_at_opponents_turn_end).
 from spirit.game.attributes import Rarities
 from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.data_utils import Ability, PokemonToolCardDef, Triggers
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 COUNTERS = 6
 
@@ -47,6 +48,7 @@ card = PokemonToolCardDef(
             title="Bursting Balloon",
             game_text="If the Pokémon this card is attached to is your Active Pokémon and is damaged by an opponent's attack (even if it is Knocked Out), put 6 damage counters on the Attacking Pokémon. Discard this card at the end of your opponent's turn.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c),
             effect=bursting_balloon,
         ),
     ],

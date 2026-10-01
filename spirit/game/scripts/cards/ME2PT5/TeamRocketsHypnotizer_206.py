@@ -13,6 +13,7 @@ Punk Helmet's granted ON_DAMAGED_BY_ATTACK hook.
 from spirit.game.attributes import Rarities, SpecialConditions
 from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.data_utils import Ability, PokemonToolCardDef, Triggers, def_for
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def _hypnotizer_trigger(ctx):
@@ -42,6 +43,7 @@ card = PokemonToolCardDef(
             title="Team Rocket's Hypnotizer",
             game_text="If the Team Rocket's Pokémon this card is attached to is in the Active Spot and is damaged by an attack from your opponent's Pokémon (even if this Team Rocket's Pokémon is Knocked Out), the Attacking Pokémon is now Asleep.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c) and (getattr(def_for(c.source.archetype_id), 'display_name', '') or '').startswith("Team Rocket's "),
             effect=_hypnotizer_trigger,
         ),
     ],

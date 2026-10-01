@@ -3380,13 +3380,24 @@ async def _fire_damaged_by_attack_triggers(session, ctx: EffectContext):
             if locked and not ability.is_granted:
                 continue
             snapshot.append((pokemon, owner_id, ability, dealt, pre_hit))
+    # Several "when damaged" effects on one Pokemon (Rocky Helmet, Lucky
+    # Helmet and Spiky Energy on a Toolbox Sigilyph) go off together: that
+    # Pokemon's owner orders the ones that apply (official Q&A). All of them
+    # come before any Knock Out effect (resolve_knockouts runs after).
+    by_pokemon: Dict[str, list] = {}
     for pokemon, owner_id, ability, dealt, pre_hit in snapshot:
+        by_pokemon.setdefault(pokemon.entity_id, []).append(
+            (pokemon, owner_id, ability, dealt, pre_hit))
+    for group in by_pokemon.values():
+        pokemon, owner_id, _ability, dealt, pre_hit = group[0]
+
         def _setup(c, _dealt=dealt, _pre=pre_hit):
             c.damaged_by = ctx.attacker
             c.damage_amount = _dealt
             c.pre_hit_hp = _pre
-        await resolve_triggered_ability(session, owner_id, pokemon, ability,
-                                        ctx_setup=_setup)
+        await session._run_simultaneous_triggers(
+            [(owner_id, p, a) for p, _o, a, _d, _h in group], _setup, owner_id,
+            shown_card=pokemon)
 
 
 async def resolve_triggered_ability(

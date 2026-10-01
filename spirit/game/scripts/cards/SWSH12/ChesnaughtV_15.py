@@ -2,6 +2,7 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.pokemon import in_active_spot
 from spirit.game.card_effects.support_common import heal_attack
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def needle_line(ctx):
@@ -36,6 +37,7 @@ card = PokemonCardDef(
             title="Needle Line",
             game_text="If your Active Chesnaught V is damaged by an attack from your opponent's Pok\u00e9mon (even if it is Knocked Out), put 3 damage counters on the Attacking Pok\u00e9mon.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c),
             effect=needle_line,
         ),
         Attack(

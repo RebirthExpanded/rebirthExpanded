@@ -2,6 +2,7 @@ from spirit.game.data_utils import (
     PokemonCardDef, Attack, Ability, Triggers, ability_id_for, ABILITIES_BY_ID,
 )
 from spirit.game.attributes import AttrID, PokemonStage, PokemonTypes, Rarities
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 _GUID = "9dd4452a-256e-58b8-92d9-8c65f10179d0"
 
@@ -33,6 +34,7 @@ SHELLNADO_SPIN_GRANTED = Ability(
     title="Shellnado Spin",
     game_text="During your opponent's next turn, if this Pokémon is damaged by an attack (even if this Pokémon is Knocked Out), place 12 damage counters on the Attacking Pokémon.",
     trigger=(Triggers.ON_DAMAGED_BY_ATTACK, Triggers.BETWEEN_TURNS),
+    trigger_applies=lambda c: c.damaged_by is not None and getattr(c.source, '_shellnado_spin_until', None) == c.session.turn_state.turn_number,
     effect=_shellnado_spin_trigger,
 )
 SHELLNADO_SPIN_GRANTED.ability_id = ability_id_for(_GUID, 99)

@@ -15,6 +15,7 @@ from spirit.game.attributes import AttrID, Rarities
 from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.data_utils import Ability, PokemonToolCardDef, Triggers
 from spirit.game.session.effects import live_pokemon_types
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def _adversity_policy_trigger(ctx):
@@ -29,6 +30,14 @@ async def _adversity_policy_trigger(ctx):
     if not any(t in live_pokemon_types(attacker) for t in weak if t is not None):
         return
     await ctx.draw_cards(3, player_id=pokemon.owning_player_id)
+
+
+def _adversity_applies(ctx) -> bool:
+    if not hit_in_active_by_opponent(ctx):
+        return False
+    weak = ctx.source.get_attribute(AttrID.WEAKNESS_TYPES)
+    weak = weak if isinstance(weak, (list, tuple)) else [weak]
+    return any(t in live_pokemon_types(ctx.damaged_by) for t in weak if t is not None)
 
 
 card = PokemonToolCardDef(
@@ -47,6 +56,7 @@ card = PokemonToolCardDef(
             title="Adversity Policy",
             game_text="If the Pokémon this card is attached to has Weakness to your opponent's Active Pokémon's type, is in the Active Spot, and is damaged by an attack from your opponent's Pokémon (even if this Pokémon is Knocked Out), draw 3 cards.",
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: _adversity_applies(c),
             effect=_adversity_policy_trigger,
         ),
     ],

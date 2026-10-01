@@ -19,6 +19,7 @@ from spirit.game.card_effects.trainers import FossilBodyPassive, fossil_discard_
 from spirit.game.data_utils import Ability, FossilItemCardDef
 from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.data_utils import Triggers
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 async def ability_effect(ctx):
     """3 damage counters on the Attacking Pokemon (Active holder only)."""
@@ -48,7 +49,9 @@ card = FossilItemCardDef(
         Ability(
             title="Skull Spikes",
             game_text="If this Pokémon is in the Active Spot and is damaged by an attack from your opponent's Pokémon (even if this Pokémon is Knocked Out), put 3 damage counters on the Attacking Pokémon.",
-            trigger=Triggers.ON_DAMAGED_BY_ATTACK, effect=ability_effect,
+            trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c),
+            effect=ability_effect,
         ),
     ],
 )

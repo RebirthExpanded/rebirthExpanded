@@ -1,6 +1,7 @@
 from spirit.game.data_utils import PokemonToolCardDef, Ability, Triggers
 from spirit.game.attributes import Rarities
 from spirit.game.card_effects.passives_common import is_in_active_spot
+from spirit.game.card_effects.passives_common import hit_in_active_by_opponent
 
 
 async def _handheld_fan_trigger(ctx):
@@ -49,6 +50,7 @@ card = PokemonToolCardDef(
                 "the Attacking Pokémon to 1 of your opponent's Benched Pokémon."
             ),
             trigger=Triggers.ON_DAMAGED_BY_ATTACK,
+            trigger_applies=lambda c: hit_in_active_by_opponent(c) and bool(c.attached_energies(c.damaged_by)) and bool(c.opponent_bench()),
             effect=_handheld_fan_trigger,
         ),
     ],

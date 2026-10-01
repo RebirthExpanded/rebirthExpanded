@@ -2831,6 +2831,30 @@ class GameSession:
             remaining.remove(chosen)
             await chosen["run"]()
 
+    async def _enforce_tool_capacity(self):
+        """A Pokemon holding more Pokemon Tools than it may now (Toolbox or
+        Rubbish Collecting stopped working): its owner discards Tools until
+        only as many as it may hold remain."""
+        for player_id in self._turn_order():
+            for pokemon in list(self.board_state.pokemon_in_play(player_id)):
+                excess = -tool_slots_free(self.board_state, pokemon)
+                if excess <= 0:
+                    continue
+                tools = [c for c in pokemon.children
+                         if c.get_attribute(AttrID.TRAINER_TYPE) == TrainerType.POKEMON_TOOL.value]
+                ctx = EffectContext(self, player_id, pokemon, None)
+                picks = await ctx.choose_cards(
+                    tools, excess, minimum=excess,
+                    prompt=f"Choose {excess} Pokémon Tool(s) to discard", player_id=player_id)
+                picks = list(picks or [])[:excess]
+                for tool in tools:
+                    if len(picks) >= excess:
+                        break
+                    if tool not in picks:
+                        picks.append(tool)
+                await ctx.discard_cards(picks)
+                await self._flush_effect_runs(ctx)
+
     async def enforce_bench_capacity(self):
         """Bench-shrink ruling (Collapsed Stadium): every over-capacity player
         picks their excess Benched Pokemon and discards the stacks -- NOT a
@@ -2842,6 +2866,7 @@ class GameSession:
         try:
             for _ in range(_MAX_BENCH_ENFORCE_PASSES):
                 if not await self._enforce_bench_capacity_once():
+                    await self._enforce_tool_capacity()
                     await self.sync_bench_size()
                     await self.resync_effective_max_hp()
                     return
