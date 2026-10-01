@@ -2,12 +2,21 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers, ev
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 
 
+def _solar_evolution_applies(ctx) -> bool:
+    """Energy from my hand onto this Skiploom, still in play, on my turn.
+    It joins the ordered attach triggers (Medical Energy's heal): evolve
+    first and the heal no longer has the Skiploom it was meant for."""
+    if ctx.energy_receiver is not ctx.source or ctx.attaching_player_id != ctx.player_id:
+        return False
+    if ctx.session.turn_state.active_player_id != ctx.player_id:
+        return False
+    return ctx.source in ctx.board.pokemon_in_play(ctx.player_id) and bool(ctx.deck())
+
+
 async def solar_evolution(ctx):
     """When you attach an Energy from hand to this Pokemon on your turn, you
     may search for a card that evolves from it and evolve it; shuffle."""
-    if ctx.energy_receiver is not ctx.source:
-        return
-    if ctx.attaching_player_id != ctx.player_id:
+    if not _solar_evolution_applies(ctx):
         return
     if not await ctx.ask_yes_no(
         "Search your deck for a card that evolves from this Pokémon and evolve it?"
@@ -46,6 +55,7 @@ card = PokemonCardDef(
             game_text="When you attach an Energy card from your hand to this Pok\u00e9mon during your turn, you may search your deck for a card that evolves from this Pok\u00e9mon and put it onto this Pok\u00e9mon to evolve it. Then, shuffle your deck.",
             trigger=Triggers.ON_ENERGY_ATTACHED,
             effect=solar_evolution,
+            trigger_applies=_solar_evolution_applies,
         ),
         Attack(
             title="Spinning Attack",

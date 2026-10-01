@@ -22,6 +22,14 @@ from spirit.game.card_effects.pokemon import energy_provides_type
 from spirit.game.data_utils import Ability, Attack, PokemonCardDef, Triggers
 
 
+def _energy_evolution_applies(ctx) -> bool:
+    """Energy from my hand onto this Eevee, still in play (it joins the
+    ordered attach triggers)."""
+    return (ctx.attaching_player_id == ctx.player_id and ctx.energy_receiver is ctx.source
+            and ctx.attached_energy is not None
+            and ctx.source in ctx.board.pokemon_in_play(ctx.player_id))
+
+
 async def energy_evolution(ctx):
     if ctx.attaching_player_id != ctx.player_id or ctx.energy_receiver is not ctx.source:
         return
@@ -75,7 +83,8 @@ card = PokemonCardDef(
         Ability(title="Energy Evolution",
                 game_text="When you attach an Energy card from your hand to this Pokémon during your turn, you may search your deck for a card that evolves from this Pokémon that is the same type as that Energy card and put it onto this Pokémon to evolve it. Then, shuffle your deck.",
                 trigger=Triggers.ON_ENERGY_ATTACHED,
-                effect=energy_evolution),
+                effect=energy_evolution,
+                trigger_applies=_energy_evolution_applies),
         Attack(title="Quick Draw",
                game_text="Flip a coin. If heads, draw a card.",
                cost={PokemonTypes.COLORLESS: 1},
