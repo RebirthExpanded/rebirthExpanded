@@ -2875,6 +2875,17 @@ class EffectContext:
         """Declares the effect's owner the winner (Unown V; raises GameOver)."""
         await self.session.end_game(self.player_id, reason or "Victory")
 
+    def at_end_of_this_turn(self, title: str, effect, applies=None) -> None:
+        """Leaves "At the end of this turn, ..." for the card being played
+        (Lillie's Full Force). `effect(ctx)` runs as this player at the end
+        of the turn, ordered with the end-of-turn Abilities (Togekiss's
+        Precious Gift) by the turn player; `applies(ctx)` says whether it
+        does anything then."""
+        self.session.turn_state.end_of_turn_effects.append({
+            "title": title, "player_id": self.player_id,
+            "effect": effect, "applies": applies,
+        })
+
     async def put_stadium_into_play(self, card: CardEntity) -> bool:
         """Puts a Stadium card into play by an effect (Gothitelle's Teleport
         Room) -- from the discard pile too, even one that can't go to the

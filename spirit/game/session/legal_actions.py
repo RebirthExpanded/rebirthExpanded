@@ -232,6 +232,11 @@ class TurnState:
     # attack, so Pokemon Ranger leaves it alone (Koraidon's Unrelenting
     # Onslaught).
     attacks_prev_turn_by_player: Dict[str, List[Tuple[str, str, str]]] = field(default_factory=dict)
+    # "At the end of this turn, ..." left by a card played this turn (Lillie's
+    # Full Force): {title, player_id, applies(session), effect(ctx)}. Run with
+    # the end-of-turn Abilities, in the turn player's order; cleared every
+    # begin_turn.
+    end_of_turn_effects: List[Dict[str, Any]] = field(default_factory=list)
     # This-turn bonus-prize watches (Sky Seal Stone's Star Order):
     # {player_id, attacker_predicate, target_predicate, prizes}; consulted by
     # resolve_knockouts on attack-damage KOs, cleared every begin_turn.
@@ -294,6 +299,7 @@ class TurnState:
                 and m.expires_after_turn >= self.turn_number)
         ]
         self.trainers_played_last_turn = self.trainers_played
+        self.end_of_turn_effects = []
         self.trainers_played = []
         self.attacks_used_last_turn = self.attacks_used
         self.attacks_used = []

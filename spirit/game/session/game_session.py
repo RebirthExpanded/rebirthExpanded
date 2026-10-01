@@ -4561,7 +4561,44 @@ class GameSession:
                    for pokemon in list(self.board_state.pokemon_in_play(active_id))
                    for ability in self._abilities_of(pokemon)
                    if ability.has_trigger(Triggers.END_OF_TURN)]
-        await self._run_simultaneous_triggers(entries, None, active_id)
+        # Abilities that don't declare trigger_applies check their own text
+        # and run first, as before.
+        ordered = []
+        for entry in entries:
+            if getattr(entry[2], "trigger_applies", None) is None:
+                await self._run_triggered(*entry)
+                continue
+
+            async def _run_ability(_entry=entry):
+                await self._run_triggered(*_entry)
+            ordered.append({
+                "title": entry[2].title,
+                "applies": lambda _entry=entry: self._trigger_goes_off(*_entry, None),
+                "run": _run_ability,
+            })
+        # "At the end of this turn" effects of cards played this turn
+        # (Lillie's Full Force) join the same choice.
+        for pending in list(self.turn_state.end_of_turn_effects):
+            if pending.get("player_id") != active_id:
+                continue
+
+            def _applies(_p=pending):
+                test = _p.get("applies")
+                return True if test is None else bool(
+                    test(EffectContext(self, _p["player_id"], None, None)))
+
+            async def _run_pending(_p=pending):
+                ctx = EffectContext(self, _p["player_id"], None, None)
+                await _p["effect"](ctx)
+                if ctx._messages:
+                    await self._flush_effect_runs(ctx)
+                if ctx.knockouts:
+                    await self.resolve_knockouts(ctx)
+            ordered.append({"title": pending["title"], "applies": _applies, "run": _run_pending})
+        self.turn_state.end_of_turn_effects = [
+            p for p in self.turn_state.end_of_turn_effects if p.get("player_id") != active_id]
+        active = self.board_state.active_pokemon(active_id)
+        await self._run_ko_effects_in_order(ordered, active_id, active)
 
     async def _discard_expiring_tool_cards(self, active_id: str):
         """A Tool that reads "discard this card at the end of your
