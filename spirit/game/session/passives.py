@@ -523,6 +523,12 @@ class Passive:
         (Battle Cage's benched-Pokémon shield)."""
         return False
 
+    def blocks_own_trainer_effect(self, target: BoardEntity, trainer_card: BoardEntity,
+                                  carrier: BoardEntity) -> bool:
+        """True when the effects of `trainer_card` -- played by `target`'s
+        own owner -- are prevented on `target` (Ariados's Trapping Thread)."""
+        return False
+
     def ends_turn_on_hand_attach(self, receiver: BoardEntity, attaching_player_id: str,
                                  carrier: BoardEntity) -> bool:
         """True when attaching an Energy card from the hand to `receiver`
@@ -1504,6 +1510,16 @@ def damage_counters_blocked(board: BoardState, target: PokemonEntity) -> bool:
         passive.blocks_damage_counters(target, carrier)
         for passive, carrier in active_passives(board)
     )
+
+
+def own_trainer_effect_blocked(board: BoardState, target: BoardEntity,
+                               trainer_card: Optional[BoardEntity]) -> bool:
+    """Whether a passive keeps the effects of `trainer_card` off `target`
+    even though `target`'s owner played it (Trapping Thread)."""
+    if target is None or trainer_card is None:
+        return False
+    return any(passive.blocks_own_trainer_effect(target, trainer_card, carrier)
+               for passive, carrier in active_passives(board))
 
 
 def moving_damage_counters_blocked(board: BoardState,

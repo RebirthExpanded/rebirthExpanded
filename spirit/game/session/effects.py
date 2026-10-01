@@ -47,6 +47,7 @@ from spirit.network.message_names import OutboundMsg
 from spirit.game.game_sequence_packets import NestedSequence
 from .constants import EMPTY_SEQUENCE_ID, PROMPT_CHOOSE_A_PRIZE, PROMPT_NO, PROMPT_YES
 from .passives import (
+    own_trainer_effect_blocked,
     _scanning_passives,
     special_energy_suppressed,
     putting_into_play_blocked,
@@ -356,6 +357,11 @@ class EffectContext:
         shuffle_into_deck, discard_cards/move_to_lost_zone (per card)."""
         if not self.is_trainer_effect:
             return False
+        # Trapping Thread: the player's own Item / Supporter doesn't reach
+        # the Pokemon it protects.
+        if not isinstance(player_or_entity, str) and own_trainer_effect_blocked(
+                self.board, player_or_entity, self.source):
+            return True
         pid = player_or_entity if isinstance(player_or_entity, str) \
             else getattr(player_or_entity, "owning_player_id", None)
         if pid is None or pid == self.player_id:
@@ -644,6 +650,8 @@ class EffectContext:
         """
         target = target if target is not None else self.my_active()
         if target is None or amount <= 0 or self._stadium_effect_prevented(target):
+            return 0
+        if self._trainer_blocked(target):
             return 0
         if healing_blocked(self.board, target):
             logging.info(
@@ -2449,6 +2457,12 @@ class EffectContext:
         # Defending Pokemon" (Primeval Beak) reaches effect attachments out
         # of the hand too (Welder), not ones from the deck or discard pile.
         if from_hand and self.session.turn_state.attach_restricted(pokemon.entity_id):
+            return False
+        # A Trainer whose effects can't reach that Pokemon (Trapping Thread):
+        # the Energy it was to attach goes to the discard pile instead
+        # (ruling: Welder onto it discards the Fire Energy and draws nothing).
+        if self.is_trainer_effect and own_trainer_effect_blocked(self.board, pokemon, self.source):
+            await self.discard_cards([energy])
             return False
         position = len(pokemon.children)
         if not self.board.attach_card(energy.entity_id, pokemon.entity_id):
