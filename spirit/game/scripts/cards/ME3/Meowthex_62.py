@@ -1,6 +1,6 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
-from spirit.game.card_effects.pokemon import luminous_sign
+from spirit.game.card_effects.pokemon import luminous_sign, on_play_search_applies
 from spirit.game.card_effects.support_common import remove_self_from_play
 
 card = PokemonCardDef(
@@ -27,6 +27,7 @@ card = PokemonCardDef(
             trigger=Triggers.ON_PLAY,
             shared_once_per_turn="Last-Ditch",
             effect=luminous_sign,
+            trigger_applies=on_play_search_applies,
         ),
         Attack(
             title="Tuck Tail",

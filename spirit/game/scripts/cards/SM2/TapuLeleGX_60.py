@@ -27,7 +27,7 @@ play), hence the two-scope sum.
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.attacks_common import count_energy
-from spirit.game.card_effects.pokemon import luminous_sign
+from spirit.game.card_effects.pokemon import luminous_sign, on_play_search_applies
 
 _energy_on_my_active = count_energy("my_active")
 _energy_on_defender = count_energy("defender")
@@ -90,6 +90,7 @@ card = PokemonCardDef(
             ),
             trigger=Triggers.ON_PLAY,
             effect=luminous_sign,
+            trigger_applies=on_play_search_applies,
         ),
         Attack(
             title="Energy Drive",

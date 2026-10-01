@@ -4395,13 +4395,16 @@ class GameSession:
         # (Swelling Flash) is not "played": no ON_PLAY, and Bench watchers
         # that read "from their hand" (Gapejaw Bog) do not see a hand play.
         put_by_ability = card.get_attribute(AttrID.STAGE) != PokemonStage.BASIC.value
-        await self.fire_pokemon_benched_triggers(
-            player_id, card, from_hand=not put_by_ability)
         ends_turn = False
         if not put_by_ability:
-            ends_turn = await self._fire_triggered_abilities(
-                player_id, card, Triggers.ON_PLAY)
+            # The Pokemon's own "when you play this Pokemon" Ability and the
+            # Stadium's "whenever a Basic is put onto the Bench from hand"
+            # (Gapejaw Bog) go off together; the Pokemon's owner orders them.
+            # Counters first under Ting-Lu ex's Cursed Land and Lumineon V's
+            # Luminous Sign is gone.
+            ends_turn = await self._run_play_basic_triggers(player_id, card)
         else:
+            await self.fire_pokemon_benched_triggers(player_id, card, from_hand=False)
             # The hand Ability's own follow-up ("If you do, draw 3 cards").
             ends_turn = await self._fire_triggered_abilities(
                 player_id, card, Triggers.ON_BENCHED_BY_ABILITY)
@@ -4413,6 +4416,40 @@ class GameSession:
         # trigger it.
         await self.enforce_bench_capacity()
         return ends_turn
+
+    async def _run_play_basic_triggers(self, player_id: str, card) -> bool:
+        """ON_PLAY of the Basic just benched from hand plus the Stadium's
+        ON_POKEMON_BENCHED watch, in the owner's order. Triggers without
+        trigger_applies run first, as before; True when one ends the turn."""
+        def _bench_setup(c):
+            c.benching_player_id = player_id
+            c.benched_pokemon = card
+            c.benched_from_hand = True
+        entries = [(player_id, card, a, None) for a in self._abilities_of(card)
+                   if a.has_trigger(Triggers.ON_PLAY)]
+        area = self.board_state.find_global_area("activeStadium")
+        for stadium in list(area.children if area else []):
+            entries.extend((player_id, stadium, a, _bench_setup)
+                           for a in self._abilities_of(stadium)
+                           if a.has_trigger(Triggers.ON_POKEMON_BENCHED))
+        ends = [False]
+        ordered = []
+        for pid, source, ability, setup in entries:
+            if getattr(ability, "trigger_applies", None) is None:
+                if await self._run_triggered(pid, source, ability, setup):
+                    ends[0] = True
+                continue
+
+            async def _run(_e=(pid, source, ability, setup)):
+                if await self._run_triggered(*_e):
+                    ends[0] = True
+            ordered.append({
+                "title": ability.title,
+                "applies": lambda _e=(pid, source, ability, setup): self._trigger_goes_off(*_e),
+                "run": _run,
+            })
+        await self._run_ko_effects_in_order(ordered, player_id, card)
+        return ends[0]
 
     async def _fire_triggered_abilities(self, player_id: str, card, trigger: str,
                                         ctx_setup=None,

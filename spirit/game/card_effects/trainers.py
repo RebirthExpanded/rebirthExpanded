@@ -1068,6 +1068,14 @@ class CollapsedStadiumPassive(Passive):
         return 4
 
 
+def gapejaw_bog_applies(ctx) -> bool:
+    pokemon = ctx.benched_pokemon
+    if pokemon is None or not getattr(ctx, "benched_from_hand", True):
+        return False
+    owner = pokemon.owning_player_id
+    return owner is not None and pokemon in ctx.board.pokemon_in_play(owner)
+
+
 async def gapejaw_bog_watch(ctx):
     """Gapejaw Bog: 2 damage counters on any Basic just benched from hand."""
     pokemon = ctx.benched_pokemon

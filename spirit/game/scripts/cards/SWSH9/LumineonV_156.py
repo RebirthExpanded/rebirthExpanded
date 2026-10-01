@@ -1,6 +1,6 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
-from spirit.game.card_effects.pokemon import luminous_sign, aqua_return
+from spirit.game.card_effects.pokemon import luminous_sign, aqua_return, on_play_search_applies
 
 card = PokemonCardDef(
     guid="60830dfb-1ff9-5796-bda8-cc7b389a9b45",
@@ -24,6 +24,7 @@ card = PokemonCardDef(
             game_text="When you play this Pok\u00e9mon from your hand onto your Bench during your turn, you may search your deck for a Supporter card, reveal it, and put it into your hand. Then, shuffle your deck.",
             trigger=Triggers.ON_PLAY,
             effect=luminous_sign,
+            trigger_applies=on_play_search_applies,
         ),
         Attack(
             title="Aqua Return",

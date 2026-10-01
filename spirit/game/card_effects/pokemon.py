@@ -314,6 +314,15 @@ def search_to_hand_on_play(predicate, count: int, question: str, prompt: str):
     return effect
 
 
+def on_play_search_applies(ctx) -> bool:
+    """The Pokemon just played is still on my Bench and there is a deck to
+    search -- it joins the ordered bench triggers (Gapejaw Bog): counters
+    first under Ting-Lu ex's Cursed Land and the Ability is gone."""
+    source = ctx.source
+    return (source is not None and source._containing_area_name() == "bench"
+            and source.owning_player_id == ctx.player_id and bool(ctx.deck()))
+
+
 # --- Lumineon V (BRS) / Tapu Lele-GX (GRI) ---------------------------------
 
 luminous_sign = search_to_hand_on_play(

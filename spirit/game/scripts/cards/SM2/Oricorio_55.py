@@ -23,7 +23,7 @@ this text is Guardians Rising 55.
 
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
-from spirit.game.card_effects.pokemon import vital_dance
+from spirit.game.card_effects.pokemon import vital_dance, on_play_search_applies
 
 card = PokemonCardDef(
     guid="8b430d23-c36f-5037-bc0a-4b67f4a5ee40",
@@ -52,6 +52,7 @@ card = PokemonCardDef(
             ),
             trigger=Triggers.ON_PLAY,
             effect=vital_dance,
+            trigger_applies=on_play_search_applies,
         ),
         Attack(
             title="Casual Slap",
