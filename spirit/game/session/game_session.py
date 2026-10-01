@@ -2784,17 +2784,24 @@ class GameSession:
             # is the one place persistent player status rows need refreshing.
             await self.sync_player_visualizations()
 
-    async def resync_effective_max_hp(self, resolve_lethal: bool = True):
+    async def resync_effective_max_hp(self, resolve_lethal: bool = True,
+                                      increases_only: bool = False):
         """Re-syncs in-play Pokemon HP against the live effective max: a
         suppression passive flipping with board position (Tool Jammer entering
         or leaving the Active spot) changes a bonus without any stack change,
         so the attach-site delta shifts never see it. Damage taken stays
-        constant; a bonus turning off can make existing damage lethal."""
+        constant; a bonus turning off can make existing damage lethal.
+
+        increases_only applies just the rises and leaves the drops for a
+        later full pass (a Stadium discarded mid-attack -- see
+        EffectContext.discard_stadium)."""
         lethal = []
         for player_id in self.players:
             for pokemon in list(self.board_state.pokemon_in_play(player_id)):
                 new_max = effective_max_hp(self.board_state, pokemon)
                 old_max = self._effective_max_seen.get(pokemon.entity_id)
+                if increases_only and old_max is not None and new_max < old_max:
+                    continue
                 self._effective_max_seen[pokemon.entity_id] = new_max
                 if old_max is None or old_max == new_max:
                     continue

@@ -2883,14 +2883,23 @@ class EffectContext:
             if first is None:
                 first = stadium
         if first is not None:
-            # A Stadium's HP bonus (Lively Stadium) goes the moment it leaves,
-            # before the rest of the effect: Calamity Storm's damage meets a
-            # Pikachu ex back at its printed 200 and full HP, so Resolute
-            # Heart holds. A Pokemon the lost bonus leaves at 0 HP is Knocked
-            # Out with this effect's other knockouts.
-            for pokemon in await self.session.resync_effective_max_hp(resolve_lethal=False):
-                if pokemon not in self.knockouts:
-                    self.knockouts.append(pokemon)
+            if self.is_attack_effect():
+                # Discarded by an attack (Calamity Storm): HP a Stadium took
+                # away comes back at once -- Gravity Mountain gone, a Charizard
+                # ex with 10 counters is at 330 and survives the 220 -- but HP
+                # it gave stays until the attack is over: a full-HP Pikachu ex
+                # under Lively Stadium takes the 220 at 230, is not Knocked
+                # Out by the damage (so no Resolute Heart), and loses the 30
+                # before the knockout check (resolve_attack).
+                await self.session.resync_effective_max_hp(
+                    resolve_lethal=False, increases_only=True)
+            else:
+                # Any other effect: the change applies at once, and a Pokemon
+                # the lost bonus leaves at 0 HP is Knocked Out with this
+                # effect's other knockouts.
+                for pokemon in await self.session.resync_effective_max_hp(resolve_lethal=False):
+                    if pokemon not in self.knockouts:
+                        self.knockouts.append(pokemon)
         return first
 
     # ------------------------------------------------------------------
@@ -3189,6 +3198,12 @@ async def resolve_attack(session, player_id: str, attacker: PokemonEntity,
     # leaves, and the knockout check comes after the attack: each player
     # discards down to their Bench size first, then the Knocked Out
     # Pokemon go and a new Active is chosen from what is left (pool ruling).
+    # HP a discarded Stadium gave (Lively Stadium) is taken away here, after
+    # the damage and before the knockout check; whoever it leaves at 0 HP is
+    # Knocked Out with the attack's other knockouts.
+    for pokemon in await session.resync_effective_max_hp(resolve_lethal=False):
+        if pokemon not in ctx.knockouts:
+            ctx.knockouts.append(pokemon)
     await session.enforce_bench_capacity()
     ctx.knockouts = [p for p in ctx.knockouts
                      if p.owning_player_id is not None
