@@ -43,7 +43,10 @@ card = PokemonCardDef(
         Ability(
             title="Entrusted Wishes",
             game_text="If this Pok\u00e9mon is in the Active Spot and is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, search your deck for up to 3 cards and put them into your hand. Then, shuffle your deck.",
-            trigger=Triggers.ON_KNOCKED_OUT,
+            # Resolved with the other pre-discard Knock Out effects (Exp. Share,
+            # Batons), so its owner can order them; it needs nothing from the
+            # discard pile.
+            trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=entrusted_wishes,
             trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),
