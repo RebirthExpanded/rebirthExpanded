@@ -1,4 +1,4 @@
-"""Ting-Lu ex (SV - Paldea Evolved 110/193 -- JP SV2D 049/071, the art here).
+"""Ting-Lu ex (SV - Paldea Evolved 127/193 -- JP SV2D 049/071, the art here).
 
 Basic Fighting Pokemon ex. HP 240, weakness Grass x2, no resistance,
 retreat 4.
@@ -50,13 +50,13 @@ async def land_scoop(ctx):
 
 
 card = PokemonCardDef(
-    guid="4f02aa21-0dee-5316-b3af-838378cdd06e",
+    guid="c63303db-0514-58a9-a2a8-e2581ceffe42",
     key="SV2",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.TingLuex.Name",
     display_name="Ting-Lu ex",
     searchable_by=["Ting-Lu ex", "Basic", "ex", "TingLuex"],
     subtypes=["Basic", "ex"],
-    collector_number=110,
+    collector_number=127,
     set_code="SV2",
     regulation_mark="G",
     rarity=Rarities.RareHoloEX,
