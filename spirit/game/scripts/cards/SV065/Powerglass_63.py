@@ -4,6 +4,15 @@ from spirit.game.card_effects.passives_common import is_in_active_spot
 from spirit.game.card_effects.trainers import is_basic_energy_card
 
 
+def _powerglass_applies(ctx) -> bool:
+    """My turn, the holder is Active, and a Basic Energy is in my discard
+    pile -- what puts it in the end-of-turn ordering with Quaking
+    Demolition."""
+    return (ctx.session.turn_state.active_player_id == ctx.player_id
+            and ctx.source is not None and is_in_active_spot(ctx.source)
+            and any(is_basic_energy_card(c) for c in ctx.discard_pile()))
+
+
 async def _powerglass(ctx):
     """At the end of your turn, if Active, you may attach a Basic Energy
     from your discard pile to this Pokémon."""
@@ -44,6 +53,7 @@ card = PokemonToolCardDef(
             game_text="At the end of your turn (after your attack), if the Pokémon this card is attached to is in the Active Spot, you may attach a Basic Energy card from your discard pile to it.",
             trigger=Triggers.END_OF_TURN,  # "at the end of your turn": before the checkup, not at it
             effect=_powerglass,
+            trigger_applies=_powerglass_applies,
         ),
     ],
 )

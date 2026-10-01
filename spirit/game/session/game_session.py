@@ -4554,9 +4554,14 @@ class GameSession:
     async def _fire_end_of_turn_triggers(self, active_id: str):
         """END_OF_TURN for the turn player's in-play Pokemon, after their turn
         ends and before the checkup (Radiant Venusaur's Sunny Bloom)."""
-        for pokemon in list(self.board_state.pokemon_in_play(active_id)):
-            await self._fire_triggered_abilities(
-                active_id, pokemon, Triggers.END_OF_TURN)
+        # Several end-of-turn effects that go off together (Quaking
+        # Demolition and the Powerglass on the same Great Tusk ex): the turn
+        # player, whose Pokemon they are, picks the order.
+        entries = [(active_id, pokemon, ability)
+                   for pokemon in list(self.board_state.pokemon_in_play(active_id))
+                   for ability in self._abilities_of(pokemon)
+                   if ability.has_trigger(Triggers.END_OF_TURN)]
+        await self._run_simultaneous_triggers(entries, None, active_id)
 
     async def _discard_expiring_tool_cards(self, active_id: str):
         """A Tool that reads "discard this card at the end of your
