@@ -600,20 +600,6 @@ async def last_gift(ctx):
     await ctx.shuffle_deck()
 
 
-# --- Toxicroak (SWSH1): More Poison ------------------------------------------
-
-async def more_poison(ctx):
-    """Between Pokemon Checkups: put 2 more damage counters on your
-    opponent's Poisoned Active."""
-    target = ctx.opponent_active()
-    if target is None:
-        return
-    conditions = target.get_attribute(AttrID.SPECIAL_CONDITIONS) or []
-    if CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.POISONED] not in conditions:
-        return
-    await ctx.deal_damage(20, target=target, apply_modifiers=False, is_attack=False)
-
-
 # ======================================================================
 # Lost Zone Box + Regigigas decks
 # ======================================================================

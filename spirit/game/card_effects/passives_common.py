@@ -57,6 +57,22 @@ def hit_in_active_by_opponent(ctx) -> bool:
             and attacker.owning_player_id != pokemon.owning_player_id)
 
 
+def opponent_poison_bonus_passive(extra: int) -> Passive:
+    """"Put N more damage counters on your opponent's Poisoned Pokemon
+    during Pokemon Checkup" (Seviper's More Poison, Toxicroak, Radiant
+    Hisuian Sneasler): added to the Poison tick itself, so it stacks with
+    every other such effect (Perilous Jungle, Pecharunt, a second copy)
+    and counts toward that Poison's Knock Out check."""
+
+    class _OpponentPoisonBonus(Passive):
+        def modify_poison_counters(self, counters, pokemon, carrier):
+            if pokemon.owning_player_id == carrier.owning_player_id:
+                return counters
+            return counters + extra
+
+    return _OpponentPoisonBonus()
+
+
 def opposing_pokemon(target, carrier) -> bool:
     """(target, carrier) pred: target belongs to the other player."""
     return target.owning_player_id != carrier.owning_player_id

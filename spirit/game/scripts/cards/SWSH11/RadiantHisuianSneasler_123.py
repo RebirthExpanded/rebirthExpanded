@@ -1,7 +1,7 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, SpecialConditions
 from spirit.game.card_effects.attacks_common import condition_attack
-from spirit.game.card_effects.pokemon import more_poison
+from spirit.game.card_effects.passives_common import opponent_poison_bonus_passive
 
 card = PokemonCardDef(
     guid="1b3d96e7-5b0f-5b4e-9c89-2413908a0fcd",
@@ -23,8 +23,7 @@ card = PokemonCardDef(
         Ability(
             title="Poison Peak",
             game_text="During Pok\u00e9mon Checkup, put 2 more damage counters on your opponent's Poisoned Pok\u00e9mon.",
-            trigger=Triggers.BETWEEN_TURNS,
-            effect=more_poison,
+            passive=opponent_poison_bonus_passive(2),
         ),
         Attack(
             title="Poison Jab",

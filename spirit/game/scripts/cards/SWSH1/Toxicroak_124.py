@@ -1,4 +1,4 @@
-from spirit.game.card_effects.pokemon import more_poison
+from spirit.game.card_effects.passives_common import opponent_poison_bonus_passive
 from spirit.game.card_effects.attacks_common import condition_attack
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, SpecialConditions
@@ -24,8 +24,7 @@ card = PokemonCardDef(
         Ability(
             title="More Poison",
             game_text="Put 2 more damage counters on your opponent's Poisoned Pok\u00e9mon during Pok\u00e9mon Checkup.",
-            trigger=Triggers.BETWEEN_TURNS,
-            effect=more_poison,
+            passive=opponent_poison_bonus_passive(2),
         ),
         Attack(
             title="Poison Claws",
