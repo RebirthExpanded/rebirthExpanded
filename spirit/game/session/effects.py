@@ -2882,6 +2882,15 @@ class EffectContext:
             ))
             if first is None:
                 first = stadium
+        if first is not None:
+            # A Stadium's HP bonus (Lively Stadium) goes the moment it leaves,
+            # before the rest of the effect: Calamity Storm's damage meets a
+            # Pikachu ex back at its printed 200 and full HP, so Resolute
+            # Heart holds. A Pokemon the lost bonus leaves at 0 HP is Knocked
+            # Out with this effect's other knockouts.
+            for pokemon in await self.session.resync_effective_max_hp(resolve_lethal=False):
+                if pokemon not in self.knockouts:
+                    self.knockouts.append(pokemon)
         return first
 
     # ------------------------------------------------------------------

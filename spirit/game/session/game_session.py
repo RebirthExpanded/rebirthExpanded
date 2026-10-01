@@ -2784,7 +2784,7 @@ class GameSession:
             # is the one place persistent player status rows need refreshing.
             await self.sync_player_visualizations()
 
-    async def resync_effective_max_hp(self):
+    async def resync_effective_max_hp(self, resolve_lethal: bool = True):
         """Re-syncs in-play Pokemon HP against the live effective max: a
         suppression passive flipping with board position (Tool Jammer entering
         or leaving the Active spot) changes a bonus without any stack change,
@@ -2810,9 +2810,12 @@ class GameSession:
                 )
                 if current <= 0:
                     lethal.append(pokemon)
+        if not resolve_lethal:
+            return lethal
         for pokemon in lethal:
             if pokemon.parent is not None:
                 await self._resolve_raw_knockout(pokemon)
+        return lethal
 
     async def sync_bench_size(self):
         """Plays the bench-resize choreography when a capacity passive

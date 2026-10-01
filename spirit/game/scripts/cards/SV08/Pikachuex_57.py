@@ -2,14 +2,15 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
 from spirit.game.card_effects.passives_common import guts_survive_passive
 from spirit.game.card_effects.attacks_common import self_energy_discard_attack
+from spirit.game.card_effects.pokemon import TeraRulePassive
 
 card = PokemonCardDef(
     guid="56a17587-edc4-59a0-aa22-bae89d912c57",
     key="SV08",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Pikachuex.Name",
     display_name="Pikachu ex",
-    searchable_by=["Pikachu ex","Basic","ex","Pikachuex"],
-    subtypes=["Basic","ex"],
+    searchable_by=["Pikachu ex","Basic","ex","Tera","Pikachuex"],
+    subtypes=["Basic","ex","Tera"],
     collector_number=57,
     set_code="SV08",
     regulation_mark="H",
@@ -20,11 +21,14 @@ card = PokemonCardDef(
     family_id=25,
     retreat_cost=1,
     weakness_type=PokemonTypes.FIGHTING,
+    # Tera: as long as it is on the Bench, no damage from attacks.
+    passive=TeraRulePassive(),
     abilities=[
         Ability(
             title="Resolute Heart",
             game_text="If this Pokémon has full HP and would be Knocked Out by damage from an attack, it is not Knocked Out, and its remaining HP becomes 10.",
-            passive=guts_survive_passive(hp_floor=10, flip=False, require_full_hp=True),
+            passive=guts_survive_passive(hp_floor=10, title="Resolute Heart", flip=False,
+                                         require_full_hp=True),
         ),
         Attack(
             title="Topaz Bolt",
