@@ -1569,20 +1569,29 @@ def attacks_ignore_target_effects(board: BoardState, attacker: BoardEntity) -> b
     )
 
 
-def poison_survives_evolution(board: BoardState, pokemon: BoardEntity) -> bool:
-    """Whether a passive keeps Poison on `pokemon` through an evolution or
-    devolution (Muk's Poison Sack). Poison Sacs is an effect of the
-    opponent's Ability, so a Pokemon shielded from those (Mega Clefable
-    ex's Luminous Wing) isn't held by it."""
+def poison_evolution_hold(board: BoardState, pokemon: BoardEntity) -> str | None:
+    """How a passive keeps Poison on `pokemon` through an evolution or
+    devolution (Muk's Poison Sack): "keep", "optional" or None. Poison Sacs
+    is an effect of the opponent's Ability, so for a Pokemon shielded from
+    those (Mega Clefable ex's Luminous Wing) it is "optional" -- its owner
+    chooses whether the Poison stays."""
+    optional = False
     for passive, carrier in active_passives(board):
         if not passive.keeps_poison_through_evolution(pokemon, carrier):
             continue
         holder = carrier_pokemon(carrier)
         if (holder is not None and holder.owning_player_id != pokemon.owning_player_id
                 and ability_effects_blocked(board, pokemon)):
+            optional = True
             continue
-        return True
-    return False
+        return "keep"
+    return "optional" if optional else None
+
+
+def poison_survives_evolution(board: BoardState, pokemon: BoardEntity) -> bool:
+    """Whether a passive surely keeps Poison on `pokemon` through an
+    evolution or devolution (see poison_evolution_hold)."""
+    return poison_evolution_hold(board, pokemon) == "keep"
 
 
 def confusion_survives_evolution(board: BoardState, pokemon: BoardEntity) -> bool:

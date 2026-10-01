@@ -135,7 +135,7 @@ from .passives import (
     effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, effective_turn_draw, energy_attach_taxer, evolve_heal_amount,
     confusion_survives_evolution,
-    poison_survives_evolution,
+    poison_evolution_hold,
     granted_extra_attacks, player_visualizations,
     mega_evolution_ends_turn, retreat_energy_destination,
     sleep_checkup_coin_count, tool_slots_free,
@@ -5490,7 +5490,7 @@ class GameSession:
         poisoned_name = CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.POISONED]
         was_poisoned = poisoned_name in (target.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
         poison_count = self.poison_counters.get(target.entity_id, 1)
-        keep_poison_before = was_poisoned and poison_survives_evolution(self.board_state, target)
+        hold_before = poison_evolution_hold(self.board_state, target) if was_poisoned else None
 
         # Damage counters carry through evolution: capture what the
         # pre-evolution had taken (before attachments move off it) so it can be
@@ -5574,12 +5574,15 @@ class GameSession:
             CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.CONFUSED]
             in (target.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
             and confusion_survives_evolution(self.board_state, card))
-        keep_poison = was_poisoned and poison_survives_evolution(self.board_state, card)
-        if keep_poison != keep_poison_before:
+        hold_after = poison_evolution_hold(self.board_state, card) if was_poisoned else None
+        keep_poison = hold_after == "keep"
+        if was_poisoned and (keep_poison != (hold_before == "keep")
+                             or "optional" in (hold_before, hold_after)):
             # The evolution card's Ability and Poison Sack apply at the same
-            # moment (Neutralizing Gas evolving onto a Poisoned Koffing):
-            # the evolving Pokemon's owner chooses which comes first, i.e.
-            # whether the Poison is recovered from.
+            # moment (Neutralizing Gas evolving onto a Poisoned Koffing), or
+            # the Pokemon is shielded from the opponent's Abilities (Luminous
+            # Wing): the evolving Pokemon's owner chooses whether the Poison
+            # is recovered from.
             ask = EffectContext(self, player_id, None, None)
             index = await ask.present_card_choice(
                 card, "Poison", ["Recover from Poison", "Stay Poisoned"],
@@ -5686,8 +5689,17 @@ class GameSession:
             in (pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
             and confusion_survives_evolution(self.board_state, prev))
         poisoned_name = CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.POISONED]
-        keep_poison = (poisoned_name in (pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
-                       and poison_survives_evolution(self.board_state, prev))
+        hold = (poison_evolution_hold(self.board_state, prev)
+                if poisoned_name in (pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or []) else None)
+        keep_poison = hold == "keep"
+        if hold == "optional":
+            # Shielded from the opponent's Abilities: Poison Sack holds it
+            # only if its owner chooses.
+            owner = prev.owning_player_id
+            ask = EffectContext(self, owner, None, None)
+            index = await ask.present_card_choice(
+                prev, "Poison", ["Recover from Poison", "Stay Poisoned"], player_id=owner)
+            keep_poison = index == 1
         poison_count = self.poison_counters.get(pokemon.entity_id, 1)
         self.clear_pokemon_effects(pokemon)
         self.reset_pokemon_damage(pokemon)
