@@ -7,7 +7,7 @@ from spirit.game.card_effects.pokemon import in_active_spot
 async def desperate_blast(ctx):
     """Active Spot only: if Knocked Out by damage from an opponent's attack,
     put 10 damage counters on the Attacking Pokemon."""
-    if not ctx.ko_from_attack or not in_active_spot(ctx.board, ctx.player_id, ctx.source):
+    if not ctx.ko_from_attack or not ctx.was_active_at_ko:
         return
     attacker = ctx.ko_attacker
     if attacker is None:
@@ -36,7 +36,7 @@ card = PokemonCardDef(
         Ability(
             title="Desperate Blast",
             game_text="If this Pok\u00e9mon is in the Active Spot and is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, put 10 damage counters on the Attacking Pok\u00e9mon.",
-            trigger=Triggers.ON_KNOCKED_OUT,
+            trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=desperate_blast,
             trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),

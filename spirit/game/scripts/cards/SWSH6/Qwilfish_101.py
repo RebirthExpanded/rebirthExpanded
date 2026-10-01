@@ -6,11 +6,8 @@ from spirit.game.card_effects.attacks_common import condition_attack
 async def bursting_needles(ctx):
     """Active Spot only: if Knocked Out by damage from an opponent's
     attack, put 6 damage counters on the Attacking Pokemon."""
-    if not ctx.ko_from_attack:
-        return
-    active_area = ctx.board.find_player_area(ctx.player_id, "activePokemonArea")
-    if active_area is not None and active_area.children:
-        return  # was Benched, not Active, when Knocked Out
+    if not ctx.ko_from_attack or not ctx.was_active_at_ko:
+        return  # Benched, not Active, when Knocked Out
     attacker = ctx.ko_attacker
     if attacker is None:
         return
@@ -37,7 +34,7 @@ card = PokemonCardDef(
         Ability(
             title="Bursting Needles",
             game_text="If this Pok\u00e9mon is in the Active Spot and is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, put 6 damage counters on the Attacking Pok\u00e9mon.",
-            trigger=Triggers.ON_KNOCKED_OUT,
+            trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=bursting_needles,
             trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),

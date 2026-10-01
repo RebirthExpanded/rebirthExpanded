@@ -6,7 +6,9 @@ from spirit.game.card_effects.attacks_common import recoil_attack, discard_rando
 async def bully_of_the_sands(ctx):
     """On evolve, or when Active and KO'd by an opponent's attack: you may
     discard a random card from the opponent's hand."""
-    if ctx.source in ctx.discard_pile(ctx.player_id) and not ctx.ko_from_attack:
+    # The Knock Out half (run before the stack leaves play): only Active and
+    # Knocked Out by damage from an opponent's attack.
+    if ctx.ko_pokemon is not None and not (ctx.ko_from_attack and ctx.was_active_at_ko):
         return
     if ctx.hand_size(ctx.opponent_id) == 0:
         return
@@ -35,9 +37,9 @@ card = PokemonCardDef(
         Ability(
             title="Bully of the Sands",
             game_text="When you play this Pok\u00e9mon from your hand to evolve 1 of your Pok\u00e9mon during your turn, you may discard a random card from your opponent's hand. If this Pok\u00e9mon is your Active Pok\u00e9mon and is Knocked Out by damage from an opponent's attack, you may discard a random card from your opponent's hand.",
-            trigger=(Triggers.ON_EVOLVE, Triggers.ON_KNOCKED_OUT),
+            trigger=(Triggers.ON_EVOLVE, Triggers.ON_KNOCKED_OUT_IN_PLAY),
             effect=bully_of_the_sands,
-            trigger_applies=lambda c: bool(c.ko_from_attack),
+            trigger_applies=lambda c: bool(c.ko_from_attack and c.was_active_at_ko),
         ),
         Attack(
             title="Double-Edge",

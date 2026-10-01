@@ -27,7 +27,7 @@ card = PokemonToolCardDef(
         Ability(
             title="Farewell Bell",
             game_text="If the Pok\u00e9mon VMAX this card is attached to is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, search your deck for a card and put it into your hand. Then, shuffle your deck.",
-            trigger=Triggers.ON_KNOCKED_OUT,
+            trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=_farewell_bell,
             trigger_applies=lambda c: bool(c.ko_from_attack and is_pokemon_vmax(c.source.archetype_id)),
         ),

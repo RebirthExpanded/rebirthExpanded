@@ -42,7 +42,7 @@ card = PokemonCardDef(
         Ability(
             title="Cursed Message",
             game_text="If this Pok\u00e9mon is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, search your deck for a card and put it into your hand. Then, shuffle your deck.",
-            trigger=Triggers.ON_KNOCKED_OUT,
+            trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=cursed_message,
             trigger_applies=lambda c: bool(c.ko_from_attack),
         ),

@@ -6,11 +6,8 @@ from spirit.game.card_effects.attacks_common import condition_attack
 async def perish_body(ctx):
     """If in the Active Spot and Knocked Out by damage from an opponent's
     attack, flip a coin. If heads, the Attacking Pokemon is Knocked Out."""
-    if not ctx.ko_from_attack:
-        return
-    active_area = ctx.board.find_player_area(ctx.player_id, "activePokemonArea")
-    if active_area is not None and active_area.children:
-        return  # was Benched, not Active, when Knocked Out
+    if not ctx.ko_from_attack or not ctx.was_active_at_ko:
+        return  # Benched, not Active, when Knocked Out
     results = await ctx.flip_coins(1, "Perish Body")
     if results and results[0]:
         await ctx.knock_out(ctx.ko_attacker)
@@ -38,7 +35,7 @@ card = PokemonCardDef(
         Ability(
             title="Perish Body",
             game_text="If this Pokémon is in the Active Spot and is Knocked Out by damage from an opponent's attack, flip a coin. If heads, the Attacking Pokémon is Knocked Out.",
-            trigger=Triggers.ON_KNOCKED_OUT,
+            trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=perish_body,
             trigger_applies=lambda c: bool(c.ko_from_attack and getattr(c, 'was_active_at_ko', False)),
         ),

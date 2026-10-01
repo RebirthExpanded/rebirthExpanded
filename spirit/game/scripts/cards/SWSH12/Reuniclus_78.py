@@ -1,13 +1,18 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Triggers
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
+from spirit.game.session.passives import Passive, carrier_pokemon
 
 
-async def persistent_cells(ctx):
-    """Knocked out by an opponent's attack: return to hand instead of the
-    discard pile (attached cards are discarded normally)."""
-    if not ctx.ko_from_attack:
-        return
-    await ctx.put_in_hand([ctx.source], reveal=False)
+class PersistentCellsPassive(Passive):
+    """Knocked Out by damage from an opponent's attack: into the hand
+    instead of the discard pile (attached cards are discarded normally). A
+    destination, decided as the stack leaves play -- with Lost City (or
+    Splash Energy) also redirecting it, its owner chooses."""
+
+    def knockout_destination(self, pokemon, carrier):
+        if carrier_pokemon(carrier) is not pokemon:
+            return None
+        return "hand" if getattr(pokemon, "ko_by_opposing_attack_damage", False) else None
 
 
 async def cell_fork(ctx):
@@ -47,9 +52,7 @@ card = PokemonCardDef(
         Ability(
             title="Persistent Cells",
             game_text="If this Pok\u00e9mon is Knocked Out by damage from an attack from your opponent's Pok\u00e9mon, put it into your hand instead of the discard pile. (Discard all attached cards.)",
-            trigger=Triggers.ON_KNOCKED_OUT,
-            effect=persistent_cells,
-            trigger_applies=lambda c: bool(c.ko_from_attack),
+            passive=PersistentCellsPassive(),
         ),
         Attack(
             title="Cell Fork",

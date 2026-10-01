@@ -22,7 +22,7 @@ card = PokemonToolCardDef(
     granted_abilities=[
         Ability(
             title="Lucky Egg",
-            trigger=Triggers.ON_KNOCKED_OUT,
+            trigger=Triggers.ON_KNOCKED_OUT_IN_PLAY,
             effect=lucky_egg_ko_effect,
             trigger_applies=lambda c: bool(c.ko_from_attack),
         ),
