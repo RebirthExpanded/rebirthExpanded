@@ -4306,6 +4306,7 @@ class GameSession:
             return bool(await legends.execute_play(self, player_id, card, entry, target_ids))
         elif description == ACTION_PLAY_ENERGY:
             await self._execute_attach_energy(player_id, card, entry, target_ids)
+            return self._take_pending_turn_end()
         elif description == ACTION_ATTACH_TOOL:
             await self._execute_attach_tool(player_id, card, entry, target_ids)
         elif description == ACTION_EVOLVE:
@@ -4536,6 +4537,12 @@ class GameSession:
         # attached (the receiving Pokemon's owner) picks the order.
         await self._run_simultaneous_triggers(
             entries, _setup, attaching_player_id, shown_card=receiver)
+        # "If they attach an Energy card from their hand to the Defending
+        # Pokemon, their turn ends" (Lazy Howl): after everything the
+        # attachment set off -- a Welder still draws its 3 first.
+        if any(passive.ends_turn_on_hand_attach(receiver, attaching_player_id, carrier)
+               for passive, carrier in active_passives(self.board_state)):
+            self._pending_turn_end = True
 
     async def _fire_ally_evolved_triggers(self, player_id: str, evolution_card,
                                           pre_evolution):

@@ -523,6 +523,12 @@ class Passive:
         (Battle Cage's benched-Pokémon shield)."""
         return False
 
+    def ends_turn_on_hand_attach(self, receiver: BoardEntity, attaching_player_id: str,
+                                 carrier: BoardEntity) -> bool:
+        """True when attaching an Energy card from the hand to `receiver`
+        ends the attaching player's turn (Slakoth's Lazy Howl)."""
+        return False
+
     def blocks_moving_damage_counters(self, carrier: BoardEntity) -> bool:
         """True to forbid moving damage counters between Pokémon (Patrat)."""
         return False
