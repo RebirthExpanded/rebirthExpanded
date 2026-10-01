@@ -610,6 +610,9 @@ class GutsSurvivePassive(Passive):
                                          source=carrier_pokemon(carrier) or carrier)
             if not (heads and heads[0]):
                 return None
+        survivors = getattr(ctx, "ko_survivors", None)
+        if survivors is not None:
+            survivors[target.entity_id] = self.hp_floor
         return max(0, current - self.hp_floor)
 
 

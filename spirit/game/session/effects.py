@@ -45,7 +45,7 @@ from spirit.game.visualizations import (
 )
 from spirit.network.message_names import OutboundMsg
 from spirit.game.game_sequence_packets import NestedSequence
-from .constants import PROMPT_CHOOSE_A_PRIZE, PROMPT_NO, PROMPT_YES
+from .constants import EMPTY_SEQUENCE_ID, PROMPT_CHOOSE_A_PRIZE, PROMPT_NO, PROMPT_YES
 from .passives import (
     _scanning_passives,
     special_energy_suppressed,
@@ -148,6 +148,10 @@ class EffectContext:
         # Async callables run AFTER the choreography flushes (promotions and
         # anything else that must not interleave with the pending brackets).
         self.deferred_actions: List[Callable[[], Any]] = []
+        # entity_id -> remaining HP a KO-survive effect (Resolute Heart,
+        # Survival Brace) left this attack's target at; resolve_attack keeps
+        # it there through the HP a discarded Stadium takes away afterwards.
+        self.ko_survivors: Dict[str, int] = {}
         # Async callables that belong to the attack itself and run right
         # after its damage and effects -- BEFORE the "when damaged" triggers
         # (rulebook step 6) and the KO check. Boomerang Energy comes back
@@ -3201,7 +3205,25 @@ async def resolve_attack(session, player_id: str, attacker: PokemonEntity,
     # HP a discarded Stadium gave (Lively Stadium) is taken away here, after
     # the damage and before the knockout check; whoever it leaves at 0 HP is
     # Knocked Out with the attack's other knockouts.
-    for pokemon in await session.resync_effective_max_hp(resolve_lethal=False):
+    # A Pokemon a KO-survive effect saved from this attack's damage stays at
+    # the HP that effect gave it (official Q&A: Vitality Band Calamity Storm
+    # for 230 into a 230-HP Pikachu ex -- Resolute Heart, and it is left at
+    # 10 even though Lively Stadium is gone); one the damage alone did not
+    # Knock Out has no such floor and the lost HP can finish it.
+    lethal = await session.resync_effective_max_hp(resolve_lethal=False)
+    for entity_id, floor in ctx.ko_survivors.items():
+        saved = session.board_state.get_entity(entity_id)
+        if saved is None or saved.owning_player_id is None                 or saved not in session.board_state.pokemon_in_play(saved.owning_player_id):
+            continue
+        if saved.get_attribute(AttrID.HP, 0) < floor:
+            saved.set_attribute(AttrID.HP, floor)
+            await session.broadcast_packet(
+                OutboundMsg.SEQUENCE_MESSAGE.value,
+                session._sequence_envelope(EMPTY_SEQUENCE_ID,
+                                           session._hp_attribute_msg(saved)))
+            if saved in lethal:
+                lethal.remove(saved)
+    for pokemon in lethal:
         if pokemon not in ctx.knockouts:
             ctx.knockouts.append(pokemon)
     await session.enforce_bench_capacity()
