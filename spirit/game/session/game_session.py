@@ -135,6 +135,7 @@ from .passives import (
     effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, effective_turn_draw, energy_attach_taxer, evolve_heal_amount,
     confusion_survives_evolution,
+    poison_survives_evolution,
     granted_extra_attacks, player_visualizations,
     mega_evolution_ends_turn, retreat_energy_destination,
     sleep_checkup_coin_count, tool_slots_free,
@@ -1589,6 +1590,21 @@ class GameSession:
         self.sleep_checkup_coins.pop(entity_id, None)
         self.poison_counters.pop(entity_id, None)
         self.paralyzed_since.pop(entity_id, None)
+
+    async def _carry_poison(self, pokemon, counters: int = 1):
+        """Re-marks `pokemon` Poisoned (same counters per checkup) after an
+        evolve/devolve wiped its conditions (Muk's Poison Sack)."""
+        conditions = list(pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
+        name = CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.POISONED]
+        if name not in conditions:
+            pokemon.set_attribute(AttrID.SPECIAL_CONDITIONS, conditions + [name])
+        if counters != 1:
+            self.poison_counters[pokemon.entity_id] = counters
+        await self.send_game_sequence(
+            list(self.players.values()), GameSequence.ADD_SPECIAL_CONDITION,
+            [self._entity_id_data_effect_msg("Target", pokemon.entity_id),
+             self._condition_attr_msg(pokemon)],
+        )
 
     async def _carry_confusion(self, pokemon):
         """Re-marks `pokemon` Confused after an evolve/devolve wiped its
@@ -5453,6 +5469,13 @@ class GameSession:
             return False
 
         slot = self.board_state.bench_slot_of(target)
+        # Muk's Poison Sack: asked before the evolution card is in play, and
+        # again after (its own Ability -- Galarian Weezing's Neutralizing Gas
+        # -- may have switched Poison Sack off by then).
+        poisoned_name = CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.POISONED]
+        was_poisoned = poisoned_name in (target.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
+        poison_count = self.poison_counters.get(target.entity_id, 1)
+        keep_poison_before = was_poisoned and poison_survives_evolution(self.board_state, target)
 
         # Damage counters carry through evolution: capture what the
         # pre-evolution had taken (before attachments move off it) so it can be
@@ -5536,6 +5559,17 @@ class GameSession:
             CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.CONFUSED]
             in (target.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
             and confusion_survives_evolution(self.board_state, card))
+        keep_poison = was_poisoned and poison_survives_evolution(self.board_state, card)
+        if keep_poison != keep_poison_before:
+            # The evolution card's Ability and Poison Sack apply at the same
+            # moment (Neutralizing Gas evolving onto a Poisoned Koffing):
+            # the evolving Pokemon's owner chooses which comes first, i.e.
+            # whether the Poison is recovered from.
+            ask = EffectContext(self, player_id, None, None)
+            index = await ask.present_card_choice(
+                card, "Poison", ["Recover from Poison", "Stay Poisoned"],
+                player_id=player_id)
+            keep_poison = index == 1
         # needs live client verification: condition marker clears on evolve
         if self.clear_pokemon_effects(target):
             await self.send_game_sequence(
@@ -5545,6 +5579,8 @@ class GameSession:
             )
         if keep_confused:
             await self._carry_confusion(card)
+        if keep_poison:
+            await self._carry_poison(card, poison_count)
 
         # Wyndon Stadium: heal a Pokemon just evolved from hand (deck-sourced
         # evolutions ride from_zone_intro and are not "played from hand").
@@ -5634,6 +5670,10 @@ class GameSession:
             CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.CONFUSED]
             in (pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
             and confusion_survives_evolution(self.board_state, prev))
+        poisoned_name = CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.POISONED]
+        keep_poison = (poisoned_name in (pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
+                       and poison_survives_evolution(self.board_state, prev))
+        poison_count = self.poison_counters.get(pokemon.entity_id, 1)
         self.clear_pokemon_effects(pokemon)
         self.reset_pokemon_damage(pokemon)
         self.reset_ability_usage(pokemon)
@@ -5671,6 +5711,8 @@ class GameSession:
         )
         if keep_confused:
             await self._carry_confusion(prev)
+        if keep_poison:
+            await self._carry_poison(prev, poison_count)
         await self.refresh_granted_abilities(prev)
         logging.info(
             f"[Session {self.game_id}] {pokemon.entity_id} devolved into "

@@ -441,6 +441,13 @@ class Passive:
         effects on the opponent's Active (Walking Wake ex's Azure Seas)."""
         return False
 
+    def keeps_poison_through_evolution(
+        self, pokemon: PokemonEntity, carrier: BoardEntity
+    ) -> bool:
+        """True to keep a Poisoned Pokemon Poisoned when it evolves or
+        devolves (Muk's Poison Sack)."""
+        return False
+
     def keeps_confusion_through_evolution(
         self, pokemon: PokemonEntity, carrier: BoardEntity
     ) -> bool:
@@ -1558,6 +1565,15 @@ def attacks_ignore_target_effects(board: BoardState, attacker: BoardEntity) -> b
     the opponent's Active (Azure Seas)."""
     return attacker is not None and any(
         passive.attacks_ignore_target_effects(attacker, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def poison_survives_evolution(board: BoardState, pokemon: BoardEntity) -> bool:
+    """Whether a passive keeps Poison on `pokemon` through an evolution or
+    devolution (Muk's Poison Sack)."""
+    return any(
+        passive.keeps_poison_through_evolution(pokemon, carrier)
         for passive, carrier in active_passives(board)
     )
 
