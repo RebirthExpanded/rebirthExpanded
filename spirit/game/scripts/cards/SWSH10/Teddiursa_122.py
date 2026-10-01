@@ -8,7 +8,7 @@ async def gather_food(ctx):
     heads = await ctx.flip_coins(1, "Gather Food")
     if not heads[0]:
         return
-    items = [c for c in ctx.discard_pile() if is_item_card(c)]
+    items = [c for c in ctx.recoverable_discard() if is_item_card(c)]
     if not items:
         return
     picks = await ctx.choose_cards(

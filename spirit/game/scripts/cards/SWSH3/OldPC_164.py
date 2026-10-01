@@ -4,7 +4,7 @@ from spirit.game.card_effects.attacks_common import flip_or_nothing
 
 
 async def _put_discard_card_in_hand(ctx):
-    discard = ctx.discard_pile()
+    discard = ctx.recoverable_discard()
     if not discard:
         return
     picks = await ctx.choose_cards(

@@ -6,7 +6,7 @@ from spirit.game.session.effects import is_item_card
 
 async def pickup(ctx):
     """Put 2 Item cards from your discard pile into your hand."""
-    pool = [c for c in ctx.discard_pile() if is_item_card(c)]
+    pool = [c for c in ctx.recoverable_discard() if is_item_card(c)]
     if not pool:
         return
     picks = await ctx.choose_cards(pool, min(2, len(pool)), prompt="Choose 2 Item cards to put into your hand")

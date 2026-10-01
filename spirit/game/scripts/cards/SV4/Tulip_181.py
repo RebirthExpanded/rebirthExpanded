@@ -25,7 +25,7 @@ def _tulip_target(card) -> bool:
 
 
 async def tulip(ctx):
-    cards = [c for c in ctx.discard_pile() if _tulip_target(c)]
+    cards = [c for c in ctx.recoverable_discard() if _tulip_target(c)]
     if not cards:
         return
     picks = await ctx.choose_cards(

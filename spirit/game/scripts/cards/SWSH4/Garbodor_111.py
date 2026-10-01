@@ -12,7 +12,7 @@ def _is_tool_card(card):
 async def trash_cyclone(ctx):
     """30 damage for each Pokemon Tool card in your discard pile. Then,
     shuffle those cards into your deck."""
-    tools = [c for c in ctx.discard_pile() if _is_tool_card(c)]
+    tools = [c for c in ctx.recoverable_discard() if _is_tool_card(c)]
     await ctx.deal_damage(30 * len(tools))
     if tools:
         await ctx.shuffle_into_deck(tools, ctx.player_id)

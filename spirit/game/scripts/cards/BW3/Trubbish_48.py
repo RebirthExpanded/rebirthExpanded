@@ -27,7 +27,7 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 
 async def garbage_collection(ctx):
     """Put a card from your discard pile on top of your deck."""
-    pile = ctx.discard_pile()
+    pile = ctx.recoverable_discard()
     if not pile:
         return
     picks = await ctx.choose_cards(

@@ -9,7 +9,7 @@ async def lucky_match(ctx):
     heads = (await ctx.flip_coins(1, "Lucky Match"))[0]
     if not heads:
         return
-    supporters = [c for c in ctx.discard_pile() if is_supporter_card(c)]
+    supporters = [c for c in ctx.recoverable_discard() if is_supporter_card(c)]
     if not supporters:
         return
     picks = await ctx.choose_cards(

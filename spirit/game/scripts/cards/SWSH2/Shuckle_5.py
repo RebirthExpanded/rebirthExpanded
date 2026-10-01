@@ -5,7 +5,7 @@ from spirit.game.card_effects.trainers import is_basic_energy_card
 
 
 async def berry_picking(ctx):
-    energy = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    energy = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     if not energy:
         return
     picks = await ctx.choose_cards(

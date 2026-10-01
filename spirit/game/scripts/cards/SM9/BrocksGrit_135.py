@@ -24,7 +24,7 @@ def _is_pokemon_or_basic_energy(card) -> bool:
 
 async def brocks_grit(ctx):
     """Shuffle exactly 6 (or all, if fewer) Pokemon / basic Energy back."""
-    candidates = [c for c in ctx.discard_pile() if _is_pokemon_or_basic_energy(c)]
+    candidates = [c for c in ctx.recoverable_discard() if _is_pokemon_or_basic_energy(c)]
     if not candidates:
         return
     if len(candidates) <= 6:

@@ -7,7 +7,7 @@ from spirit.game.card_effects.attacks_common import self_energy_discard_attack
 async def upstream_spirits(ctx):
     """This attack does 20 damage for each basic Energy card in your discard
     pile. Then, shuffle those cards into your deck."""
-    basics = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    basics = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     await ctx.deal_damage(20 * len(basics))
     if basics:
         await ctx.shuffle_into_deck(basics)

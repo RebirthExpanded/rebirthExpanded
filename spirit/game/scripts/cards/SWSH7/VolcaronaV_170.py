@@ -6,7 +6,7 @@ from spirit.game.card_effects.trainers import is_basic_energy_card
 
 async def surging_flames(ctx):
     """20 more damage per basic Energy in your discard; then shuffle those Energy into your deck."""
-    energy_cards = [c for c in ctx.discard_pile(ctx.player_id) if is_basic_energy_card(c)]
+    energy_cards = [c for c in ctx.recoverable_discard(ctx.player_id) if is_basic_energy_card(c)]
     await ctx.deal_damage(20 + 20 * len(energy_cards))
     if energy_cards:
         await ctx.shuffle_into_deck(energy_cards, player_id=ctx.player_id)

@@ -24,7 +24,7 @@ def _has_target(board, player_id, card=None) -> bool:
 
 
 async def tarragon(ctx):
-    pool = [c for c in ctx.discard_pile() if _pick(c)]
+    pool = [c for c in ctx.recoverable_discard() if _pick(c)]
     if not pool:
         return
     picks = await ctx.choose_cards(pool, min(4, len(pool)), minimum=1,

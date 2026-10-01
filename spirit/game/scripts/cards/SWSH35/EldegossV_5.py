@@ -7,7 +7,7 @@ from spirit.game.session.effects import is_supporter_card
 async def happy_match(ctx):
     """On play from hand onto Bench: you may put a Supporter card from your
     discard pile into your hand."""
-    supporters = [c for c in ctx.discard_pile() if is_supporter_card(c)]
+    supporters = [c for c in ctx.recoverable_discard() if is_supporter_card(c)]
     if not supporters:
         return
     if not await ctx.ask_yes_no(

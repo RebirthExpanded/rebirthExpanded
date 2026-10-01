@@ -9,7 +9,7 @@ NIGHT_STRETCHER_GUID = "5373ca9e-2b8b-49d2-9758-ed83cfe47924"
 
 async def night_stretcher(ctx):
     candidates = [
-        c for c in ctx.discard_pile()
+        c for c in ctx.recoverable_discard()
         if is_pokemon_card(c) or is_basic_energy_card(c)
     ]
     if not candidates:

@@ -4,7 +4,7 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 
 async def _rototiller(ctx, count):
     """Shuffle `count` cards from your discard pile into your deck."""
-    pool = list(ctx.discard_pile())
+    pool = list(ctx.recoverable_discard())
     if not pool:
         return
     picks = await ctx.choose_cards(pool, min(count, len(pool)),

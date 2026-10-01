@@ -12,6 +12,7 @@ from spirit.game.data_utils import (
 )
 from spirit.game.session.constants import PROMPT_CHOOSE_A_PRIZE
 from spirit.game.session.effects import (
+    stuck_in_discard,
     full_stack,
     is_basic_pokemon,
     is_basic_pokemon_in_play,
@@ -79,7 +80,9 @@ def has_supporter_in_discard(board, player_id):
 
 
 def has_discard_card(board, player_id):
-    return bool(_discard(board, player_id))
+    """A card in the discard pile that may leave it for the hand or deck
+    (Cyllene, Recycle-style gates; Neutralization Zone doesn't count)."""
+    return any(not stuck_in_discard(c) for c in _discard(board, player_id))
 
 
 def opponent_prizes_low(board, player_id):
@@ -339,7 +342,7 @@ async def arven(ctx):
 async def pal_pad(ctx):
     """Shuffle up to 2 Supporter cards from your discard pile into your deck."""
     picks = await ctx.choose_cards(
-        [c for c in ctx.discard_pile() if is_supporter_card(c)], 2, minimum=1,
+        [c for c in ctx.recoverable_discard() if is_supporter_card(c)], 2, minimum=1,
         prompt="Choose up to 2 Supporter cards to shuffle into your deck",
     )
     await ctx.shuffle_into_deck(picks)
@@ -368,7 +371,7 @@ async def cyllene(ctx):
     if count <= 0:
         return
     picks = await ctx.choose_cards(
-        ctx.discard_pile(), count, minimum=1, ordered=True,
+        ctx.recoverable_discard(), count, minimum=1, ordered=True,
         prompt="Choose cards to put on top of your deck, in order",
     )
     # Ordered picks stack in selection order -- the last one picked ends up
@@ -458,7 +461,7 @@ async def rose(ctx):
     )
     if target is None:
         return
-    energies = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    energies = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     picks = await ctx.choose_cards(
         energies, 2, minimum=0, prompt="Choose up to 2 basic Energy cards to attach",
     )
@@ -738,7 +741,7 @@ def shuffle_from_discard(predicate, count: int, prompt: str, up_to: bool = False
     a flat "Shuffle N" asks for (Special Charge).
     """
     async def effect(ctx):
-        candidates = [c for c in ctx.discard_pile() if predicate(c)]
+        candidates = [c for c in ctx.recoverable_discard() if predicate(c)]
         if not candidates:
             return
         if not up_to and len(candidates) <= count:
@@ -1133,8 +1136,8 @@ async def klara(ctx):
 
     The pile is public, but the card says to reveal them and the pool shows
     such picks large to the opponent (Brock's Grit, Junk Collection)."""
-    pokemon = [c for c in ctx.discard_pile() if is_pokemon_card(c)]
-    energy = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    pokemon = [c for c in ctx.recoverable_discard() if is_pokemon_card(c)]
+    energy = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     picks_p = await ctx.choose_cards(
         pokemon, 2, minimum=0,
         prompt="Choose up to 2 Pokémon from your discard pile.",
@@ -1450,7 +1453,7 @@ def archies_ace_condition(board, player_id, pokemon=None) -> bool:
 
 async def archies_ace_in_the_hole(ctx):
     """A [W] Pokemon -- any stage -- from the discard onto the Bench, then 5."""
-    candidates = [c for c in ctx.discard_pile() if is_water_pokemon(c)]
+    candidates = [c for c in ctx.recoverable_discard() if is_water_pokemon(c)]
     picks = await ctx.choose_cards(
         candidates, 1, minimum=1,
         prompt="Choose a Water Pokémon to put onto your Bench.")
@@ -1558,8 +1561,8 @@ async def switch_cart(ctx):
 async def ordinary_rod(ctx):
     """Choose 1 or both: shuffle up to 2 Pokemon and/or up to 2 basic Energy
     from your discard pile into your deck."""
-    pokemon = [c for c in ctx.discard_pile() if is_pokemon_card(c)]
-    energy = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    pokemon = [c for c in ctx.recoverable_discard() if is_pokemon_card(c)]
+    energy = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     picks_p = await ctx.choose_cards(
         pokemon, 2, minimum=0,
         prompt="Choose up to 2 Pokémon to shuffle into your deck.",
@@ -1577,7 +1580,7 @@ async def ordinary_rod(ctx):
 
 async def energy_recycler(ctx):
     """Shuffle up to 5 basic Energy cards from your discard pile into your deck."""
-    energy = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    energy = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     if not energy:
         return
     picks = await ctx.choose_cards(
@@ -1788,7 +1791,7 @@ def training_court_condition(board, player_id, stadium):
 
 async def training_court(ctx):
     """Put a basic Energy card from your discard pile into your hand."""
-    energy = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    energy = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     if not energy:
         return
     picks = await ctx.choose_cards(
@@ -1820,7 +1823,7 @@ def thorton_condition(board, player_id):
 async def thorton(ctx):
     """Choose a Basic Pokemon in your discard pile and switch it with 1 of
     your Basic Pokemon in play; everything remains on the new Pokemon."""
-    candidates = [c for c in ctx.discard_pile() if is_basic_pokemon(c)]
+    candidates = [c for c in ctx.recoverable_discard() if is_basic_pokemon(c)]
     in_play = _basic_pokemon_in_play(ctx.board, ctx.player_id)
     if not candidates or not in_play:
         return
@@ -2167,7 +2170,7 @@ def professor_laventon_playable(board, player_id) -> bool:
 async def professor_laventon(ctx):
     """Put up to 3 Pokemon that have "Hisuian" in their names from the
     discard pile into your hand."""
-    candidates = [c for c in ctx.discard_pile() if _is_hisuian_pokemon(c)]
+    candidates = [c for c in ctx.recoverable_discard() if _is_hisuian_pokemon(c)]
     picks = await ctx.choose_cards(
         candidates, 3, minimum=0,
         prompt="Choose up to 3 Hisuian Pokémon from your discard pile.",

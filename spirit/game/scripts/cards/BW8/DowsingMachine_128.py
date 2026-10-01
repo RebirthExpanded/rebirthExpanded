@@ -35,7 +35,7 @@ async def dowsing_machine(ctx):
     if len(await ctx.discard_from_hand(
             2, prompt="Discard 2 cards for Dowsing Machine")) < 2:
         return
-    trainers = [c for c in ctx.discard_pile()
+    trainers = [c for c in ctx.recoverable_discard()
                 if is_trainer_card(c) and c is not ctx.source]
     if not trainers:
         return

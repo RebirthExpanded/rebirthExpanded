@@ -38,7 +38,7 @@ from spirit.game.card_effects.pokemon import AttackTwicePassive
 
 async def rototiller(ctx):
     """Shuffle 1 card of your choice from your discard pile into your deck."""
-    candidates = list(ctx.discard_pile())
+    candidates = list(ctx.recoverable_discard())
     if not candidates:
         return
     picks = await ctx.choose_cards(

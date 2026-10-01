@@ -271,6 +271,12 @@ class EffectContext:
         area = self.board.find_player_area(player_id or self.player_id, "discard")
         return list(area.children) if area else []
 
+    def recoverable_discard(self, player_id: Optional[str] = None) -> list:
+        """The discard pile minus cards that can't go to the hand or deck
+        from it (Neutralization Zone) -- the pool for "put ... from your
+        discard pile into your hand / shuffle into your deck"."""
+        return [c for c in self.discard_pile(player_id) if not stuck_in_discard(c)]
+
     def lost_zone(self, player_id: Optional[str] = None) -> list:
         area = self.board.find_player_area(player_id or self.player_id, "lostZone")
         return list(area.children) if area else []
@@ -1610,6 +1616,7 @@ class EffectContext:
         ("...reveal it, and put it into your hand").
         """
         reveal_batches = {}
+        cards = [c for c in cards if not stuck_in_discard(c)]
         cards = self._depart_legends(cards, "hand")
         for card in cards:
             owner = card.owning_player_id or self.player_id
@@ -2057,6 +2064,7 @@ class EffectContext:
         deck = self.board.find_player_area(pid, "deck")
         if not deck:
             return
+        cards = [c for c in cards if not stuck_in_discard(c)]
         cards = self._depart_legends(cards, "deck")
         for card in cards:
             if self._trainer_blocked(card) or self._energy_removal_blocked(card) \
@@ -2187,7 +2195,7 @@ class EffectContext:
         """Puts a card on top of its owner's deck."""
         owner = card.owning_player_id or self.player_id
         deck = self.board.find_player_area(owner, "deck")
-        if not deck or self._energy_removal_blocked(card):
+        if not deck or self._energy_removal_blocked(card) or stuck_in_discard(card):
             return False
         if isinstance(card, CompositePokemonEntity):
             return not self._depart_legends([card], "deck")
@@ -2210,7 +2218,7 @@ class EffectContext:
         """Puts a card on the bottom of its owner's deck (position 0)."""
         owner = card.owning_player_id or self.player_id
         deck = self.board.find_player_area(owner, "deck")
-        if not deck or self._energy_removal_blocked(card):
+        if not deck or self._energy_removal_blocked(card) or stuck_in_discard(card):
             return False
         if isinstance(card, CompositePokemonEntity):
             return not self._depart_legends([card], "deck", position=0)
@@ -2867,6 +2875,27 @@ class EffectContext:
         """Declares the effect's owner the winner (Unown V; raises GameOver)."""
         await self.session.end_game(self.player_id, reason or "Victory")
 
+    async def put_stadium_into_play(self, card: CardEntity) -> bool:
+        """Puts a Stadium card into play by an effect (Gothitelle's Teleport
+        Room) -- from the discard pile too, even one that can't go to the
+        hand or deck from there (Neutralization Zone). It is not played from
+        hand, so the turn's Stadium play is untouched. Needs an empty
+        Stadium slot (discard the old one first)."""
+        area = self.board.find_global_area("activeStadium")
+        if area is None or area.children or card is None:
+            return False
+        position = len(area.children)
+        if not self.board.move_card(card.entity_id, area.entity_id):
+            return False
+        card.owning_player_id = self.player_id  # global area move clears the owner
+        self._queue(self.session._entity_moved_msg(card.entity_id, area.entity_id, position))
+        # Its HP change applies at once (Lively Stadium's +30, Gravity
+        # Mountain's -30); a Pokemon it leaves at 0 HP is Knocked Out.
+        for pokemon in await self.session.resync_effective_max_hp(resolve_lethal=False):
+            if pokemon not in self.knockouts:
+                self.knockouts.append(pokemon)
+        return True
+
     async def discard_stadium(self) -> Optional[BoardEntity]:
         """Discards every in-play Stadium card to its owner's discard;
         returns the first discarded card, or None."""
@@ -2888,6 +2917,16 @@ class EffectContext:
                 first = stadium
         if first is not None:
             if self.is_attack_effect():
+                # Its other effects last until this attack's damage is done
+                # (Neutralization Zone still prevents the damage);
+                # resolve_attack lets them go.
+                lingering = getattr(self.board, "lingering_stadium_passives", None)
+                if lingering is None:
+                    lingering = self.board.lingering_stadium_passives = []
+                for stadium in stadiums:
+                    passive = getattr(def_for(stadium.archetype_id), "passive", None)
+                    if passive is not None and stadium.parent_id != area.entity_id:
+                        lingering.append((passive, stadium))
                 # Discarded by an attack (Calamity Storm): HP a Stadium took
                 # away comes back at once -- Gravity Mountain gone, a Charizard
                 # ex with 10 counters is at 330 and survives the 220 -- but HP
@@ -3093,6 +3132,15 @@ def is_basic_energy(card: CardEntity) -> bool:
     return is_energy_card(card) and not is_special_energy(card)
 
 
+def stuck_in_discard(card: CardEntity) -> bool:
+    """A card in a discard pile whose own text keeps it there: "This card
+    can't be put into your hand or deck from your discard pile"
+    (Neutralization Zone, definition flag stays_in_discard)."""
+    if not getattr(def_for(card.archetype_id), "stays_in_discard", False):
+        return False
+    return card._containing_area_name() == "discard"
+
+
 def special_energy_off_pokemon(card: CardEntity) -> bool:
     """A Special Energy card that is not attached to a Pokemon. It provides
     its type only while attached (Heat Fire Energy, Burning Energy), so in
@@ -3210,6 +3258,8 @@ async def resolve_attack(session, player_id: str, attacker: PokemonEntity,
     # for 230 into a 230-HP Pikachu ex -- Resolute Heart, and it is left at
     # 10 even though Lively Stadium is gone); one the damage alone did not
     # Knock Out has no such floor and the lost HP can finish it.
+    # The attack is over: a Stadium it discarded stops working now.
+    session.board_state.lingering_stadium_passives = []
     lethal = await session.resync_effective_max_hp(resolve_lethal=False)
     for entity_id, floor in ctx.ko_survivors.items():
         saved = session.board_state.get_entity(entity_id)

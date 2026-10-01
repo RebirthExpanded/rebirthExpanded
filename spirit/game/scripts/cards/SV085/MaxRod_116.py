@@ -8,7 +8,7 @@ from spirit.game.card_effects.trainers import (
 async def max_rod(ctx):
     """Put up to 5 in any combination of Pokémon and Basic Energy cards from
     your discard pile into your hand."""
-    candidates = pokemon_or_basic_energy(ctx.discard_pile())
+    candidates = pokemon_or_basic_energy(ctx.recoverable_discard())
     if not candidates:
         return
     picks = await ctx.choose_cards(

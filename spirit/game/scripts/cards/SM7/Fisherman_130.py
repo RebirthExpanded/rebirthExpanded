@@ -15,7 +15,7 @@ from spirit.game.data_utils import SupporterCardDef
 
 
 async def fisherman(ctx):
-    energies = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    energies = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     if not energies:
         return
     picks = energies if len(energies) <= 4 else await ctx.choose_cards(

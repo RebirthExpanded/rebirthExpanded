@@ -21,7 +21,7 @@ def _opponent_discard_not_empty(board, player_id) -> bool:
 
 
 async def return_label(ctx):
-    pile = ctx.discard_pile(ctx.opponent_id)
+    pile = ctx.recoverable_discard(ctx.opponent_id)
     if not pile:
         return
     picks = await ctx.choose_cards(

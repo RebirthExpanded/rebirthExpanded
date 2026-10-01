@@ -15,7 +15,7 @@ async def recycle(ctx):
     heads = await ctx.flip_coins(1, "Recycle")
     if not (heads and heads[0]):
         return
-    cards = list(ctx.discard_pile())
+    cards = list(ctx.recoverable_discard())
     picks = await ctx.choose_cards(
         cards, 1, minimum=1, prompt="Choose a card to put on top of your deck")
     if picks:

@@ -22,7 +22,7 @@ def _energy_in_discard(board, player_id, stadium=None) -> bool:
 
 
 async def mt_coronet(ctx):
-    pool = [c for c in ctx.discard_pile() if is_energy_card(c)]
+    pool = [c for c in ctx.recoverable_discard() if is_energy_card(c)]
     if not pool:
         return
     take = min(TAKE, len(pool))

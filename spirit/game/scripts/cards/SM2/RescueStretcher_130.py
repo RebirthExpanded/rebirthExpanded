@@ -39,7 +39,7 @@ _shuffle_three = shuffle_from_discard(
 
 async def rescue_stretcher(ctx):
     """Choose 1: one Pokemon from the discard to hand, or shuffle 3 back."""
-    pokemon = [c for c in ctx.discard_pile() if is_pokemon_card(c)]
+    pokemon = [c for c in ctx.recoverable_discard() if is_pokemon_card(c)]
     if not pokemon:
         return
     choice = await ctx.choose(

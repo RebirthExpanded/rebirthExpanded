@@ -11,7 +11,7 @@ def _basic_grass(card) -> bool:
 async def re_brew(ctx):
     """2 counters on an opposing Pokemon per Basic [G] Energy in your discard
     pile, then shuffle those Energy into your deck."""
-    energies = [c for c in ctx.discard_pile() if _basic_grass(c)]
+    energies = [c for c in ctx.recoverable_discard() if _basic_grass(c)]
     pool = ctx.opponent_pokemon_in_play()
     if energies and pool:
         target = await ctx.choose_pokemon(pool, "Choose 1 of your opponent's Pokémon")

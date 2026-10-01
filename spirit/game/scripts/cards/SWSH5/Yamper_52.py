@@ -10,7 +10,7 @@ def _named(card, name):
 async def ball_search(ctx):
     """On play: may put a Poké Ball, a Great Ball, or 1 of each from your
     discard pile into your hand."""
-    discard = ctx.discard_pile()
+    discard = ctx.recoverable_discard()
     poke_balls = [c for c in discard if _named(c, "Poké Ball")]
     great_balls = [c for c in discard if _named(c, "Great Ball")]
     if not poke_balls and not great_balls:

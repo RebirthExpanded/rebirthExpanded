@@ -16,7 +16,7 @@ async def odor_sleuth(ctx):
     heads = await ctx.flip_coins(1, "Odor Sleuth")
     if not (heads and heads[0]):
         return
-    cards = list(ctx.discard_pile())
+    cards = list(ctx.recoverable_discard())
     if not cards:
         return
     picks = await ctx.choose_cards(cards, 1, minimum=1,

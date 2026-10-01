@@ -6,7 +6,7 @@ from spirit.game.session.effects import is_pokemon_card
 async def ghostly_cries(ctx):
     """1 counter per opponent's discarded Pokemon, any way; if any, shuffle those Pokemon into their deck."""
     opponent = ctx.opponent_id
-    discard = ctx.discard_pile(opponent)
+    discard = ctx.recoverable_discard(opponent)
     pokemon_cards = [c for c in discard if is_pokemon_card(c)]
     count = len(pokemon_cards)
     if count <= 0:

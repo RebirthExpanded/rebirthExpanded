@@ -7,7 +7,7 @@ from spirit.game.session.effects import is_supporter_card, full_stack
 async def puppet_offering(ctx):
     """Once per turn: you may put a Supporter from discard into hand. If you do, Lost Zone this Pokemon (discard attachments)."""
     pokemon = ctx.source
-    supporters = [c for c in ctx.discard_pile() if is_supporter_card(c)]
+    supporters = [c for c in ctx.recoverable_discard() if is_supporter_card(c)]
     if not supporters:
         return
     if not await ctx.ask_yes_no("Put a Supporter card from your discard pile into your hand?"):

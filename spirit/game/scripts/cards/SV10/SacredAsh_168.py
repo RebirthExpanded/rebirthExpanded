@@ -12,7 +12,7 @@ def sacred_ash_condition(board, player_id):
 
 async def sacred_ash(ctx):
     """Shuffle 5 Pokémon from your discard pile into your deck."""
-    pokemon = [c for c in ctx.discard_pile() if is_pokemon_card(c)]
+    pokemon = [c for c in ctx.recoverable_discard() if is_pokemon_card(c)]
     if len(pokemon) < 5:
         return
     picks = await ctx.choose_cards(

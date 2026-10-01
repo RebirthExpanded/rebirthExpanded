@@ -8,7 +8,7 @@ def _dragon_discard_attacks(ctx):
     seen = set()
     gx_spent = not ctx.session.turn_state.gx_available(ctx.player_id, ctx.attacker, ctx.board)
     vstar_spent = ctx.player_id in ctx.session.turn_state.vstar_used
-    for card in ctx.discard_pile():
+    for card in ctx.recoverable_discard():
         if not is_pokemon_card(card):
             continue
         types = card.get_attribute(AttrID.POKEMON_TYPES) or []
@@ -56,7 +56,7 @@ async def legacy_star(ctx):
         if top:
             await ctx.discard_cards(top)
     picks = await ctx.choose_cards(
-        ctx.discard_pile(), 2, minimum=0,
+        ctx.recoverable_discard(), 2, minimum=0,
         prompt="Put up to 2 cards from your discard pile into your hand.",
     )
     if picks:

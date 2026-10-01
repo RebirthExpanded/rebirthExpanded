@@ -75,7 +75,7 @@ def summoning_star_condition(board, player_id, pokemon):
 async def summoning_star(ctx):
     """VSTAR Power: up to 2 Colorless Pokemon without a Rule Box from the
     discard pile onto the Bench."""
-    candidates = [c for c in ctx.discard_pile() if is_colorless_no_rule_box(c)]
+    candidates = [c for c in ctx.recoverable_discard() if is_colorless_no_rule_box(c)]
     count = min(2, ctx.bench_space())
     if not candidates or count <= 0:
         return
@@ -916,7 +916,7 @@ def ancient_wisdom_condition(board, player_id, pokemon):
 
 async def ancient_wisdom(ctx):
     """Attach up to 3 Energy cards from your discard pile to 1 of your Pokemon."""
-    energies = [c for c in ctx.discard_pile() if is_energy_card(c)]
+    energies = [c for c in ctx.recoverable_discard() if is_energy_card(c)]
     picks = await ctx.choose_cards(
         energies, 3, minimum=1,
         prompt="Choose up to 3 Energy from your discard pile to attach",
@@ -1000,7 +1000,7 @@ async def blizzard_bind(ctx):
 
 async def electromagnetic_sonar(ctx):
     """Put a Trainer card from your discard pile into your hand."""
-    trainers = [c for c in ctx.discard_pile() if is_trainer_card(c)]
+    trainers = [c for c in ctx.recoverable_discard() if is_trainer_card(c)]
     if not trainers:
         return
     picks = await ctx.choose_cards(
@@ -1358,7 +1358,7 @@ def v_transformation_condition(board, player_id, pokemon):
 
 async def v_transformation(ctx):
     """Switch this Pokemon with a Basic Pokemon V from the discard pile."""
-    candidates = [c for c in ctx.discard_pile() if _is_basic_pokemon_v(c)]
+    candidates = [c for c in ctx.recoverable_discard() if _is_basic_pokemon_v(c)]
     picks = await ctx.choose_cards(
         candidates, 1, minimum=1,
         prompt="Choose a Basic Pokémon V to switch with this Pokémon",
@@ -1384,7 +1384,7 @@ def phantom_transformation_condition(board, player_id, pokemon):
 async def phantom_transformation(ctx):
     """Discard this Pokemon and all attached cards; a Stage 1 (non-Zoroark)
     from the discard pile takes its place as a fresh Pokemon."""
-    candidates = [c for c in ctx.discard_pile()
+    candidates = [c for c in ctx.recoverable_discard()
                   if _phantom_candidate(c, ctx.source)]
     picks = await ctx.choose_cards(
         candidates, 1, minimum=1,
@@ -1594,7 +1594,7 @@ def union_gain_attack(energy_type):
         return is_basic_energy(card) and is_energy_of_type(card, type_value)
 
     async def effect(ctx):
-        candidates = [c for c in ctx.discard_pile() if _basic_of_type(c)]
+        candidates = [c for c in ctx.recoverable_discard() if _basic_of_type(c)]
         if not candidates:
             return
         picks = await ctx.choose_cards(

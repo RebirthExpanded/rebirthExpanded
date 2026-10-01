@@ -55,7 +55,7 @@ async def cynthia_and_caitlin(ctx):
         definition = def_for(card.archetype_id)
         return getattr(definition, "display_name", None) != CYNTHIA_AND_CAITLIN
 
-    candidates = [c for c in ctx.discard_pile() if takeable(c)]
+    candidates = [c for c in ctx.recoverable_discard() if takeable(c)]
     if not candidates:
         return
     picks = await ctx.choose_cards(

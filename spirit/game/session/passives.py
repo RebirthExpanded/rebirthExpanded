@@ -622,6 +622,25 @@ class Passive:
         return False
 
 
+class LingeringStadiumPassive(Passive):
+    """A discarded Stadium's passive for the rest of the attack that
+    discarded it: every hook delegates to the Stadium's own passive except
+    max_hp_bonus, whose change has already been settled. (The few checks
+    made on the class itself -- Stadium shields, Ability locks -- see a
+    plain Passive, so those don't linger.)"""
+
+    def __init__(self, inner):
+        object.__setattr__(self, "_inner", inner)
+
+    def __getattribute__(self, name):
+        if name in ("_inner", "max_hp_bonus", "__class__", "__dict__", "__init__"):
+            return object.__getattribute__(self, name)
+        return getattr(object.__getattribute__(self, "_inner"), name)
+
+    def max_hp_bonus(self, *args, **kwargs):
+        return 0
+
+
 def carrier_pokemon(carrier: BoardEntity) -> Optional[PokemonEntity]:
     """The in-play Pokemon a passive rides: the carrier itself, or the
     top-level Pokemon its attachment stack hangs under."""
@@ -879,6 +898,12 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
         passive = getattr(definition, "passive", None)
         if passive is not None:
             stadium_triples.append((passive, stadium, False))
+    # A Stadium an attack discarded keeps working until that attack's damage
+    # is done (official Q&A: Calamity Storm discarding Neutralization Zone
+    # still does no damage to a Pokemon it protects). Its HP change is not
+    # part of this -- see EffectContext.discard_stadium.
+    for passive, stadium in getattr(board, "lingering_stadium_passives", None) or []:
+        stadium_triples.append((LingeringStadiumPassive(passive), stadium, False))
     triples.extend(stadium_triples)
     # "For the rest of this game" passives (Full Metal Wall-GX): owned by a
     # PLAYER rather than by a card, so they outlive the Pokemon that made

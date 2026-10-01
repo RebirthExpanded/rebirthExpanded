@@ -24,7 +24,7 @@ from spirit.game.data_utils import (Ability, Attack, PokemonCardDef,
 async def sparkling_ripples(ctx):
     if not getattr(ctx, "evolved_from_hand", True):
         return
-    cards = list(ctx.discard_pile())
+    cards = list(ctx.recoverable_discard())
     if not cards:
         return
     if not await ctx.ask_yes_no("Put a card from your discard pile into your hand?"):

@@ -10,7 +10,7 @@ def _is_tool_card(card):
 
 async def dig_up(ctx):
     """On evolve: you may put up to 2 Pokemon Tool cards from your discard pile into your hand."""
-    tools = [c for c in ctx.discard_pile() if _is_tool_card(c)]
+    tools = [c for c in ctx.recoverable_discard() if _is_tool_card(c)]
     if not tools:
         return
     picks = await ctx.choose_cards(

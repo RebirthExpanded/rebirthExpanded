@@ -25,7 +25,7 @@ async def space_beacon(ctx):
     paid = await ctx.discard_from_hand(1, prompt="Discard a card for Space Beacon")
     if not paid:
         return
-    energies = [c for c in ctx.discard_pile()
+    energies = [c for c in ctx.recoverable_discard()
                 if is_basic_energy(c) and c not in paid]
     if not energies:
         return

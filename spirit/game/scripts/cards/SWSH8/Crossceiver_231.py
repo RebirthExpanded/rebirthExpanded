@@ -28,7 +28,7 @@ async def crossceiver(ctx):
     if pair is None:
         return
     await ctx.discard_cards([pair])
-    candidates = [c for c in ctx.discard_pile()
+    candidates = [c for c in ctx.recoverable_discard()
                   if is_pokemon_card(c) or is_supporter_card(c)]
     if not candidates:
         return

@@ -22,7 +22,7 @@ def _psychic_pokemon(card) -> bool:
 
 
 async def family_rescue(ctx):
-    candidates = [c for c in ctx.discard_pile() if _psychic_pokemon(c)]
+    candidates = [c for c in ctx.recoverable_discard() if _psychic_pokemon(c)]
     if not candidates:
         return
     take = min(5, len(candidates))

@@ -6,10 +6,10 @@ from spirit.game.session.effects import is_pokemon_card
 
 async def lanas_aid(ctx):
     pokemon_candidates = [
-        c for c in ctx.discard_pile()
+        c for c in ctx.recoverable_discard()
         if is_pokemon_card(c) and not has_rule_box(c.archetype_id)
     ]
-    energy_candidates = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    energy_candidates = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     candidates = pokemon_candidates + energy_candidates
 
     if not candidates:

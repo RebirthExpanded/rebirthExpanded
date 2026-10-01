@@ -16,7 +16,7 @@ def _condition(board, player_id, pokemon=None) -> bool:
 
 
 async def surprise_box(ctx):
-    cards = list(ctx.discard_pile(ctx.opponent_id))
+    cards = list(ctx.recoverable_discard(ctx.opponent_id))
     if not cards:
         return
     picks = await ctx.choose_cards(

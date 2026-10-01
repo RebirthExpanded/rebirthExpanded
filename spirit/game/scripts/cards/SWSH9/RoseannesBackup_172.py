@@ -25,7 +25,7 @@ def _roseannes_backup_condition(board, player_id):
 
 
 async def _shuffle_category(ctx, predicate, label):
-    cards = [c for c in ctx.discard_pile() if predicate(c)]
+    cards = [c for c in ctx.recoverable_discard() if predicate(c)]
     if not cards:
         return
     if not await ctx.ask_yes_no(f"Shuffle a {label} from your discard pile into your deck?"):

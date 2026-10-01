@@ -38,7 +38,7 @@ async def superior_energy_retrieval(ctx):
     """Pay 2 from hand, then take up to 4 basic Energy back."""
     # Read the pile BEFORE paying: "you can't choose Energy discarded by
     # this card's effect".
-    available = [c for c in ctx.discard_pile() if is_basic_energy(c)]
+    available = [c for c in ctx.recoverable_discard() if is_basic_energy(c)]
     if len(await ctx.discard_from_hand(
             2, prompt="Discard 2 cards for Superior Energy Retrieval")) < 2:
         return

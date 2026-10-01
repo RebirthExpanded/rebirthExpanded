@@ -5,7 +5,7 @@ from spirit.game.card_effects.support_common import requires_discard
 
 
 async def _sordward_shielbert(ctx):
-    discard = [c for c in ctx.discard_pile() if is_trainer_card(c)]
+    discard = [c for c in ctx.recoverable_discard() if is_trainer_card(c)]
     if not discard:
         return
     picks = await ctx.choose_cards(

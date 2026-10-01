@@ -25,7 +25,7 @@ def _lanas_fishing_rod_playable(board, player_id) -> bool:
 async def lanas_fishing_rod(ctx):
     picks = []
     for predicate, what in ((is_pokemon_card, "Pokémon"), (is_pokemon_tool, "Pokémon Tool")):
-        pool = [c for c in ctx.discard_pile() if predicate(c)]
+        pool = [c for c in ctx.recoverable_discard() if predicate(c)]
         if not pool:
             continue
         if len(pool) == 1:

@@ -24,7 +24,7 @@ def _condition(board, player_id, pokemon=None) -> bool:
 
 async def buddy_buddy_rescue(ctx):
     for pid in (ctx.opponent_id, ctx.player_id):
-        pokemon = [c for c in ctx.discard_pile(pid) if is_pokemon_card(c)]
+        pokemon = [c for c in ctx.recoverable_discard(pid) if is_pokemon_card(c)]
         if not pokemon:
             continue
         picks = await ctx.choose_cards(

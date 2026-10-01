@@ -24,7 +24,7 @@ def levincia_condition(board, player_id, stadium=None):
 
 
 async def levincia(ctx):
-    pool = [c for c in ctx.discard_pile() if _basic_lightning(c)]
+    pool = [c for c in ctx.recoverable_discard() if _basic_lightning(c)]
     if not pool:
         return
     picks = await ctx.choose_cards(pool, min(2, len(pool)), minimum=1,

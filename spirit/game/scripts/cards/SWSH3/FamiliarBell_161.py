@@ -9,7 +9,7 @@ async def familiar_bell(ctx):
     discard pile, reveal it, and put it into your hand. Then, shuffle."""
     discard_names = {
         def_for(c.archetype_id).display_name
-        for c in ctx.discard_pile()
+        for c in ctx.recoverable_discard()
         if is_pokemon_card(c) and def_for(c.archetype_id) is not None
     }
     discard_names.discard(None)

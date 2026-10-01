@@ -5,7 +5,7 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 async def follow_the_scent(ctx):
     heads = await ctx.flip_coins(3, "Follow the Scent")
     count = sum(1 for h in heads if h)
-    discard = ctx.discard_pile()
+    discard = ctx.recoverable_discard()
     if count <= 0 or not discard:
         return
     picks = await ctx.choose_cards(

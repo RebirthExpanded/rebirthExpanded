@@ -11,8 +11,8 @@ def _is_basic_water_energy(card):
 async def great_haul_net(ctx):
     """Choose 1 or both: shuffle up to 3 Water Pokemon and/or up to 3 Basic
     Water Energy cards from your discard pile into your deck."""
-    pokemon = [c for c in ctx.discard_pile() if is_water_pokemon(c)]
-    energy = [c for c in ctx.discard_pile() if _is_basic_water_energy(c)]
+    pokemon = [c for c in ctx.recoverable_discard() if is_water_pokemon(c)]
+    energy = [c for c in ctx.recoverable_discard() if _is_basic_water_energy(c)]
     picks_p = await ctx.choose_cards(
         pokemon, 3, minimum=0,
         prompt="Choose up to 3 Water Pokémon to shuffle into your deck.",

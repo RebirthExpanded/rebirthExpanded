@@ -13,6 +13,7 @@ from spirit.game.attributes import AttrID
 from spirit.game.data_utils import def_for
 from spirit.game.models.board import CardEntity, PokemonEntity
 from spirit.game.session.effects import (
+    stuck_in_discard,
     full_stack,
     is_basic_pokemon,
     is_trainer_card,
@@ -310,7 +311,7 @@ def attach_from_discard(predicate=is_energy, count=1, target="self",
     activated public-zone pick mandatory; gate activation with a condition=."""
     async def effect(ctx):
         await _deal_printed(ctx)
-        cards = [c for c in ctx.discard_pile() if predicate(c)]
+        cards = [c for c in ctx.recoverable_discard() if predicate(c)]
         if not cards:
             return
         picks = await ctx.choose_cards(
@@ -348,7 +349,7 @@ def lost_zone_from_opponent_discard(count, prompt: str = ""):
         n = count(ctx) if callable(count) else count
         if n <= 0:
             return
-        discard = ctx.discard_pile(ctx.opponent_id)
+        discard = ctx.recoverable_discard(ctx.opponent_id)
         if not discard:
             return
         picks = await ctx.choose_cards(
@@ -368,7 +369,9 @@ def recover_from_discard(predicate=None, count=1, minimum=1, reveal=False,
     minimum=1 discipline for activated public-zone picks."""
     async def effect(ctx):
         await _deal_printed(ctx)
-        cards = [c for c in ctx.discard_pile()
+        # recoverable_discard: a card that can't leave the discard pile for
+        # the hand or deck (Neutralization Zone) is never offered.
+        cards = [c for c in ctx.recoverable_discard()
                  if predicate is None or predicate(c)]
         if not cards:
             return
@@ -713,10 +716,12 @@ def remove_self_from_play(destination="hand", with_attachments="same",
 # (board, player_id), abilities call (board, player_id, pokemon).
 
 def requires_discard(predicate=None, n=1):
-    """At least `n` matching cards sit in the player's discard pile."""
+    """At least `n` matching cards sit in the player's discard pile (not
+    counting one that can't leave it for the hand or deck -- these gate
+    recovery effects)."""
     def check(board, player_id, pokemon=None):
         area = board.find_player_area(player_id, "discard")
-        cards = list(area.children) if area else []
+        cards = [c for c in (area.children if area else []) if not stuck_in_discard(c)]
         return sum(1 for c in cards if predicate is None or predicate(c)) >= n
     return check
 

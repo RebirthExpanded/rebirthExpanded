@@ -23,7 +23,7 @@ from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 
 async def treasure_hunt(ctx):
     """On evolving into this: you may take an Item back from the discard."""
-    items = [c for c in ctx.discard_pile() if counts_as_item(c.archetype_id)]
+    items = [c for c in ctx.recoverable_discard() if counts_as_item(c.archetype_id)]
     if not items:
         return
     if not await ctx.ask_yes_no(

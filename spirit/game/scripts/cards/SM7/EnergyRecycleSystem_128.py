@@ -19,7 +19,7 @@ from spirit.game.data_utils import ItemCardDef
 
 
 async def energy_recycle_system(ctx):
-    energies = [c for c in ctx.discard_pile() if is_basic_energy_card(c)]
+    energies = [c for c in ctx.recoverable_discard() if is_basic_energy_card(c)]
     if not energies:
         return
     choice = await ctx.choose(

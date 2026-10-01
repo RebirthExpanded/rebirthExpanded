@@ -6,7 +6,7 @@ from spirit.game.card_effects.attacks_common import damage_per, count_energy
 
 async def star_abyss(ctx):
     """VSTAR Power: you may put up to 2 Item cards from your discard pile into your hand."""
-    items = [c for c in ctx.discard_pile() if is_item_card(c)]
+    items = [c for c in ctx.recoverable_discard() if is_item_card(c)]
     picks = await ctx.choose_cards(
         items, 2, minimum=0,
         prompt="Choose up to 2 Item cards to put into your hand.",
