@@ -2380,7 +2380,11 @@ class GameSession:
             for energy in self.board_state.attached_energies(pokemon):
                 definition = def_for(energy.archetype_id)
                 hook = getattr(definition, "on_carrier_knocked_out", None)
-                if hook is not None and hook is not unimplemented:
+                # A Special Energy whose effects are switched off at the
+                # knockout (Temple of Sinnoh in play) gives nothing; one an
+                # attack discarded first (Calamity Storm) no longer stops it.
+                if (hook is not None and hook is not unimplemented
+                        and not special_energy_suppressed(self.board_state, energy)):
                     energy_ko_hooks.append((owner_id, hook, energy))
 
         # Prize counts/destinations evaluate BEFORE any stack moves so the
