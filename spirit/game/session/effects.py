@@ -2445,6 +2445,11 @@ class EffectContext:
         # Hurricane Charge, Pyro Dance, Bede) is still "attached from your
         # hand": the watchers see it, once the effect is done.
         from_hand = energy._containing_area_name() == "hand"
+        # "Energy cards can't be attached from your opponent's hand to the
+        # Defending Pokemon" (Primeval Beak) reaches effect attachments out
+        # of the hand too (Welder), not ones from the deck or discard pile.
+        if from_hand and self.session.turn_state.attach_restricted(pokemon.entity_id):
+            return False
         position = len(pokemon.children)
         if not self.board.attach_card(energy.entity_id, pokemon.entity_id):
             return False

@@ -28,8 +28,12 @@ async def welder(ctx):
         prompt="Choose up to 2 Fire Energy cards to attach.")
     if not picks:
         return
-    target = await ctx.choose_pokemon(
-        ctx.my_pokemon_in_play(), "Choose a Pokémon to attach the Energy to")
+    # A Pokemon hit by Primeval Beak can't take Energy from the hand.
+    targets = [p for p in ctx.my_pokemon_in_play()
+               if not ctx.session.turn_state.attach_restricted(p.entity_id)]
+    if not targets:
+        return
+    target = await ctx.choose_pokemon(targets, "Choose a Pokémon to attach the Energy to")
     if target is None:
         return
     attached = 0
