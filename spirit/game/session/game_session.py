@@ -2548,11 +2548,26 @@ class GameSession:
             # (Lost Crisis: "that Pokemon and all cards attached to it").
             override = getattr(ctx, "knockout_destinations", {}).get(pokemon.entity_id)
             whole_stack = bool(override and override[1])
-            dest_name = override[0] if override else next(
-                (d for p, c in active_passives(self.board_state)
-                 for d in [p.knockout_destination(pokemon, c)] if d),
-                "discard",
-            )
+            if override:
+                dest_name = override[0]
+            else:
+                # Every redirect that applies (Splash Energy's hand, Lost
+                # City's Lost Zone): with more than one, the Knocked Out
+                # Pokemon's owner chooses which replaces the discard pile.
+                options = []
+                for p, c in active_passives(self.board_state):
+                    d = p.knockout_destination(pokemon, c)
+                    if d and d not in [o[0] for o in options]:
+                        label = getattr(def_for(getattr(c, "archetype_id", None)), "display_name", None) or d
+                        options.append((d, label))
+                dest_name = options[0][0] if options else "discard"
+                if len(options) > 1:
+                    ask = EffectContext(self, owner_id, None, None)
+                    index = await ask.present_card_choice(
+                        pokemon, "Where does the Knocked Out Pokémon go?",
+                        [label for _, label in options], player_id=owner_id)
+                    if isinstance(index, int) and 0 <= index < len(options):
+                        dest_name = options[index][0]
             dest_area = self.board_state.find_player_area(owner_id, dest_name) or discard
             stack = [pokemon] + _stack_descendants(pokemon)
             # Every destination is decided while the stack is still in play:
