@@ -2434,19 +2434,24 @@ class EffectContext:
         """Attaches an energy card from any zone underneath a Pokemon
         (effect attachments don't consume the once-per-turn manual attach).
 
-        counts_as_attachment=True additionally fires ON_ENERGY_ATTACHED
-        observers (deferred until the choreography flushes); most effect
-        attaches are NOT "attaching from hand" and leave it False.
+        ON_ENERGY_ATTACHED observers ("whenever you attach an Energy card
+        from your hand") fire, deferred until the effect is done, when the
+        card left the hand -- detected here -- or counts_as_attachment=True
+        says so; an Energy moved in from the deck or discard pile doesn't.
         """
         if energy is None or pokemon is None or self._stadium_effect_prevented(pokemon):
             return False
+        # An Energy card attached out of the hand by an effect (Welder,
+        # Hurricane Charge, Pyro Dance, Bede) is still "attached from your
+        # hand": the watchers see it, once the effect is done.
+        from_hand = energy._containing_area_name() == "hand"
         position = len(pokemon.children)
         if not self.board.attach_card(energy.entity_id, pokemon.entity_id):
             return False
         self._queue_intro_and_move(energy, pokemon.entity_id, position)
         if getattr(def_for(energy.archetype_id), "granted_abilities", None):
             await self.session.refresh_granted_abilities(pokemon)
-        if counts_as_attachment:
+        if counts_as_attachment or from_hand:
             self.deferred_actions.append(
                 lambda e=energy, p=pokemon: self.session.fire_energy_attached_triggers(
                     self.player_id, e, p))
