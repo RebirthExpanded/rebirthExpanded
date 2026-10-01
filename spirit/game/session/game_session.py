@@ -2894,18 +2894,23 @@ class GameSession:
         )
 
     async def _enforce_bench_capacity_once(self) -> bool:
-        """One enforcement pass, active player first; True iff it discarded."""
+        """One enforcement pass; True iff it discarded.
+
+        Every over-capacity player picks before anything moves, and the
+        picks are then discarded together (Collapsed Stadium ruling). The
+        owner of a Bench-shrinking Stadium in play picks first -- whoever
+        put Collapsed Stadium into play -- then the other player; with no
+        such Stadium, the turn player goes first."""
         order = self._turn_order()
-        active_id = self.turn_state.active_player_id
-        if active_id in self.players:
-            order = [active_id] + [p for p in order if p != active_id]
-        discarded = False
+        first_id = self._bench_shrink_stadium_owner() or self.turn_state.active_player_id
+        if first_id in self.players:
+            order = [first_id] + [p for p in order if p != first_id]
+        picks: List[Tuple[str, Any, PokemonEntity]] = []
         for player_id in order:
             bench = self.board_state.find_player_area(player_id, "bench")
             if bench is None:
                 continue
-            overflow = len(bench.children) - \
-                effective_bench_capacity(self.board_state, player_id)
+            overflow = len(bench.children) -                 effective_bench_capacity(self.board_state, player_id)
             if overflow <= 0:
                 continue
             candidates = [c for c in bench.children if isinstance(c, PokemonEntity)]
@@ -2919,9 +2924,26 @@ class GameSession:
             for entity_id in picked_ids[:overflow]:
                 picked = self.board_state.get_entity(entity_id)
                 if isinstance(picked, PokemonEntity) and picked.parent is bench:
-                    await self._discard_bench_stack(player_id, picked)
-                    discarded = True
+                    picks.append((player_id, bench, picked))
+        discarded = False
+        for player_id, bench, picked in picks:
+            if picked.parent is bench:
+                await self._discard_bench_stack(player_id, picked)
+                discarded = True
         return discarded
+
+    def _bench_shrink_stadium_owner(self) -> Optional[str]:
+        """The player who put the in-play Stadium that caps Bench size
+        (Collapsed Stadium) into play, if there is one."""
+        area = self.board_state.find_global_area("activeStadium")
+        for stadium in (area.children if area else []):
+            passive = getattr(def_for(stadium.archetype_id), "passive", None)
+            if passive is None:
+                continue
+            if any(passive.bench_capacity(pid, stadium) is not None
+                   for pid in self.players):
+                return stadium.owning_player_id
+        return None
 
     async def _discard_bench_stack(self, player_id: str, pokemon):
         """Discards a benched stack (Pokemon + attachments) for the bench-shrink
