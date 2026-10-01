@@ -1,12 +1,12 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities, AttrID
+from spirit.game.card_effects.pokemon import has_printed_ability
 from spirit.game.card_effects.attacks_common import damage_per, count_in_play, bonus_if, defender_is_v
 
 
 def _has_ability(pokemon) -> bool:
-    abilities = pokemon.get_attribute(AttrID.PIE_ABILITIES) or []
-    return any(isinstance(e, dict) and e.get("abilityType") in ("PokeAbility", "PokePower")
-               for e in abilities)
+    """Has a printed Ability (not one a Special Energy or Tool lends it)."""
+    return has_printed_ability(pokemon)
 
 
 card = PokemonCardDef(

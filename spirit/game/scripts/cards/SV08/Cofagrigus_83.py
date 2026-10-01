@@ -1,14 +1,11 @@
 from spirit.game.data_utils import PokemonCardDef, Attack
 from spirit.game.attributes import AttrID, PokemonStage, PokemonTypes, Rarities
+from spirit.game.card_effects.pokemon import has_printed_ability
 
 
 def _has_ability(pokemon) -> bool:
-    abilities = pokemon.get_attribute(AttrID.PIE_ABILITIES) or []
-    return any(
-        isinstance(entry, dict)
-        and entry.get("abilityType") in ("PokeAbility", "PokePower")
-        for entry in abilities
-    )
+    """Has a printed Ability (not one a Special Energy or Tool lends it)."""
+    return has_printed_ability(pokemon)
 
 
 async def law_of_the_underworld(ctx):

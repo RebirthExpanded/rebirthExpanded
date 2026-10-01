@@ -1510,6 +1510,11 @@ def has_printed_ability(card) -> bool:
             continue
         if entry.get("abilityType") != "PokeAbility":
             continue
+        # One a Special Energy or Tool lends it (Medical Energy, Lucky
+        # Energy) sits in the same list but is not printed on the Pokemon.
+        granted = ABILITIES_BY_ID.get(entry.get("abilityID"))
+        if granted is not None and granted.is_granted:
+            continue
         return True
     return False
 
