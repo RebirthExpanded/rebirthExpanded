@@ -26,7 +26,7 @@ async def entangled_dive(ctx):
     for active in old_actives.values():
         await ctx.discard_cards(full_stack(active))
 
-    for pid in need_promotion:
+    for pid in ctx.session._promotion_order(need_promotion):
         async def _promote(pid=pid):
             if not await ctx.session._promote_new_active(pid):
                 opponent = ctx.opponent_id if pid == ctx.player_id else ctx.player_id

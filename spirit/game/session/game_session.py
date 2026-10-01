@@ -1757,10 +1757,48 @@ class GameSession:
         return remaining <= 0
 
     async def _resolve_raw_knockout(self, pokemon):
-        """Resolves a knockout caused by raw damage (poison/burn/confusion)."""
-        ctx = EffectContext(self, pokemon.owning_player_id or "", pokemon, None)
-        ctx.knockouts.append(pokemon)
+        """Resolves a knockout caused by raw damage (poison/burn/confusion).
+        During the Pokemon Checkup it is held, so every Checkup Knock Out
+        resolves together (see _flush_checkup_knockouts)."""
+        pending = getattr(self, "_checkup_knockouts", None)
+        if pending is not None:
+            if pokemon not in pending:
+                pending.append(pokemon)
+            return
+        await self._resolve_raw_knockouts([pokemon])
+
+    async def _resolve_raw_knockouts(self, pokemons):
+        """Resolves several raw-damage Knock Outs as one, simultaneous set."""
+        pokemons = [p for p in pokemons if p.parent is not None]
+        if not pokemons:
+            return
+        ctx = EffectContext(self, pokemons[0].owning_player_id or "", pokemons[0], None)
+        ctx.knockouts.extend(pokemons)
         await self.resolve_knockouts(ctx)
+
+    async def _flush_checkup_knockouts(self):
+        """Resolves the Knock Outs held during the Pokemon Checkup together."""
+        pending = getattr(self, "_checkup_knockouts", None)
+        if pending:
+            self._checkup_knockouts = []
+            await self._resolve_raw_knockouts(pending)
+
+    def _next_turn_player_id(self) -> Optional[str]:
+        """The player who takes the next turn: the opponent of the turn
+        player (between turns too), or the turn player again before an
+        extra turn."""
+        active = self.turn_state.active_player_id
+        if active not in self.players:
+            return None
+        if self.extra_turn_pending and not getattr(self, "_in_pokemon_checkup", False):
+            return active
+        return self._opponent_id(active)
+
+    def _promotion_order(self, player_ids):
+        """Both Active Spots emptied at once: the player who takes the next
+        turn puts their new Active Pokemon into play first."""
+        nxt = self._next_turn_player_id()
+        return sorted(player_ids, key=lambda pid: pid != nxt)
 
     async def _broadcast_attack_sources(self, entity_ids: List[str]):
         """Points the playmat's attack-source attribute at the acting entities.
@@ -2734,7 +2772,7 @@ class GameSession:
             if prizes is not None and self.board_state.prizes_dealt.get(taker_id) \
                     and not prizes.children:
                 await self.end_game(taker_id, "Took all Prize cards")
-        for owner_id in promotions:
+        for owner_id in self._promotion_order(promotions):
             if not await self._promote_new_active(owner_id):
                 await self.end_game(
                     self._opponent_id(owner_id),
@@ -2854,9 +2892,15 @@ class GameSession:
                     lethal.append(pokemon)
         if not resolve_lethal:
             return lethal
-        for pokemon in lethal:
-            if pokemon.parent is not None:
-                await self._resolve_raw_knockout(pokemon)
+        if lethal:
+            # Knocked Out together (a Stadium left play): one set, so a
+            # double Active Knock Out promotes in next-turn order.
+            pending = getattr(self, "_checkup_knockouts", None)
+            if pending is not None:
+                for pokemon in lethal:
+                    await self._resolve_raw_knockout(pokemon)
+            else:
+                await self._resolve_raw_knockouts(lethal)
         return lethal
 
     async def sync_bench_size(self):
@@ -3660,10 +3704,13 @@ class GameSession:
         active_id = active_id if active_id is not None else self.turn_state.active_player_id
         turn_number = self.turn_state.turn_number
         self._in_pokemon_checkup = True
+        self._checkup_knockouts = []
         try:
             await self._run_pokemon_checkup_body(active_id, turn_number)
+            await self._flush_checkup_knockouts()
         finally:
             self._in_pokemon_checkup = False
+            self._checkup_knockouts = None
 
     async def _run_pokemon_checkup_body(self, active_id: str, turn_number: int):
         """The checkup itself; _run_pokemon_checkup wraps it in the flag that
@@ -3692,14 +3739,19 @@ class GameSession:
             if active is None:
                 continue
 
+            # Checkup Knock Outs are held (_checkup_knockouts) and resolve
+            # together once every Active has been checked; a Knocked Out
+            # Active skips its remaining steps.
             conditions = active.get_attribute(AttrID.SPECIAL_CONDITIONS) or []
             if poisoned in conditions:
                 await self._checkup_poison(active)
-            # A poison KO clears `active`'s conditions via resolve_knockouts,
-            # so re-reading after each step is safe even if it was replaced.
+            if active in self._checkup_knockouts:
+                continue
             conditions = active.get_attribute(AttrID.SPECIAL_CONDITIONS) or []
             if burned in conditions:
                 await self._checkup_burn(player_id, active)
+            if active in self._checkup_knockouts:
+                continue
             conditions = active.get_attribute(AttrID.SPECIAL_CONDITIONS) or []
             if asleep in conditions:
                 await self._checkup_sleep(player_id, active)
@@ -3716,6 +3768,7 @@ class GameSession:
                      self._remove_single_condition(active, SpecialConditions.PARALYZED)],
                 )
 
+        await self._flush_checkup_knockouts()
         for player_id in self._turn_order():
             for pokemon in list(self.board_state.pokemon_in_play(player_id)):
                 await self._fire_triggered_abilities(
@@ -6323,7 +6376,7 @@ class GameSession:
 
         ctx = await resolve_attack(self, player_id, card, ability, action_id)
         # Effects like Aqua Return can remove the attacker itself from play.
-        for pid in list(self.players.keys()):
+        for pid in self._promotion_order(list(self.players.keys())):
             if self.board_state.active_pokemon(pid) is None \
                     and not await self._promote_new_active(pid):
                 await self.end_game(
