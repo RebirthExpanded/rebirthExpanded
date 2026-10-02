@@ -517,6 +517,10 @@ class Triggers:
     # Either player manually put a Basic from hand onto their Bench (Gapejaw
     # Bog); ctx carries benching_player_id / benched_pokemon.
     ON_POKEMON_BENCHED = "on_pokemon_benched"
+    # Either player played a Pokemon from hand to evolve 1 of their Pokemon
+    # (Po Town); ctx carries evolving_player_id / evolved_pokemon /
+    # evolved_from_hand. Ordered with the evolution's own ON_EVOLVE.
+    ON_POKEMON_EVOLVED = "on_pokemon_evolved"
     # This Pokemon was PUT onto the Bench by its own hand Ability
     # (bench_from_hand: Elusive Master's "If you do, draw 3 cards").
     ON_BENCHED_BY_ABILITY = "on_benched_by_ability"

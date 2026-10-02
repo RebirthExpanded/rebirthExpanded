@@ -89,6 +89,12 @@ card = PokemonCardDef(
             trigger=Triggers.ON_PLAY,
             shared_once_per_turn="Dedechange",
             effect=dedechange,
+            # Ordered with the Stadium's bench watch (Team Magma's Secret
+            # Base, Gapejaw Bog) by Dedenne's owner; with Shadow Box in play,
+            # the counters first leave it without Abilities (official Q&A).
+            trigger_applies=lambda c: (
+                c.session.turn_state.active_player_id == c.player_id
+                and "Dedechange" not in c.session.turn_state.used_named_abilities),
         ),
         Attack(
             title="Static Shock",

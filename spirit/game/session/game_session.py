@@ -5695,9 +5695,22 @@ class GameSession:
         # "when you play this Pokemon from your hand to evolve" wording
         # (Sparkling Ripples): a Wally/Rare Candy-from-deck evolution rides
         # from_zone_intro and is not a hand play.
-        await self._fire_triggered_abilities(
-            player_id, card, Triggers.ON_EVOLVE,
-            ctx_setup=lambda c: setattr(c, "evolved_from_hand", not from_zone_intro))
+        # The Stadium's watch (Po Town's damage counters) goes off at the same
+        # moment: the evolving Pokemon's owner orders the ones that declare
+        # trigger_applies (Lycanroc-GX's Bloodthirsty Eyes -- with Shadow Box
+        # in play, Po Town first leaves it damaged and without Abilities).
+        def _evolve_setup(c):
+            c.evolved_from_hand = not from_zone_intro
+            c.evolving_player_id = player_id
+            c.evolved_pokemon = card
+        entries = [(player_id, card, a) for a in self._abilities_of(card)
+                   if a.has_trigger(Triggers.ON_EVOLVE)]
+        stadium_area = self.board_state.find_global_area("activeStadium")
+        for stadium in list(stadium_area.children if stadium_area else []):
+            entries.extend((player_id, stadium, a) for a in self._abilities_of(stadium)
+                           if a.has_trigger(Triggers.ON_POKEMON_EVOLVED))
+        await self._run_simultaneous_triggers(entries, _evolve_setup, player_id,
+                                              shown_card=card)
         # Mega Evolution rule: "When 1 of your Pokemon becomes a Mega Evolution
         # Pokemon, your turn ends." However it got there -- from the hand, or
         # through Wally -- the action that brought it ends the turn once it

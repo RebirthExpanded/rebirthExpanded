@@ -39,7 +39,8 @@ card = PokemonCardDef(
             game_text="When you play this Pok\u00e9mon from your hand to evolve 1 of your Pok\u00e9mon during your turn, you may discard a random card from your opponent's hand. If this Pok\u00e9mon is your Active Pok\u00e9mon and is Knocked Out by damage from an opponent's attack, you may discard a random card from your opponent's hand.",
             trigger=(Triggers.ON_EVOLVE, Triggers.ON_KNOCKED_OUT_IN_PLAY),
             effect=bully_of_the_sands,
-            trigger_applies=lambda c: bool(c.ko_from_attack and c.was_active_at_ko),
+            trigger_applies=lambda c: (c.ko_pokemon is None
+                                       or bool(c.ko_from_attack and c.was_active_at_ko)),
         ),
         Attack(
             title="Double-Edge",
