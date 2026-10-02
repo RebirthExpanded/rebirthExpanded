@@ -347,6 +347,10 @@ class GameSession:
         # Initialize the virtual OOP Board State and populate player decks
         self.board_state = BoardState(self.game_id, list(self.players.keys()))
         self.board_state.turn_state = self.turn_state
+        # Passives that ask "does it have damage counters" from inside a
+        # lock scan (Shadow Box) read the last settled max HP here rather
+        # than starting another passive scan.
+        self.board_state.effective_max_seen = self._effective_max_seen
         self.board_state.format_guid = self._match_format_guid()
         for player_id, player in self.players.items():
             self.board_state.populate_deck(player_id, player.active_deck)
