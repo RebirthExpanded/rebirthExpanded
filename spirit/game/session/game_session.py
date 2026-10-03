@@ -1697,6 +1697,10 @@ class GameSession:
         for key in [k for k in self.turn_state.used_abilities
                     if k[0] == pokemon.entity_id]:
             self.turn_state.used_abilities.discard(key)
+        # "Once during your turn, when this Pokemon moves from your Bench to
+        # the Active Spot" (Iron Valiant ex) is a new Pokemon's once, too:
+        # scooped up (Scoop Up Cyclone), benched again and moved up, it fires.
+        self.turn_state.on_move_to_active_fired.discard(pokemon.entity_id)
 
     def _remove_single_condition(self, pokemon, condition: SpecialConditions) -> Dict[str, Any]:
         """Removes exactly one Special Condition (sleep wake, burn cure,
