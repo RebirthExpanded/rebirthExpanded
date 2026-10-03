@@ -2835,6 +2835,22 @@ class GameSession:
             remaining.remove(chosen)
             await chosen["run"]()
 
+    async def _settle_effect_knockouts(self, ctx: EffectContext):
+        """The knockout check after a Trainer's effect. A Bench the effect
+        shrank (Area Zero Underdepths discarded by Megaton Blower) is
+        discarded down to size first; then every Pokemon still in play at
+        0 HP is Knocked Out together -- one discarded from the Bench is
+        not (official Q&A: Terapagos ex that lost Bravery Charm)."""
+        await self.enforce_bench_capacity(resolve_lethal=False)
+        for player_id in self._turn_order():
+            for pokemon in self.board_state.pokemon_in_play(player_id):
+                if pokemon.get_attribute(AttrID.HP, 1) <= 0 and pokemon not in ctx.knockouts:
+                    ctx.knockouts.append(pokemon)
+        ctx.knockouts = [p for p in ctx.knockouts
+                         if p.owning_player_id is not None
+                         and p in self.board_state.pokemon_in_play(p.owning_player_id)]
+        await self.resolve_knockouts(ctx)
+
     async def _enforce_tool_capacity(self):
         """A Pokemon holding more Pokemon Tools than it may now (Toolbox or
         Rubbish Collecting stopped working): its owner discards Tools until
@@ -2859,11 +2875,14 @@ class GameSession:
                 await ctx.discard_cards(picks)
                 await self._flush_effect_runs(ctx)
 
-    async def enforce_bench_capacity(self):
+    async def enforce_bench_capacity(self, resolve_lethal: bool = True):
         """Bench-shrink ruling (Collapsed Stadium): every over-capacity player
         picks their excess Benched Pokemon and discards the stacks -- NOT a
         Knock Out (no prizes, no ON_KNOCKED_OUT). Loops until stable since a
-        discard can itself toggle capacity passives."""
+        discard can itself toggle capacity passives.
+
+        resolve_lethal=False leaves a Pokemon the settle brought to 0 HP for
+        the caller's own knockout check (_settle_effect_knockouts)."""
         if self._enforcing_bench:
             return
         self._enforcing_bench = True
@@ -2872,14 +2891,14 @@ class GameSession:
                 if not await self._enforce_bench_capacity_once():
                     await self._enforce_tool_capacity()
                     await self.sync_bench_size()
-                    await self.resync_effective_max_hp()
+                    await self.resync_effective_max_hp(resolve_lethal=resolve_lethal)
                     return
             logging.error(
                 f"[Session {self.game_id}] Bench capacity never stabilized "
                 f"after {_MAX_BENCH_ENFORCE_PASSES} passes; giving up."
             )
             await self.sync_bench_size()
-            await self.resync_effective_max_hp()
+            await self.resync_effective_max_hp(resolve_lethal=resolve_lethal)
         finally:
             self._enforcing_bench = False
             # Every path that can change the board settles through here, so it
@@ -6116,7 +6135,7 @@ class GameSession:
                 list(self.players.values()), GameSequence.TRAINER_CARD, [discard]
             )
         if ctx is not None:
-            await self.resolve_knockouts(ctx)
+            await self._settle_effect_knockouts(ctx)
             # Effects that vacated the Active spot (Scoop Up Net) promote after
             # the choreography flushes.
             for hook in ctx.deferred_actions:
@@ -6241,7 +6260,7 @@ class GameSession:
         ctx = await resolve_trainer_effect(self, player_id, card)
         if ctx is not None:
             await self._flush_effect_runs(ctx)
-            await self.resolve_knockouts(ctx)
+            await self._settle_effect_knockouts(ctx)
             for hook in ctx.deferred_actions:
                 await hook()
 
