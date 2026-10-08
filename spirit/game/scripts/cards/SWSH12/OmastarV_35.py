@@ -1,13 +1,17 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, def_for
-from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
+from spirit.game.attributes import AttrID, PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.attacks_common import lock_defender_attacks
 from spirit.game.card_effects.support_common import search_to_bench
-from spirit.game.session.effects import is_evolution_pokemon
+from spirit.game.session.effects import is_evolution_pokemon, is_pokemon_card
 
 
 def _evolves_from_fossil(card) -> bool:
-    d = def_for(card.archetype_id)
-    return bool(d) and bool(getattr(d, "evolves_from", None)) and "Fossil" in d.evolves_from
+    """"a Pokemon that evolves from an Item card that has 'Fossil' in its
+    name" -- Unidentified Fossil, Rare Fossil and every Antique ... Fossil
+    (Tyrunt, Shieldon, Tirtouga, Archen ...). The card's evolution-from
+    logic name carries the fossil's name; the definition keeps no
+    evolves_from attribute to read."""
+    return is_pokemon_card(card) and "Fossil" in str(card.get_attribute(AttrID.EVOLUTION_LOGIC_FROM) or "")
 
 
 async def tentacle_lock(ctx):
