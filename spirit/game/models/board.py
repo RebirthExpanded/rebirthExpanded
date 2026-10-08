@@ -248,6 +248,21 @@ class PokemonEntity(CardEntity):
     def get_entity_name(self) -> str:
         return "com.direwolfdigital.cake.rules.entities.Pokemon"
 
+    def serialize_attributes(self) -> List[Dict[str, Any]]:
+        """A card played as a Pokemon (fossils, Lillie's Poke Doll, Robo
+        Substitute) keeps its Trainer CARD_TYPE for the rules, but the client
+        must see a Pokemon card: its Knockout executor (N.k) picks the
+        Knocked Out Pokemon by EntityUtil.IsPokemon (attr 200300 == 0) and
+        NREs in IsLegendPokemon when none matches, and its hand drag treats a
+        Trainer as a Trainer play that never finds its bench target."""
+        serialized = super().serialize_attributes()
+        if self.attributes.get(AttrID.CARD_TYPE.value) != CardType.POKEMON.value:
+            for entry in serialized:
+                if entry["name"] == AttrID.CARD_TYPE.value:
+                    entry["value"] = entry["originalValue"] = entry["modValue"] = \
+                        CardType.POKEMON.value
+        return serialized
+
 
 class CompositePartEntity(CardEntity):
     """One physical part of a composite Pokemon (a LEGEND half, a V-UNION
