@@ -1299,6 +1299,40 @@ def _attack_entries(
                 game_id, active.entity_id, ability_id, ACTION_USE_ATTACK,
                 selection_type=SELECTION_TYPE_PANEL,
             ))
+    entries.extend(_bench_attack_entries(board, state, player_id, game_id))
+    return entries
+
+
+def _bench_attack_entries(
+    board: BoardState, state: TurnState, player_id: str, game_id: str,
+) -> List[Dict[str, Any]]:
+    """Attacks a Benched Pokemon may use ("This attack can be used even if
+    this Pokemon is on the Bench" -- Alakazam ex's Dimensional Hand): the
+    same gates as the Active's rows, on the Benched Pokemon's own Energy.
+    A Benched Pokemon has no Special Conditions to stop it."""
+    bench = board.find_player_area(player_id, "bench")
+    entries = []
+    for pokemon in list(bench.children if bench else []):
+        if not isinstance(pokemon, PokemonEntity) or attacking_blocked(board, pokemon):
+            continue
+        abilities = pokemon.get_attribute(AttrID.PIE_ABILITIES) or []
+        if not isinstance(abilities, list):
+            continue
+        first_turn_ok = state.turn_number > 1 or can_attack_first_turn(board, pokemon)
+        energies = board.attached_energies(pokemon)
+        for ability in abilities:
+            if not isinstance(ability, dict) or ability.get("abilityType") != "Attack":
+                continue
+            ability_id = ability.get("abilityID")
+            definition = ABILITIES_BY_ID.get(ability_id) if ability_id else None
+            if not getattr(definition, "usable_from_bench", False):
+                continue
+            if attack_usable(board, state, player_id, pokemon, ability_id,
+                             ability.get("cost") or {}, energies, False, first_turn_ok):
+                entries.append(_target_map_entry(
+                    game_id, pokemon.entity_id, ability_id, ACTION_USE_ATTACK,
+                    selection_type=SELECTION_TYPE_PANEL,
+                ))
     return entries
 
 

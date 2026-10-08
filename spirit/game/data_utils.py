@@ -66,6 +66,7 @@ def _clone_ability(ability: "Ability") -> "Ability":
             condition=ability.condition,
             usable_first_turn=ability.usable_first_turn,
             usable_despite_conditions=ability.usable_despite_conditions,
+            usable_from_bench=getattr(ability, "usable_from_bench", False),
         )
     else:
         clone = Ability(
@@ -701,7 +702,8 @@ class Attack(Ability):
         locks_next_turn: bool = False,
         condition: Optional[Callable] = None,
         usable_first_turn: bool = False,
-        usable_despite_conditions: bool = False
+        usable_despite_conditions: bool = False,
+        usable_from_bench: bool = False,
     ):
         super().__init__(title, game_text, ability_type, effect, vstar=vstar,
                          gx=gx, condition=condition)
@@ -714,6 +716,9 @@ class Attack(Ability):
         self.usable_first_turn = usable_first_turn
         # Offered even while the user is Asleep/Paralyzed (Windup Arm-style).
         self.usable_despite_conditions = usable_despite_conditions
+        # "This attack can be used even if this Pokemon is on the Bench"
+        # (Alakazam ex's Dimensional Hand).
+        self.usable_from_bench = usable_from_bench
 
     def to_dict(self) -> dict:
         d = super().to_dict()
