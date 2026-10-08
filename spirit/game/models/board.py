@@ -253,10 +253,14 @@ class PokemonEntity(CardEntity):
         Substitute) keeps its Trainer CARD_TYPE for the rules, but the client
         must see a Pokemon card: its Knockout executor (N.k) picks the
         Knocked Out Pokemon by EntityUtil.IsPokemon (attr 200300 == 0) and
-        NREs in IsLegendPokemon when none matches, and its hand drag treats a
-        Trainer as a Trainer play that never finds its bench target."""
+        NREs in IsLegendPokemon when none matches. Its hand drag
+        (SelectableObject.FireDragCommand) takes the Trainer drag whenever
+        EntityUtil.IsTrainer -- attr 200270 TRAINER_TYPE merely present --
+        and that drag never reaches the bench target, so TRAINER_TYPE is
+        left out for the client too."""
         serialized = super().serialize_attributes()
         if self.attributes.get(AttrID.CARD_TYPE.value) != CardType.POKEMON.value:
+            serialized = [e for e in serialized if e["name"] != AttrID.TRAINER_TYPE.value]
             for entry in serialized:
                 if entry["name"] == AttrID.CARD_TYPE.value:
                     entry["value"] = entry["originalValue"] = entry["modValue"] = \
