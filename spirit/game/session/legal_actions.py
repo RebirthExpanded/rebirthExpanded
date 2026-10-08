@@ -37,6 +37,7 @@ from .constants import (
     SelectionKind,
 )
 from .passives import (
+    granted_abilities_locked,
     putting_into_play_blocked,
     granted_extra_attacks_with_owner,
     ability_disabled,
@@ -977,6 +978,11 @@ def _ability_entries(
             # fossil's discard, Lillie's Poke Doll's return) is no Ability
             # at all, so no lock reaches it.
             if locked and not ability.is_granted and not ability.rules_text:
+                continue
+            # ...but Garbotoxin takes those away too (ruling): under it a
+            # Pokemon V with Forest Seal Stone can't use Star Alchemy.
+            if ability.is_granted and not ability.rules_text \
+                    and granted_abilities_locked(board, pokemon):
                 continue
             # Damp takes one Ability away, the rest of the card stays.
             if ability_disabled(board, pokemon, ability):

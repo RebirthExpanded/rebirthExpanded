@@ -60,6 +60,11 @@ class _GarbotoxinPassive(Passive):
             return False
         return not _has_garbotoxin(pokemon)
 
+    def blocks_granted_abilities(self, pokemon, carrier):
+        # "has no Abilities" reaches an Ability a Tool gives the Pokemon as
+        # well (Forest Seal Stone's Star Alchemy can't be used) -- ruling.
+        return self.blocks_abilities(pokemon, carrier)
+
     def blocks_out_of_play_abilities(self, card, carrier):
         if not has_tool(carrier):
             return False

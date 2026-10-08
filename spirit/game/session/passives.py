@@ -209,6 +209,12 @@ class Passive:
         """
         return False
 
+    def blocks_granted_abilities(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
+        """True when this lock also reaches an Ability a Tool gives the
+        Pokemon (Forest Seal Stone's Star Alchemy): Garbotoxin does (ruling);
+        Path to the Peak does not, so the default is False."""
+        return False
+
     def blocks_abilities(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
         """True to turn off `pokemon`'s Abilities (Path to the Peak style)."""
         return False
@@ -1112,6 +1118,12 @@ def ability_disabled(board: BoardState, pokemon: PokemonEntity, ability) -> bool
     a Pokemon whose Abilities are locked contributes no such passive."""
     return any(passive.blocks_ability(pokemon, ability, carrier)
                for passive, carrier in active_passives(board))
+
+
+def granted_abilities_locked(board: BoardState, pokemon: PokemonEntity) -> bool:
+    """Whether a lock that reaches Tool-given Abilities (Garbotoxin) is on
+    `pokemon` -- evaluated on the unfiltered set, like ability_locked."""
+    return any(p.blocks_granted_abilities(pokemon, c) for p, c, _ in _collect_passives(board))
 
 
 def ability_locked(board: BoardState, pokemon: PokemonEntity) -> bool:
