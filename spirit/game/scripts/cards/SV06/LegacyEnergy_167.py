@@ -1,7 +1,7 @@
 from spirit.game.card_effects.energies import ALL_TYPES_ONE_AT_A_TIME
 from spirit.game.data_utils import EnergyCardDef
 from spirit.game.attributes import PokemonTypes, Rarities
-from spirit.game.session.passives import Passive, carrier_pokemon
+from spirit.game.session.passives import Passive, carrier_pokemon, ko_by_opposing_attack_damage
 
 
 class _LegacyEnergyPassive(Passive):
@@ -18,7 +18,7 @@ class _LegacyEnergyPassive(Passive):
     def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
         # Apply only to knockouts by damage from an attack, and only the
         # defending player's opponent gets the reduced prize count.
-        if not ctx.is_attack_effect() or ctx.player_id == pokemon.owning_player_id:
+        if not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
 
         # Only when the knocked-out Pokémon is the one carrying Legacy Energy.

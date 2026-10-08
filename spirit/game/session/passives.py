@@ -1569,6 +1569,18 @@ def attacks_ignore_target_effects(board: BoardState, attacker: BoardEntity) -> b
     )
 
 
+def ko_by_opposing_attack_damage(ctx, pokemon) -> bool:
+    """"Knocked Out by damage from an attack from your opponent's Pokemon"
+    (Lillie's Pearl, Hero's Medal, Legacy Energy, Black Market): an attack
+    hit it for damage this resolution -- an attack effect that Knocks it Out
+    some other way (placing damage counters, a direct Knock Out) is not
+    damage -- and the attacker is the other side's."""
+    attacker = getattr(ctx, "attacker", None)
+    return bool(ctx.is_attack_effect() and attacker is not None
+                and attacker.owning_player_id != pokemon.owning_player_id
+                and pokemon.entity_id in (getattr(ctx, "attack_damage", None) or {}))
+
+
 def poison_evolution_hold(board: BoardState, pokemon: BoardEntity) -> str | None:
     """How a passive keeps Poison on `pokemon` through an evolution or
     devolution (Muk's Poison Sack): "keep", "optional" or None. Poison Sacs

@@ -1,6 +1,6 @@
 from spirit.game.data_utils import PokemonToolCardDef, def_for
 from spirit.game.attributes import Rarities
-from spirit.game.session.passives import Passive, carrier_pokemon
+from spirit.game.session.passives import Passive, carrier_pokemon, ko_by_opposing_attack_damage
 
 
 def _is_lillies_pokemon(pokemon) -> bool:
@@ -15,7 +15,7 @@ class LilliesPearlPassive(Passive):
             return count
         if not _is_lillies_pokemon(pokemon):
             return count
-        if not ctx.is_attack_effect() or ctx.player_id == pokemon.owning_player_id:
+        if not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
         return max(0, count - 1)
 
@@ -31,6 +31,5 @@ card = PokemonToolCardDef(
     set_code="SV09",
     regulation_mark="I",
     rarity=Rarities.Uncommon,
-    attach_to=_is_lillies_pokemon,
     passive=LilliesPearlPassive(),
 )

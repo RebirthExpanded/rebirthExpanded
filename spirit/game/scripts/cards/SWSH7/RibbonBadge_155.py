@@ -1,6 +1,6 @@
 from spirit.game.data_utils import PokemonToolCardDef, is_pokemon_v, def_for
 from spirit.game.attributes import Rarities
-from spirit.game.session.passives import Passive, carrier_pokemon
+from spirit.game.session.passives import Passive, carrier_pokemon, ko_by_opposing_attack_damage
 
 
 class RibbonBadgePassive(Passive):
@@ -13,7 +13,7 @@ class RibbonBadgePassive(Passive):
         name = getattr(definition, "display_name", "") or ""
         if "Sylveon" not in name:
             return count
-        if not ctx.is_attack_effect() or ctx.player_id == pokemon.owning_player_id:
+        if not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
         return max(0, count - 1)
 

@@ -1,6 +1,6 @@
 from spirit.game.data_utils import PokemonToolCardDef
 from spirit.game.attributes import Rarities, AttrID
-from spirit.game.session.passives import Passive, carrier_pokemon
+from spirit.game.session.passives import Passive, carrier_pokemon, ko_by_opposing_attack_damage
 from spirit.game.card_effects.pokemon import is_pokemon_vmax
 
 
@@ -13,7 +13,7 @@ class HerosMedalPassive(Passive):
     def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
         if carrier_pokemon(carrier) is not pokemon:
             return count
-        if not ctx.is_attack_effect() or ctx.player_id == pokemon.owning_player_id:
+        if not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
         return max(0, count - 1)
 

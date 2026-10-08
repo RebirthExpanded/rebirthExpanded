@@ -2,6 +2,7 @@
 
 import re
 
+from spirit.game.session.passives import ko_by_opposing_attack_damage
 from spirit.game.attributes import (
     AttrID, CardType, CLIENT_POKEMON_TYPE_NAMES, PokemonStage, PokemonTypes, TrainerType,
 )
@@ -1023,7 +1024,7 @@ class BlackMarketPassive(ShieldedStadiumPassive):
 
     def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
         # "by damage from an opponent's attack", as Lillie's Pearl reads it.
-        if not ctx.is_attack_effect() or ctx.player_id == pokemon.owning_player_id:
+        if not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
         if not is_pokemon_of_type(pokemon, PokemonTypes.DARKNESS):
             return count
