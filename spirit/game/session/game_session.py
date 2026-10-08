@@ -6437,6 +6437,7 @@ class GameSession:
                 self._mark_token_spent(player_id, PlayerAttrID.HAS_VSTAR_TOKEN)
             if ability.gx:
                 self.turn_state.gx_used.add(player_id)
+                self.turn_state.gx_attack_users.add(player_id)
                 self._mark_token_spent(player_id, PlayerAttrID.HAS_GX_TOKEN)
 
         ctx = await resolve_attack(self, player_id, card, ability, action_id)

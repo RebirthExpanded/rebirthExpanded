@@ -1092,6 +1092,7 @@ class EffectContext:
             await ability.effect(self)
         if getattr(ability, "gx", False):
             self.session.turn_state.gx_used.add(self.player_id)
+            self.session.turn_state.gx_attack_users.add(self.player_id)
             self.session._mark_token_spent(self.player_id, PlayerAttrID.HAS_GX_TOKEN)
         if getattr(ability, "vstar", False):
             self.session.turn_state.vstar_used.add(self.player_id)

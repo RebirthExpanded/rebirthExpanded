@@ -173,6 +173,12 @@ class TurnState:
     turn_draw_entity_ids: Set[str] = field(default_factory=set)
     trainers_played_last_turn: List[Tuple[str, str, int]] = field(default_factory=list)
     attacks_used_last_turn: List[Tuple[str, str, str]] = field(default_factory=list)
+    # Players who used a GX attack this turn / last turn -- declared, or
+    # reached through a copy (Apex Dragon, Copycat into Apex Dragon): the
+    # attack ledger above holds only the declared title. Heracross's Turn
+    # the Tables reads "used a GX attack during their last turn".
+    gx_attack_users: Set[str] = field(default_factory=set)
+    gx_attack_users_last_turn: Set[str] = field(default_factory=set)
     kos_by_attack_last_turn: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
     # Every knockout, whatever caused it, keyed by the owner of the Pokemon
     # that was lost. "Knocked Out during your opponent's last turn" counts
@@ -304,6 +310,8 @@ class TurnState:
         self.trainers_played = []
         self.attacks_used_last_turn = self.attacks_used
         self.attacks_used = []
+        self.gx_attack_users_last_turn = self.gx_attack_users
+        self.gx_attack_users = set()
         if not extra_turn:
             self.kos_by_attack_last_turn = self.kos_by_attack
             self.kos_by_attack = {}
