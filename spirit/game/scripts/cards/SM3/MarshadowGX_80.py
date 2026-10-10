@@ -26,12 +26,16 @@ from spirit.game.card_effects.pokemon import (BorrowedAttacksPassive,
                                               own_discard_cards)
 from spirit.game.data_utils import Ability, Attack, PokemonCardDef
 from spirit.game.session.effects import is_basic_energy, is_basic_pokemon
+from spirit.game.session.legal_actions import energy_provided_count
 
 PER_ENERGY = 50
 
 
 def _count_basic_energy(ctx) -> int:
-    return sum(1 for e in ctx.attached_energies(ctx.attacker) if is_basic_energy(e))
+    """"the number of basic Energy attached": the Energy those cards
+    provide, so a basic [G] doubled by Jungle Totem counts as 2 (ruling)."""
+    return sum(energy_provided_count(e, ctx.board)
+               for e in ctx.attached_energies(ctx.attacker) if is_basic_energy(e))
 
 
 card = PokemonCardDef(

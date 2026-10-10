@@ -10,7 +10,7 @@ def _both_actives_energy(ctx):
         if pokemon is None:
             continue
         for energy in ctx.attached_energies(pokemon):
-            total += energy_provided_count(energy)
+            total += energy_provided_count(energy, ctx.board)
     return total
 
 
