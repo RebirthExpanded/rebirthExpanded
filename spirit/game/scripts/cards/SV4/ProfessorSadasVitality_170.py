@@ -3,11 +3,13 @@
 Supporter.
 
   "Choose up to 2 of your Ancient Pokemon and attach a Basic Energy card
-   from your discard pile to each of them. Then, draw 3 cards."
+   from your discard pile to each of them. If you attached any Energy in
+   this way, draw 3 cards."
 
-The draw is unconditional; the attach half needs Ancient Pokemon in play
-and Basic Energy in the discard pile, and each chosen Pokemon takes its
-own pick.
+Playable only with an Ancient Pokemon in play and a Basic Energy card in
+the discard pile -- otherwise the card would do nothing (ruling: it can't
+be played with no Basic Energy in the discard). The draw comes only after
+an attachment, and each chosen Pokemon takes its own pick.
 """
 
 from spirit.game.attributes import Rarities
@@ -19,8 +21,17 @@ def _ancient(pokemon) -> bool:
     return "Ancient" in subtypes_for(pokemon.archetype_id)
 
 
+def _sada_condition(board, player_id) -> bool:
+    """An Ancient Pokemon in play and a Basic Energy card in the discard."""
+    if not any(_ancient(p) for p in board.pokemon_in_play(player_id)):
+        return False
+    discard = board.find_player_area(player_id, "discard")
+    return any(is_basic_energy(c) for c in (discard.children if discard else []))
+
+
 async def professor_sadas_vitality(ctx):
     ancients = [p for p in ctx.my_pokemon_in_play() if _ancient(p)]
+    attached = False
     if ancients and any(is_basic_energy(c) for c in ctx.discard_pile()):
         targets = await ctx.choose_cards(
             ancients, 2, minimum=0,
@@ -32,9 +43,10 @@ async def professor_sadas_vitality(ctx):
             picks = await ctx.choose_cards(
                 energies, 1, minimum=1,
                 prompt="Choose a Basic Energy card from your discard pile to attach")
-            if picks:
-                await ctx.attach_energy(picks[0], target)
-    await ctx.draw_cards(3)
+            if picks and await ctx.attach_energy(picks[0], target):
+                attached = True
+    if attached:
+        await ctx.draw_cards(3)
 
 
 card = SupporterCardDef(
@@ -48,5 +60,6 @@ card = SupporterCardDef(
     set_code="SV4",
     regulation_mark="G",
     rarity=Rarities.Uncommon,
+    condition=_sada_condition,
     effect=professor_sadas_vitality,
 )
