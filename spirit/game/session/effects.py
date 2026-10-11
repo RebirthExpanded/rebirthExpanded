@@ -2900,11 +2900,16 @@ class EffectContext:
         position = len(deck.children)
         if not self.board.move_card(picked.entity_id, deck.entity_id):
             return False
-        self._queue(session._entity_moved_msg(picked.entity_id, deck.entity_id, position),
-                    bracket=GameSequence.GROUPED_MOVE.value)
+        moves = [session._entity_moved_msg(picked.entity_id, deck.entity_id, position)]
         if self.board.move_card(top.entity_id, prize_area.entity_id, slot):
-            self._queue(session._entity_moved_msg(top.entity_id, prize_area.entity_id, slot),
-                        bracket=GameSequence.GROUPED_MOVE.value)
+            moves.append(session._entity_moved_msg(top.entity_id, prize_area.entity_id, slot))
+        # The prize pick left the client's r.B fan open; only a
+        # WithOpenPrizeCards bracket tears it down (Galarian Mr. Rime, Arc
+        # Phone). Sent as a plain GroupedMove the fan stayed up and the game
+        # stalled after Pantomime.
+        await session.send_game_sequence(
+            list(session.players.values()), GameSequence.WITH_OPEN_PRIZE_CARDS, moves)
+        if top.parent is prize_area:
             self._queue(session._attributes_reset_msg(top.entity_id),
                         bracket=GameSequence.GROUPED_MOVE.value)
         self._queue(session._refresh_prize_gaps(pid, prize_area),
