@@ -6059,7 +6059,8 @@ class GameSession:
         await self.choreo_pause(2.0)
         if heads:
             return True
-        discard_area = self.board_state.find_player_area(player_id, "discard")
+        discard_area = self.board_state.find_player_area(
+            player_id, discard_area_name(card.archetype_id))
         if discard_area is not None:
             position = len(discard_area.children)
             if self.board_state.move_card(card.entity_id, discard_area.entity_id):
@@ -6132,6 +6133,10 @@ class GameSession:
         # Normally the trainer discards after resolving; skip when the effect
         # relocated it elsewhere (Hisuian Heavy Ball swaps itself into prizes).
         if card.parent is trainer_area:
+            # Prism Star rule: a Prism Star Supporter (Lysandre, Lance) goes to
+            # the Lost Zone instead of the discard pile.
+            discard_area = self.board_state.find_player_area(
+                player_id, discard_area_name(card.archetype_id)) or discard_area
             position = len(discard_area.children)
             self.board_state.move_card(card.entity_id, discard_area.entity_id)
             discard = self._entity_moved_msg(card.entity_id, discard_area.entity_id, position)

@@ -2955,7 +2955,9 @@ class EffectContext:
         first = None
         for stadium in stadiums:
             owner_id = stadium.owning_player_id or self.player_id
-            discard = self.board.find_player_area(owner_id, "discard")
+            # Prism Star rule: Thunder Mountain {*} goes to the Lost Zone.
+            discard = self.board.find_player_area(
+                owner_id, discard_area_name(stadium.archetype_id))
             if not discard:
                 continue
             position = len(discard.children)
