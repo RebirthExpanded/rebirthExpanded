@@ -46,7 +46,7 @@ card = PokemonCardDef(
         Attack(
             title="Squishy Circle",
             game_text="This attack does 30 damage for each of your Benched Pokémon that has a maximum HP of 30.",
-            cost={PokemonTypes.COLORLESS: 1},
+            cost={},
             damage=30,
             damage_operator="x",
             effect=damage_per(_benched_with_max_hp_30, 30),

@@ -34,7 +34,7 @@ card = PokemonCardDef(
         Attack(
             title="Pay Day",
             game_text="Draw a card.",
-            cost={PokemonTypes.DARKNESS: 1},
+            cost={},
             damage=10,
             effect=draw_attack(1),
         ),
