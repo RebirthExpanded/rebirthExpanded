@@ -694,6 +694,8 @@ class GameSession:
                 await asyncio.gather(*tasks)
 
         if name == OutboundMsg.SEQUENCE_MESSAGE.value:
+            if getattr(self, "_game_ending", False) or self.game_phase == GamePhase.GAME_OVER:
+                raise GameOver()
             async with self._wire_lock:
                 await send_all()
         else:
@@ -727,6 +729,10 @@ class GameSession:
         no-op when the bracket contains zero inner messages. ActivePlayerSet
         accepts an empty bracket to dismiss the pregame coin screen silently.
         """
+        if getattr(self, "_game_ending", False) or self.game_phase == GamePhase.GAME_OVER:
+            # The game is over (end_game started): unwind the caller instead
+            # of drawing on a board the client has already left.
+            raise GameOver()
         # Accept GameSequence enum members or raw strings.
         name = getattr(name, "value", name)
         sequence_id = str(uuid.uuid4())
@@ -3571,6 +3577,12 @@ class GameSession:
 
     async def end_game(self, winner_id: str, reason: str):
         """Announces the result on both clients and unwinds the game loop."""
+        # From here on no board sequence may reach the clients: the result
+        # screen is coming, and the match-end DB writes below await, during
+        # which the gameplay task (an AI mid-turn) could otherwise keep
+        # sending -- a concede on the Bot's turn froze the client when the
+        # Bot's evolution arrived after GameCompleted.
+        self._game_ending = True
         loser_id = self._opponent_id(winner_id)
         logging.info(
             f"[Session {self.game_id}] Game over: "
