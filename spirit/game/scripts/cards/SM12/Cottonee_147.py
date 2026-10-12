@@ -1,4 +1,4 @@
-"""Cottonee (SM - Lost Thunder 143/214 -- JP SM12a 097/173, the art here).
+"""Cottonee (SM - Cosmic Eclipse 147/236 -- JP SM12a 097/173, the art here).
 
 Basic Fairy Pokemon. HP 40, weakness Metal x2, resistance Darkness -20, retreat 1.
 
@@ -11,14 +11,16 @@ from spirit.game.card_effects.pokemon import lost_march_attack
 from spirit.game.data_utils import PokemonCardDef
 
 card = PokemonCardDef(
+    # GUID kept from when this card was filed as SM8 143: renumbering it
+    # must not break saved decks (and SM8-14 is taken by the old Skiploom).
     guid="817a7c23-5146-5b97-b900-2ce0b4250ece",
-    key="SM8",
+    key="SM12",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Cottonee.Name",
     display_name="Cottonee",
     searchable_by=["Cottonee", "Basic"],
     subtypes=["Basic"],
-    collector_number=143,
-    set_code="SM8",
+    collector_number=147,
+    set_code="SM12",
     rarity=Rarities.Common,
     hp=40,
     elements=[PokemonTypes.FAIRY],

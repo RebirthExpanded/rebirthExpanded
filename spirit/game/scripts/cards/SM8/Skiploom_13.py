@@ -1,4 +1,4 @@
-"""Skiploom (SM - Lost Thunder 14/214 -- JP SM8 010/095, the art here).
+"""Skiploom (SM - Lost Thunder 13/214 -- JP SM8 010/095, the art here).
 
 Stage 1 Grass Pokemon (evolves from Hoppip). HP 60, weakness Lightning
 x2, resistance Fighting -20, retreat 0.
@@ -39,13 +39,15 @@ async def floral_path_to_the_sky(ctx):
 
 
 card = PokemonCardDef(
+    # GUID kept from when this card was filed as SM8 14: renumbering it
+    # must not break saved decks (and SM8-14 is taken by the old Skiploom).
     guid="7aa73499-6ba0-51d9-906b-a5183dd5de63",
     key="SM8",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Skiploom.Name",
     display_name="Skiploom",
     searchable_by=["Skiploom", "Stage 1"],
     subtypes=["Stage 1"],
-    collector_number=14,
+    collector_number=13,
     set_code="SM8",
     rarity=Rarities.Uncommon,
     hp=60,

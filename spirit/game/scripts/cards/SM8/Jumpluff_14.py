@@ -1,4 +1,4 @@
-"""Jumpluff (SM - Lost Thunder 15/214 -- JP SM8 011/095, the art here).
+"""Jumpluff (SM - Lost Thunder 14/214 -- JP SM8 011/095, the art here).
 
 Stage 2 Grass Pokemon (evolves from Skiploom). HP 70, weakness Lightning
 x2, resistance Fighting -20, retreat 0.
@@ -12,13 +12,15 @@ from spirit.game.card_effects.pokemon import lost_march_attack
 from spirit.game.data_utils import PokemonCardDef
 
 card = PokemonCardDef(
+    # GUID kept from when this card was filed as SM8 15: renumbering it
+    # must not break saved decks (and SM8-14 is taken by the old Skiploom).
     guid="7ae8ef6e-f4f3-54fc-b039-71e6fa272294",
     key="SM8",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Jumpluff.Name",
     display_name="Jumpluff",
     searchable_by=["Jumpluff", "Stage 2"],
     subtypes=["Stage 2"],
-    collector_number=15,
+    collector_number=14,
     set_code="SM8",
     rarity=Rarities.Rare,
     hp=70,

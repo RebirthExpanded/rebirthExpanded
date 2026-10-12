@@ -28,7 +28,9 @@ class ToolboxPassive(Passive):
 
 
 card = PokemonCardDef(
-    guid="90ae468d-4f29-5021-a628-983c568f237a",
+    # GUID kept from when this card was filed as BW9 41: renumbering it
+    # must not break saved decks (and SM8-14 is taken by the old Skiploom).
+    guid="b71b2764-0172-54a3-b602-45627b19862f",
     key="BW10",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Sigilyph.Name",
     display_name="Sigilyph",

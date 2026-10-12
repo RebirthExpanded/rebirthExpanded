@@ -1,4 +1,4 @@
-"""Palkia-GX (SM - Ultra Prism 20/156 -- JP SM5+ 010/050, the art here).
+"""Palkia-GX (SM - Ultra Prism 101/156 -- JP SM5+ 010/050, the art here).
 
 Basic Water Pokemon-GX. HP 180, weakness Grass x2, no resistance,
 retreat 3. When Knocked Out, the opponent takes 2 Prize cards.
@@ -35,13 +35,15 @@ async def zero_vanish_gx(ctx):
 
 
 card = PokemonCardDef(
+    # GUID kept from when this card was filed as SM5 20: renumbering it
+    # must not break saved decks (and SM8-14 is taken by the old Skiploom).
     guid="200ec94f-7db9-5302-941a-42f3638aa18b",
     key="SM5",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.PalkiaGX.Name",
     display_name="Palkia-GX",
     searchable_by=["Palkia-GX", "Basic", "GX", "PalkiaGX"],
     subtypes=["Basic", "GX"],
-    collector_number=20,
+    collector_number=101,
     set_code="SM5",
     rarity=Rarities.RareUltra,
     hp=180,
