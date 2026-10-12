@@ -3,11 +3,11 @@
 Stage 1 Metal Pokemon (evolves from Onix). HP 170, weakness Fire x2,
 resistance Grass -20, retreat 4.
 
-  Land Crusher  [MC]   50x   Discard as many Pokemon that have a Retreat
+  Land Crusher  [CC]   50x   Discard as many Pokemon that have a Retreat
                              Cost of 4 as you like from your hand. This
                              attack does 50 damage for each card you
                              discarded in this way.
-  Iron Tail     [MCC]  100x  Flip a coin until you get tails. This attack
+  Iron Tail     [MCCC] 100x  Flip a coin until you get tails. This attack
                              does 100 damage for each heads.
 """
 
@@ -67,7 +67,7 @@ card = PokemonCardDef(
         Attack(
             title="Land Crusher",
             game_text="Discard as many Pokémon that have a Retreat Cost of 4 as you like from your hand. This attack does 50 damage for each card you discarded in this way.",
-            cost={PokemonTypes.METAL: 1, PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.COLORLESS: 2},
             damage=50,
             damage_operator="x",
             effect=land_crusher,
@@ -75,7 +75,7 @@ card = PokemonCardDef(
         Attack(
             title="Iron Tail",
             game_text="Flip a coin until you get tails. This attack does 100 damage for each heads.",
-            cost={PokemonTypes.METAL: 1, PokemonTypes.COLORLESS: 2},
+            cost={PokemonTypes.METAL: 1, PokemonTypes.COLORLESS: 3},
             damage=100,
             damage_operator="x",
             effect=iron_tail,

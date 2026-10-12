@@ -2,10 +2,10 @@
 
 Basic Fighting Pokemon. HP 120, weakness Grass x2, retreat 4.
 
-  Land Crush     [FC]   80x  Discard the top 5 cards of your deck. This
+  Land Crush     [CC]   80x  Discard the top 5 cards of your deck. This
                              attack does 80 damage for each Pokemon you
                              discarded that has a Retreat Cost of 4.
-  Heavy Impact   [FCC]  100
+  Heavy Impact   [FFCC] 100
 
 The count is the PRINTED Retreat Cost of the discarded cards -- they are
 in the deck, where no passive reduces anything.
@@ -52,7 +52,7 @@ card = PokemonCardDef(
         Attack(
             title="Land Crush",
             game_text="Discard the top 5 cards of your deck. This attack does 80 damage for each Pokémon you discarded that has a Retreat Cost of 4.",
-            cost={PokemonTypes.FIGHTING: 1, PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.COLORLESS: 2},
             damage=80,
             damage_operator="x",
             effect=land_crush,
@@ -60,7 +60,7 @@ card = PokemonCardDef(
         Attack(
             title="Heavy Impact",
             game_text="",
-            cost={PokemonTypes.FIGHTING: 1, PokemonTypes.COLORLESS: 2},
+            cost={PokemonTypes.FIGHTING: 2, PokemonTypes.COLORLESS: 2},
             damage=100,
         ),
     ],
