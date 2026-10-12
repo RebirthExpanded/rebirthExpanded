@@ -8,6 +8,9 @@ async def aqua_storm(ctx):
     this way to each of 2 chosen opposing Benched Pokémon (no W/R)."""
     milled = ctx.deck_top(5)
     await ctx.discard_cards(milled)
+    # The discard is queued choreography: send it before the Bench pick, or
+    # the client asks for the targets while the deck cards are still on it.
+    await ctx.flush_choreography()
     energy_count = sum(1 for c in milled if is_energy_card(c))
     bench = ctx.opponent_bench()
     if not bench:
