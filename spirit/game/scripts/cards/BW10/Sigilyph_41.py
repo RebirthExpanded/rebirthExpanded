@@ -1,4 +1,4 @@
-"""Sigilyph (BW - Plasma Freeze 41/116 -- JP BW9 033/076, the art here).
+"""Sigilyph (BW - Plasma Blast 41/101 -- JP BW9 033/076, the art here).
 
 Basic Psychic Pokemon. HP 90, weakness Lightning x2, resistance Fighting
 -20, retreat 1.
@@ -28,15 +28,15 @@ class ToolboxPassive(Passive):
 
 
 card = PokemonCardDef(
-    guid="b71b2764-0172-54a3-b602-45627b19862f",
-    key="BW9",
+    guid="90ae468d-4f29-5021-a628-983c568f237a",
+    key="BW10",
     name="com.direwolfdigital.cake.data.archetypes.pokemon.Sigilyph.Name",
     display_name="Sigilyph",
     searchable_by=["Sigilyph", "Basic"],
     subtypes=["Basic"],
     collector_number=41,
-    set_code="BW9",
-    rarity=Rarities.Rare,
+    set_code="BW10",
+    rarity=Rarities.RareHolo,
     hp=90,
     elements=[PokemonTypes.PSYCHIC],
     stage=PokemonStage.BASIC,

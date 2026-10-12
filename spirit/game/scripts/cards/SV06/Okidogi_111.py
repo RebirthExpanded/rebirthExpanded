@@ -72,7 +72,7 @@ card = PokemonCardDef(
         Attack(
             title="Good Punch",
             game_text="",
-            cost={PokemonTypes.DARKNESS: 1, PokemonTypes.COLORLESS: 2},
+            cost={PokemonTypes.FIGHTING: 2},
             damage=70,
         ),
     ],

@@ -60,7 +60,7 @@ card = PokemonCardDef(
         Attack(
             title="Slap",
             game_text="",
-            cost={PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.PSYCHIC: 1},
             damage=30,
         ),
         Attack(

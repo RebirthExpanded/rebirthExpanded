@@ -42,7 +42,7 @@ card = PokemonCardDef(
         Attack(
             title="Collect",
             game_text="Draw 2 cards.",
-            cost={PokemonTypes.COLORLESS: 1},
+            cost={},
             effect=draw_attack(2),
         ),
         Attack(

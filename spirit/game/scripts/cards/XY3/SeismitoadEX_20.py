@@ -58,14 +58,14 @@ card = PokemonCardDef(
         Attack(
             title="Quaking Punch",
             game_text="Your opponent can't play any Item cards from their hand during their next turn.",
-            cost={PokemonTypes.WATER: 1, PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.COLORLESS: 2},
             damage=30,
             effect=quaking_punch,
         ),
         Attack(
             title="Grenade Hammer",
             game_text="This attack does 30 damage to 2 of your Benched Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
-            cost={PokemonTypes.WATER: 1, PokemonTypes.COLORLESS: 3},
+            cost={PokemonTypes.WATER: 2, PokemonTypes.COLORLESS: 1},
             damage=130,
             effect=grenade_hammer,
         ),

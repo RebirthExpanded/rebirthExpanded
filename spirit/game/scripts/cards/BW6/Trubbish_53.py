@@ -31,13 +31,13 @@ card = PokemonCardDef(
         Attack(
             title="Pound",
             game_text="",
-            cost={PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.COLORLESS: 2},
             damage=20,
         ),
         Attack(
             title="Poison Gas",
             game_text="The Defending Pokémon is now Poisoned.",
-            cost={PokemonTypes.PSYCHIC: 1, PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.PSYCHIC: 1, PokemonTypes.COLORLESS: 2},
             damage=30,
             effect=condition_attack(SpecialConditions.POISONED),
         ),

@@ -66,7 +66,7 @@ card = PokemonCardDef(
         Attack(
             title="Cross Chop",
             game_text="Flip a coin. If heads, this attack does 30 more damage.",
-            cost={PokemonTypes.FIGHTING: 2, PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.FIGHTING: 2},
             damage=30,
             damage_operator="+",
             effect=flip_damage(bonus=30, require_all=True),

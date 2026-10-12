@@ -35,7 +35,7 @@ card = PokemonCardDef(
         Attack(
             title="Super Poison Breath",
             game_text="Flip a coin. If heads, your opponent's Active Pokémon is now Poisoned.",
-            cost={PokemonTypes.COLORLESS: 1},
+            cost={},
             effect=condition_attack(SpecialConditions.POISONED, flip=True),
         ),
         Attack(

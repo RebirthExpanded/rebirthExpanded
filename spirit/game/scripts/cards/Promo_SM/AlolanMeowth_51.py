@@ -40,7 +40,7 @@ card = PokemonCardDef(
         Attack(
             title="Nasty Plot",
             game_text="Flip a coin. If heads, search your deck for a card and put it into your hand. Then, shuffle your deck.",
-            cost={PokemonTypes.COLORLESS: 1},
+            cost={},
             effect=flip_or_nothing(then=search_to_hand(
                 count=1, minimum=0,
                 prompt="Choose a card to put into your hand.")),

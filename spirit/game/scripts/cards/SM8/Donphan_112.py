@@ -52,7 +52,7 @@ card = PokemonCardDef(
         Attack(
             title="Rolling Spin",
             game_text="During your next turn, this Pokémon's Rolling Spin attack does 70 more damage (before applying Weakness and Resistance).",
-            cost={PokemonTypes.FIGHTING: 1, PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.FIGHTING: 1, PokemonTypes.COLORLESS: 2},
             damage=70,
             effect=boost_own_next_turn(BONUS, attack_title="Rolling Spin"),
         ),

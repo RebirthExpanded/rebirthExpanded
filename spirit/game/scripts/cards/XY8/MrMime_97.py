@@ -56,7 +56,7 @@ card = PokemonCardDef(
         Attack(
             title="Juggling",
             game_text="Flip 4 coins. This attack does 10 damage times the number of heads.",
-            cost={PokemonTypes.COLORLESS: 2},
+            cost={PokemonTypes.FAIRY: 1, PokemonTypes.COLORLESS: 1},
             damage=10,
             damage_operator="x",
             effect=flip_damage(coins=4, per_heads=10),

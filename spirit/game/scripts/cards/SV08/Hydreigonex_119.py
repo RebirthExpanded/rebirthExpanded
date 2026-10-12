@@ -58,8 +58,7 @@ card = PokemonCardDef(
         Attack(
             title="Obsidian",
             game_text="This attack also does 130 damage to 2 of your opponent's Benched Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
-            cost={PokemonTypes.DARKNESS: 2, PokemonTypes.METAL: 1,
-                  PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.PSYCHIC: 1, PokemonTypes.DARKNESS: 1, PokemonTypes.METAL: 1, PokemonTypes.COLORLESS: 1},
             damage=130,
             effect=snipe_attack(BENCH_HIT, pool="bench", count=2, also_base=True),
         ),

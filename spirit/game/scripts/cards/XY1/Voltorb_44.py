@@ -58,7 +58,7 @@ card = PokemonCardDef(
         Attack(
             title="Rollout",
             game_text="",
-            cost={PokemonTypes.LIGHTNING: 1},
+            cost={PokemonTypes.COLORLESS: 1},
             damage=10,
         ),
     ],

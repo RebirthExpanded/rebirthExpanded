@@ -52,7 +52,7 @@ card = PokemonCardDef(
         Attack(
             title="Aurora Beam",
             game_text="",
-            cost={PokemonTypes.WATER: 2, PokemonTypes.COLORLESS: 1},
+            cost={PokemonTypes.WATER: 3},
             damage=110,
         ),
     ],
