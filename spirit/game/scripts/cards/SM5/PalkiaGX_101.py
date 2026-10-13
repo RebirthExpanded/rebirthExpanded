@@ -47,10 +47,10 @@ card = PokemonCardDef(
     set_code="SM5",
     rarity=Rarities.RareUltra,
     hp=180,
-    elements=[PokemonTypes.WATER],
+    elements=[PokemonTypes.DRAGON],
     stage=PokemonStage.BASIC,
     retreat_cost=3,
-    weakness_type=PokemonTypes.GRASS,
+    weakness_type=PokemonTypes.FAIRY,
     family_id=484,
     abilities=[
         Attack(

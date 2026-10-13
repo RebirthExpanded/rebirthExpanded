@@ -142,7 +142,10 @@ def reprint(
             hp=int(_attr_value(base, AttrID.HP, 0) or 0),
             elements=[PokemonTypes(t) for t in types_raw],
             stage=PokemonStage(int(_attr_value(base, AttrID.STAGE, 0) or 0)),
-            retreat_cost=int(_attr_value(base, AttrID.RETREAT_COST, 1) or 1),
+            # A free retreat (0) is falsy: "or 1" turned every reprint of a
+            # no-retreat Pokemon (Budew, Mega Skarmory ex) into retreat 1.
+            retreat_cost=int(_attr_value(base, AttrID.RETREAT_COST, 1)
+                             if _attr_value(base, AttrID.RETREAT_COST, None) is not None else 1),
             weakness_type=PokemonTypes(weak_raw[0]) if weak_raw else PokemonTypes.UNSET,
             weakness_amount=int(_attr_value(base, AttrID.WEAKNESS_AMOUNT, 2) or 2),
             resistance_type=PokemonTypes(int(_attr_value(base, AttrID.RESISTANCE_TYPES, PokemonTypes.UNSET.value))),

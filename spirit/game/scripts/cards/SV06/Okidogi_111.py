@@ -58,10 +58,10 @@ card = PokemonCardDef(
     regulation_mark="H",
     rarity=Rarities.Rare,
     hp=130,
-    elements=[PokemonTypes.DARKNESS],
+    elements=[PokemonTypes.FIGHTING],
     stage=PokemonStage.BASIC,
     retreat_cost=2,
-    weakness_type=PokemonTypes.GRASS,
+    weakness_type=PokemonTypes.PSYCHIC,
     family_id=1014,
     abilities=[
         Ability(

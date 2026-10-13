@@ -40,8 +40,8 @@ card = PokemonCardDef(
     hp=120,
     elements=[PokemonTypes.WATER],
     stage=PokemonStage.BASIC,
-    retreat_cost=2,
-    weakness_type=PokemonTypes.LIGHTNING,
+    retreat_cost=1,
+    weakness_type=PokemonTypes.GRASS,
     family_id=245,
     abilities=[
         Ability(

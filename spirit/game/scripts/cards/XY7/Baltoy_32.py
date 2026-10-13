@@ -40,10 +40,10 @@ card = PokemonCardDef(
     set_code="XY7",
     rarity=Rarities.Common,
     hp=60,
-    elements=[PokemonTypes.FIGHTING],
+    elements=[PokemonTypes.PSYCHIC],
     stage=PokemonStage.BASIC,
     retreat_cost=1,
-    weakness_type=PokemonTypes.GRASS,
+    weakness_type=PokemonTypes.PSYCHIC,
     family_id=343,
     abilities=[
         Ability(
