@@ -12,13 +12,13 @@ It fills THEIR Bench, which is the whole point: a wider Bench is more to
 snipe at, and the Basics it forces down are Basics they no longer hold for
 a Marnie or an N. Their Bench capacity is the limit, so it stops once
 there is no room, and effect-driven benching is what this is -- no on-play
-trigger fires for the Pokemon it puts down.
+trigger fires for the Pokemon it puts down. Playable with no Basic in
+their hand (it still shows you the hand): what the hand holds is hidden.
 """
 
 from spirit.game.attributes import Rarities
 from spirit.game.data_utils import ItemCardDef
 from spirit.game.session.effects import is_basic_pokemon
-from spirit.game.session.passives import effective_bench_capacity
 
 
 def _their_basics_in_hand(board, player_id):
@@ -29,23 +29,15 @@ def _their_basics_in_hand(board, player_id):
     return [c for c in (hand.children if hand else []) if is_basic_pokemon(c)]
 
 
-def _captivating_poke_puff_playable(board, player_id, card=None):
-    """Nothing to move, or nowhere to put it, and the card does nothing."""
-    if not _their_basics_in_hand(board, player_id):
-        return False
-    opponent = next((p for p in board.player_ids if p != player_id), None)
-    bench = board.find_player_area(opponent, "bench") if opponent else None
-    if bench is None:
-        return False
-    return len(bench.children) < effective_bench_capacity(board, opponent)
-
-
 async def captivating_poke_puff(ctx):
     """Their hand opens; every Basic you pick lands on their Bench."""
-    candidates = _their_basics_in_hand(ctx.board, ctx.player_id)
-    if not candidates:
-        return
+    # Looking at their hand is part of the effect, so the card is playable
+    # whatever that hand holds (ruling) -- and whether it holds a Basic is
+    # hidden information no condition may read.
     await ctx.reveal_hand(of_player=ctx.opponent_id, to_player=ctx.player_id)
+    candidates = _their_basics_in_hand(ctx.board, ctx.player_id)
+    if not candidates or ctx.bench_space(ctx.opponent_id) <= 0:
+        return
     picks = await ctx.choose_cards(
         candidates, len(candidates), minimum=0,
         prompt="Choose Basic Pokémon to put onto your opponent's Bench.",
@@ -67,5 +59,4 @@ card = ItemCardDef(
     set_code="Promo_XY",
     rarity=Rarities.RarePromo,
     effect=captivating_poke_puff,
-    condition=_captivating_poke_puff_playable,
 )
