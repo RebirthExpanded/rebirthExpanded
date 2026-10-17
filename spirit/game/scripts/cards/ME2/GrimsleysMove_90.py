@@ -5,13 +5,17 @@ Supporter.
   "Look at the top 7 cards of your deck and put a [D] Pokemon you find there
    onto your Bench. Shuffle the other cards and put them on the bottom of
    your deck. You can't use this card during your first turn."
+
+Any [D] Pokemon, not just a Basic one: the official Q&A lets an evolved
+[D] Pokemon land on the Bench as it is (as Archie's Ace in the Hole does).
+A LEGEND half never stands alone, so it is not one of them.
 """
 
 import random
 
-from spirit.game.attributes import PokemonTypes, Rarities
+from spirit.game.attributes import AttrID, CardType, PokemonTypes, Rarities
 from spirit.game.data_utils import SupporterCardDef
-from spirit.game.session.effects import is_basic_pokemon, is_pokemon_of_type
+from spirit.game.session.effects import is_pokemon_of_type
 from spirit.game.session.passives import effective_bench_capacity
 
 
@@ -26,7 +30,8 @@ async def grimsleys_move(ctx):
         return
     bench = ctx.board.find_player_area(ctx.player_id, "bench")
     space = effective_bench_capacity(ctx.board, ctx.player_id) - (len(bench.children) if bench else 0)
-    pool = [c for c in top if is_basic_pokemon(c) and is_pokemon_of_type(c, PokemonTypes.DARKNESS)]
+    pool = [c for c in top if c.get_attribute(AttrID.CARD_TYPE) == CardType.POKEMON.value
+            and is_pokemon_of_type(c, PokemonTypes.DARKNESS)]
     picks = []
     if pool and space > 0:
         picks = await ctx.choose_cards(pool, 1, minimum=0, display_cards=top,
