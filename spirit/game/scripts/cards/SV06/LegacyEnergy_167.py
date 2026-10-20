@@ -29,11 +29,14 @@ class _LegacyEnergyPassive(Passive):
         applied = getattr(ctx.session, "legacy_energy_applied", None)
         if applied is None:
             applied = ctx.session.legacy_energy_applied = set()
-        if owner in applied or count <= 0:
+        if owner in applied:
             return count
 
+        # Spent even when nothing is left to take off (official Q&A: a
+        # 1-Prize Pokemon with Shedinja's Vessel of Life on it as well
+        # gives no Prize, and Legacy Energy has still worked).
         applied.add(owner)
-        return count - 1
+        return max(0, count - 1)
 
 
 card = EnergyCardDef(
