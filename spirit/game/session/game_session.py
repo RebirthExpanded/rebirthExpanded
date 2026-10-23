@@ -134,6 +134,7 @@ from .passives import (
     burn_recovery_blocked, discard_destination_for,
     effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, effective_turn_draw, energy_attach_taxer, evolve_heal_amount,
+    conditions_blocked, conditions_survive_evolution,
     confusion_survives_evolution,
     poison_evolution_hold,
     granted_extra_attacks, player_visualizations,
@@ -1610,6 +1611,46 @@ class GameSession:
             pokemon.set_attribute(AttrID.SPECIAL_CONDITIONS, conditions + [name])
         if counters != 1:
             self.poison_counters[pokemon.entity_id] = counters
+        await self.send_game_sequence(
+            list(self.players.values()), GameSequence.ADD_SPECIAL_CONDITION,
+            [self._entity_id_data_effect_msg("Target", pokemon.entity_id),
+             self._condition_attr_msg(pokemon)],
+        )
+
+    def _condition_snapshot(self, pokemon):
+        """A Pokemon's Special Conditions with their bookkeeping, for an
+        evolve/devolve that keeps them all (Sea of Nothingness)."""
+        eid = pokemon.entity_id
+        return (list(pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or []),
+                self.sleep_checkup_coins.get(eid), self.poison_counters.get(eid),
+                self.paralyzed_since.get(eid))
+
+    async def _carry_conditions(self, pokemon, snapshot):
+        """Re-marks `pokemon` with every Special Condition of `snapshot`
+        after an evolve/devolve wiped them (Sea of Nothingness)."""
+        conditions, sleep_coins, poison_count, paralyzed_since = snapshot
+        # The new card's own immunity still cures (official Q&A: Dachsbun's
+        # Ability recovers a Burn, Grumpig's Own Tempo a Confusion).
+        by_name = {v: k for k, v in CLIENT_SPECIAL_CONDITION_NAMES.items()}
+        conditions = [c for c in conditions
+                      if c not in by_name
+                      or not conditions_blocked(self.board_state, pokemon, by_name[c])]
+        if not conditions:
+            return
+        if CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.ASLEEP] not in conditions:
+            sleep_coins = None
+        if CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.POISONED] not in conditions:
+            poison_count = None
+        if CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.PARALYZED] not in conditions:
+            paralyzed_since = None
+        pokemon.set_attribute(AttrID.SPECIAL_CONDITIONS, list(conditions))
+        eid = pokemon.entity_id
+        if sleep_coins is not None:
+            self.sleep_checkup_coins[eid] = sleep_coins
+        if poison_count is not None:
+            self.poison_counters[eid] = poison_count
+        if paralyzed_since is not None:
+            self.paralyzed_since[eid] = paralyzed_since
         await self.send_game_sequence(
             list(self.players.values()), GameSequence.ADD_SPECIAL_CONDITION,
             [self._entity_id_data_effect_msg("Target", pokemon.entity_id),
@@ -5685,14 +5726,20 @@ class GameSession:
             f"evolved {target.entity_id} into {card.entity_id}."
         )
 
+        # Sea of Nothingness: every Special Condition stays through the
+        # evolution, Poison included (no Poison Sack choice to make).
+        keep_all = bool(target.get_attribute(AttrID.SPECIAL_CONDITIONS))             and conditions_survive_evolution(self.board_state, card)
+        snapshot = self._condition_snapshot(target) if keep_all else None
         # Dizzying Valley: a Confused Pokemon stays Confused through the
         # evolution (asked before the wipe, of the new top card).
-        keep_confused = (
+        keep_confused = not keep_all and (
             CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.CONFUSED]
             in (target.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
             and confusion_survives_evolution(self.board_state, card))
         hold_after = poison_evolution_hold(self.board_state, card) if was_poisoned else None
         keep_poison = hold_after == "keep"
+        if keep_all:
+            was_poisoned = keep_poison = False
         if was_poisoned and (keep_poison != (hold_before == "keep")
                              or "optional" in (hold_before, hold_after)):
             # The evolution card's Ability and Poison Sack apply at the same
@@ -5712,6 +5759,8 @@ class GameSession:
                 [self._entity_id_data_effect_msg("Target", target.entity_id),
                  self._condition_attr_msg(target)],
             )
+        if keep_all:
+            await self._carry_conditions(card, snapshot)
         if keep_confused:
             await self._carry_confusion(card)
         if keep_poison:
@@ -5813,14 +5862,18 @@ class GameSession:
         # devolves prints it, so it belongs here rather than on each of them.
         self.turn_state.devolved_this_turn.add(prev.entity_id)
         # Devolving removes Special Conditions (not damage); the removed card
-        # leaves play as a fresh card. Dizzying Valley keeps Confusion.
-        keep_confused = (
+        # leaves play as a fresh card. Dizzying Valley keeps Confusion; Sea
+        # of Nothingness keeps them all.
+        keep_all = bool(pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS))             and conditions_survive_evolution(self.board_state, prev)
+        snapshot = self._condition_snapshot(pokemon) if keep_all else None
+        keep_confused = not keep_all and (
             CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.CONFUSED]
             in (pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
             and confusion_survives_evolution(self.board_state, prev))
         poisoned_name = CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.POISONED]
         hold = (poison_evolution_hold(self.board_state, prev)
-                if poisoned_name in (pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or []) else None)
+                if not keep_all and poisoned_name in (pokemon.get_attribute(AttrID.SPECIAL_CONDITIONS) or [])
+                else None)
         keep_poison = hold == "keep"
         if hold == "optional":
             # Shielded from the opponent's Abilities: Poison Sack holds it
@@ -5866,6 +5919,8 @@ class GameSession:
             list(self.players.values()), GameSequence.DEVOLVE,
             data_effects + moves + attrs,
         )
+        if keep_all:
+            await self._carry_conditions(prev, snapshot)
         if keep_confused:
             await self._carry_confusion(prev)
         if keep_poison:

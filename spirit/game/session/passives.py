@@ -454,6 +454,13 @@ class Passive:
         devolves (Muk's Poison Sack)."""
         return False
 
+    def keeps_conditions_through_evolution(
+        self, pokemon: PokemonEntity, carrier: BoardEntity
+    ) -> bool:
+        """True to keep every Special Condition on a Pokemon when it evolves
+        or devolves (Sea of Nothingness)."""
+        return False
+
     def keeps_confusion_through_evolution(
         self, pokemon: PokemonEntity, carrier: BoardEntity
     ) -> bool:
@@ -1616,6 +1623,15 @@ def poison_survives_evolution(board: BoardState, pokemon: BoardEntity) -> bool:
     """Whether a passive surely keeps Poison on `pokemon` through an
     evolution or devolution (see poison_evolution_hold)."""
     return poison_evolution_hold(board, pokemon) == "keep"
+
+
+def conditions_survive_evolution(board: BoardState, pokemon: BoardEntity) -> bool:
+    """Whether a passive keeps all Special Conditions on `pokemon` through an
+    evolution or devolution (Sea of Nothingness)."""
+    return any(
+        passive.keeps_conditions_through_evolution(pokemon, carrier)
+        for passive, carrier in active_passives(board)
+    )
 
 
 def confusion_survives_evolution(board: BoardState, pokemon: BoardEntity) -> bool:
