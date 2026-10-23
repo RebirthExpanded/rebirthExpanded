@@ -711,6 +711,33 @@ def remove_self_from_play(destination="hand", with_attachments="same",
     return effect
 
 
+# --- BW Fossil Items (Restored Pokemon) -----------------------------------------
+
+def restore_fossil(pokemon_name: str, look: int = 7):
+    """BW Fossil Item (Plume/Cover/Root Fossil, Old Amber): look at the bottom
+    `look` cards of your deck, you may reveal a `pokemon_name` there and put
+    it onto your Bench, then shuffle. Matches EVOLUTION_LOGIC_NAME."""
+    async def effect(ctx):
+        bottom = ctx.deck()[:look]
+        if not bottom:
+            return
+        matches = [c for c in bottom
+                   if c.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == pokemon_name]
+        if len(ctx.my_bench()) >= effective_bench_capacity(ctx.board, ctx.player_id):
+            matches = []
+        # Shows the bottom cards even when nothing there is selectable.
+        picks = await ctx.choose_cards(
+            matches, 1, minimum=0,
+            prompt=f"Choose a {pokemon_name} to put onto your Bench.",
+            display_cards=bottom,
+        )
+        if picks:
+            await ctx.reveal_cards(picks)
+            await ctx.bench_pokemon(picks[0])
+        await ctx.shuffle_deck()
+    return effect
+
+
 # --- Playability condition factories ---------------------------------------------
 # Each returns a check accepting BOTH call shapes: trainers/energies call
 # (board, player_id), abilities call (board, player_id, pokemon).

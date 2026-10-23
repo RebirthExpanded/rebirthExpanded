@@ -155,6 +155,10 @@ def is_grass_energy_card(card) -> bool:
     return is_energy_of_type(card, PokemonTypes.GRASS)
 
 
+def is_psychic_energy_card(card) -> bool:
+    return is_energy_of_type(card, PokemonTypes.PSYCHIC)
+
+
 def is_darkness_pokemon(card) -> bool:
     return is_pokemon_of_type(card, PokemonTypes.DARKNESS)
 

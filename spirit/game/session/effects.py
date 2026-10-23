@@ -3190,6 +3190,53 @@ def is_basic_energy(card: CardEntity) -> bool:
     return is_energy_card(card) and not is_special_energy(card)
 
 
+def is_restored_pokemon(card: CardEntity) -> bool:
+    """BW Restored Pokemon (Archen, Tirtouga, Aerodactyl...): neither Basic
+    nor Evolution; they enter play only through their Fossil Item."""
+    return (
+        is_pokemon_card(card)
+        and card.get_attribute(AttrID.STAGE) == PokemonStage.RESTORED.value
+    )
+
+
+TEAM_PLASMA_SUBTYPE = "Team Plasma"
+
+
+def is_team_plasma_card(card: Optional[CardEntity]) -> bool:
+    """Any card printed as Team Plasma (Pokemon, Trainer or Plasma Energy)."""
+    if card is None:
+        return False
+    from spirit.game.data_utils import subtypes_for
+    return TEAM_PLASMA_SUBTYPE in (subtypes_for(card.archetype_id) or [])
+
+
+def is_team_plasma_pokemon(card: CardEntity) -> bool:
+    """A Team Plasma Pokemon. In play, an attached card whose definition sets
+    grants_team_plasma=True (Team Plasma Badge) also makes it one; tucked
+    pre-evolutions are ignored."""
+    if not is_pokemon_card(card):
+        return False
+    if is_team_plasma_card(card):
+        return True
+    for child in getattr(card, "children", None) or []:
+        if isinstance(child, PokemonEntity):
+            continue
+        if getattr(def_for(getattr(child, "archetype_id", None)), "grants_team_plasma", False):
+            return True
+    return False
+
+
+def is_plasma_energy(card: CardEntity) -> bool:
+    """Plasma Energy: the Team Plasma Special Energy (BW8-BW10)."""
+    return is_special_energy(card) and is_team_plasma_card(card)
+
+
+def plasma_energy_attached(pokemon: PokemonEntity) -> List[CardEntity]:
+    return [c for c in (getattr(pokemon, "children", None) or [])
+            if isinstance(c, CardEntity) and not isinstance(c, PokemonEntity)
+            and is_plasma_energy(c)]
+
+
 def stuck_in_discard(card: CardEntity) -> bool:
     """A card in a discard pile whose own text keeps it there: "This card
     can't be put into your hand or deck from your discard pile"
