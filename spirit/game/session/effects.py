@@ -661,6 +661,9 @@ class EffectContext:
             return 0
         if modify:
             amount = effective_heal_amount(self.board, target, amount)
+            from spirit.game.card_effects.ancient_traits import ALPHA_RECOVERY, has_ancient_trait
+            if has_ancient_trait(target, ALPHA_RECOVERY):
+                amount *= 2  # alpha Recovery: "double the amount healed"
         current = target.get_attribute(AttrID.HP, 0)
         healed = min(self.max_hp(target), current + amount) - current
         if healed <= 0:

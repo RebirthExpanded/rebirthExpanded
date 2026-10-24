@@ -141,6 +141,7 @@ from .passives import (
     mega_evolution_ends_turn, retreat_energy_destination,
     sleep_checkup_coin_count, tool_slots_free,
     coin_flips_forced_tails, tool_suppressed, special_energy_suppressed,
+    trainer_play_blocked,
 )
 from .legal_actions import (
     trainer_play_target_ids,
@@ -5050,6 +5051,50 @@ class GameSession:
             await self.resolve_knockouts(attach_ctx)
         # A manual attach from hand is what ON_ENERGY_ATTACHED observes.
         await self.fire_energy_attached_triggers(player_id, card, target)
+        await self._offer_alpha_growth(player_id, target)
+
+    async def _offer_alpha_growth(self, player_id, target):
+        """alpha Growth: attaching an Energy card from the hand to this
+        Pokemon may attach 2 -- the second goes to the same Pokemon at once,
+        through the same manual-attach path."""
+        if getattr(self, "_alpha_growth_running", False):
+            return
+        from spirit.game.card_effects.ancient_traits import ALPHA_GROWTH, has_ancient_trait
+        if target.parent is None or target._containing_area_name() not in (
+                "activePokemonArea", "bench") or not has_ancient_trait(target, ALPHA_GROWTH):
+            return
+        if self.turn_state.attach_restricted(target.entity_id):
+            return
+        hand = self.board_state.find_player_area(player_id, "hand")
+        candidates = []
+        for c in (hand.children if hand else []):
+            if not isinstance(c, EnergyEntity):
+                continue
+            if self.turn_state.play_locked(player_id, c)                     or trainer_play_blocked(self.board_state, player_id, c):
+                continue
+            definition = def_for(c.archetype_id)
+            condition = getattr(definition, "attach_condition", None)
+            if condition is not None and not condition(self.board_state, player_id):
+                continue
+            attach_to = getattr(definition, "attach_to", None)
+            if attach_to is not None and not attach_to(target):
+                continue
+            candidates.append(c)
+        if not candidates:
+            return
+        ask = EffectContext(self, player_id, target, None)
+        picks = await ask.choose_cards(
+            candidates, 1, minimum=0,
+            prompt="α Growth: attach another Energy card to this Pokémon?")
+        if not picks:
+            return
+        self._alpha_growth_running = True
+        try:
+            await self._execute_attach_energy(
+                player_id, picks[0], {"targetInfoLst": [{"validTargets": [target.entity_id]}]},
+                [target.entity_id])
+        finally:
+            self._alpha_growth_running = False
 
     async def _resolve_attach_tax_flip(self, player_id: str, energy, taxer) -> bool:
         """Slimy Room flip on a manual energy attach: heads (True) proceeds;
