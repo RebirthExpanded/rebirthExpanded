@@ -12,5 +12,7 @@ card = SupporterCardDef(
     collector_number=148,
     set_code="SWSH4",
     rarity=Rarities.Uncommon,
-    effect=draw_attack(2)
+    effect=draw_attack(2),
+    # "If you go first, you may play this card during your first turn."
+    usable_first_turn=True,
 )

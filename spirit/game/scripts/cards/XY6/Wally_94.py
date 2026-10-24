@@ -96,4 +96,6 @@ card = SupporterCardDef(
     rarity=Rarities.Uncommon,
     effect=wally,
     condition=_wally_condition,
+    # "You can use this card during your first turn ..."
+    usable_first_turn=True,
 )
