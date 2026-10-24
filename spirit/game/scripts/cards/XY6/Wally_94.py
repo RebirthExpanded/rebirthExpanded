@@ -13,6 +13,9 @@ timing rules struck out. That Supporter filters its candidates by
 entered_play_turn and gates itself on turn_number > 2; Wally's last
 sentence waives exactly those two, so neither appears here, and
 ctx.evolve_pokemon already bypasses the may-evolve rules on its own.
+"During your first turn" still does not open it to the player going first
+(house rule: only Carmine, Team Rocket's Proton and Beauty are), so it
+carries no usable_first_turn.
 
 "a card that evolves from" is the direct pre-evolution, so this matches
 EVOLUTION_LOGIC_FROM against the target's own name -- not the whole-line
@@ -96,6 +99,4 @@ card = SupporterCardDef(
     rarity=Rarities.Uncommon,
     effect=wally,
     condition=_wally_condition,
-    # "You can use this card during your first turn ..."
-    usable_first_turn=True,
 )
