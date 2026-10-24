@@ -495,6 +495,10 @@ class Triggers:
     """Events the game session fires scripted abilities on (Ability.trigger)."""
     ON_PLAY = "on_play"  # the Pokemon is played from hand onto the bench
     ON_EVOLVE = "on_evolve"  # the Pokemon evolves into this card
+    # A card is being played from hand to evolve THIS Pokemon, before the
+    # evolution happens (Alakazam-EX's Kinesis); ctx.evolution_card is the
+    # card in hand.
+    ON_BEING_EVOLVED = "on_being_evolved"
     ON_KNOCKED_OUT = "on_knocked_out"  # this Pokemon is Knocked Out
     BETWEEN_TURNS = "between_turns"  # fires on every Pokemon Checkup
     # An opponent's attack damaged this Pokemon (Rocky Helmet); the trigger
@@ -518,6 +522,11 @@ class Triggers:
     # move Energy off it. ctx carries ko_from_attack / ko_attacker /
     # was_active_at_ko; ON_KNOCKED_OUT is the post-discard cousin.
     ON_KNOCKED_OUT_IN_PLAY = "on_knocked_out_in_play"
+    # This Pokemon is Knocked Out and may be saved from the discard pile and
+    # the Prize count (Celebi's Leap Through Time): runs before the Prizes
+    # are counted; an effect returning True sends the whole stack into the
+    # owner's deck (shuffled) and no Prize is taken for it.
+    ON_KNOCKED_OUT_REPLACEMENT = "on_knocked_out_replacement"
     # Either player manually put a Basic from hand onto their Bench (Gapejaw
     # Bog); ctx carries benching_player_id / benched_pokemon.
     ON_POKEMON_BENCHED = "on_pokemon_benched"
@@ -1314,10 +1323,17 @@ class PokemonToolCardDef(TrainerCardDef):
                  granted_abilities: Optional[List[Ability]] = None,
                  attach_to: Optional[Callable] = None,
                  on_attach: Optional[Any] = None,
-                 discard_at_opponents_turn_end: bool = False, **kwargs):
+                 discard_at_opponents_turn_end: bool = False,
+                 attach_to_opponent: bool = False,
+                 discard_when_removed: bool = False, **kwargs):
         kwargs['trainer_type'] = TrainerType.POKEMON_TOOL
         super().__init__(**kwargs)
         self.passive = passive
+        # Team Flare Hyper Gear: played onto one of the OPPONENT's Pokemon,
+        # and "when this card is removed from a Pokemon for any reason, put
+        # this card in its owner's discard pile".
+        self.attach_to_opponent = attach_to_opponent
+        self.discard_when_removed = discard_when_removed
         self.attach_to = attach_to
         self.on_attach = on_attach
         self.discard_at_opponents_turn_end = discard_at_opponents_turn_end

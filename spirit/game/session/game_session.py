@@ -2497,6 +2497,30 @@ class GameSession:
                         and not special_energy_suppressed(self.board_state, energy)):
                     energy_ko_hooks.append((owner_id, hook, energy))
 
+        # Leap Through Time (Celebi): "flip a coin. If heads, shuffle this
+        # Pokemon and all cards attached to it into your deck, and your
+        # opponent can't take any Prize cards for it" -- decided before the
+        # Prizes are counted.
+        no_prize_kos = set()
+        for pokemon in list(ctx.knockouts):
+            owner_id = pokemon.owning_player_id
+            if owner_id is None or ability_locked(self.board_state, pokemon):
+                continue
+            for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
+                ability = ABILITIES_BY_ID.get(entry.get("abilityID"))                     if isinstance(entry, dict) else None
+                if ability is None or ability.effect is None                         or not ability.has_trigger(Triggers.ON_KNOCKED_OUT_REPLACEMENT):
+                    continue
+                rep_ctx = EffectContext(self, owner_id, pokemon, ability)
+                rep_ctx.ko_pokemon = pokemon
+                saved = await ability.effect(rep_ctx)
+                await self._flush_effect_runs(rep_ctx)
+                if saved:
+                    no_prize_kos.add(pokemon.entity_id)
+                    if not hasattr(ctx, "knockout_destinations"):
+                        ctx.knockout_destinations = {}
+                    ctx.knockout_destinations[pokemon.entity_id] = ("deck", True)
+                break
+
         # Prize counts/destinations evaluate BEFORE any stack moves so the
         # KO'd Pokemon's own passives and Special Conditions still count.
         passive_pairs = active_passives(self.board_state)
@@ -2540,6 +2564,8 @@ class GameSession:
                  for m in [passive.prize_destination(pokemon, ctx, carrier)] if m),
                 "hand",
             )
+            if pokemon.entity_id in no_prize_kos:
+                count = 0
             prize_plans.append((taker_id, max(0, count), mode))
             ko_from_attack = _damage_ko(pokemon) \
                 and ctx.attacker.owning_player_id != owner_id
@@ -2670,6 +2696,13 @@ class GameSession:
             destinations = {}
             for entity in stack:
                 area = dest_area if (whole_stack or isinstance(entity, PokemonEntity)) else discard
+                # A card the other player put there (Team Flare Hyper Gear)
+                # goes to its owner's discard pile.
+                foreign = getattr(entity, "home_player_id", None)
+                if foreign and foreign != owner_id and not isinstance(entity, PokemonEntity):
+                    entity.home_player_id = None
+                    destinations[entity.entity_id] =                         self.board_state.find_player_area(foreign, "discard") or discard
+                    continue
                 # Prism Star: anything in the stack that would hit a discard
                 # pile goes to the Lost Zone instead, the Pokemon included.
                 if area is discard or dest_name == "discard":
@@ -2698,6 +2731,9 @@ class GameSession:
                         moves.append(self._entity_moved_msg(
                             entity.entity_id, area.entity_id, position
                         ))
+            if dest_name == "deck":
+                # Shuffled in, not placed on top (Leap Through Time).
+                random.shuffle(dest_area.children)
             # Every Pokemon in the stack (the KO'd top plus any tucked
             # pre-evolutions) sheds Special Conditions, attack locks, and any
             # turn-scoped stat-modifier PiPs (Power Tablet) -- it has left play.
@@ -5592,8 +5628,13 @@ class GameSession:
             return
         max_before = effective_max_hp(self.board_state, target)
         position = len(target.children)
+        home = card.owning_player_id
         if not self.board_state.attach_card(card.entity_id, target_id):
             return
+        if home is not None and target.owning_player_id != home:
+            # Team Flare Hyper Gear on the opponent's Pokemon: attaching
+            # hands the entity to that side, so remember whose card it is.
+            card.home_player_id = home
         logging.info(
             f"[Session {self.game_id}] {self.players[player_id].screen_name} "
             f"attached tool {card.entity_id} to {target_id}."
@@ -5654,6 +5695,14 @@ class GameSession:
                 f"[Session {self.game_id}] Evolve without a valid target "
                 f"({target_ids}); re-offering."
             )
+            return
+        # "When you play <card> from your hand to evolve this Pokemon, before
+        # it evolves" (Kinesis): the Pokemon being evolved goes first.
+        def _setup(c, _card=card):
+            c.evolution_card = _card
+        await self._fire_triggered_abilities(
+            player_id, target, Triggers.ON_BEING_EVOLVED, ctx_setup=_setup)
+        if card.parent is None or target.parent is None                 or target._containing_area_name() not in ("activePokemonArea", "bench"):
             return
         await self.perform_evolution(player_id, card, target)
 

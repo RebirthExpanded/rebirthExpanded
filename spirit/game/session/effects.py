@@ -1621,6 +1621,17 @@ class EffectContext:
                         viewer_id=viewer_id, bracket=GameSequence.GROUPED_MOVE.value)
             self._queue(move, viewer_id=viewer_id, bracket=GameSequence.GROUPED_MOVE.value)
 
+    async def _divert_removed_gear(self, cards: List[CardEntity]) -> List[CardEntity]:
+        """Team Flare Hyper Gear: removed from a Pokemon for any reason, it
+        goes to its owner's discard pile instead of wherever the rest goes
+        (Super Scoop Up's hand, a shuffle into the deck)."""
+        gear = [c for c in cards
+                if isinstance(getattr(c, "parent", None), PokemonEntity)
+                and getattr(def_for(c.archetype_id), "discard_when_removed", False)]
+        if gear:
+            await self.discard_cards(gear)
+        return [c for c in cards if c not in gear]
+
     async def put_in_hand(self, cards: List[CardEntity], reveal: bool = True):
         """Moves cards (from deck/discard/etc.) into their owner's hand.
 
@@ -1628,6 +1639,7 @@ class EffectContext:
         ("...reveal it, and put it into your hand").
         """
         reveal_batches = {}
+        cards = await self._divert_removed_gear(cards)
         cards = [c for c in cards if not stuck_in_discard(c)]
         cards = self._depart_legends(cards, "hand")
         for card in cards:
@@ -1902,7 +1914,12 @@ class EffectContext:
     async def _move_to_public_pile(self, cards: List[CardEntity], area_name: str):
         cards = self._depart_legends(cards, area_name)
         for card in cards:
-            owner = card.owning_player_id or self.player_id
+            # A card played onto the other side's Pokemon (Team Flare Hyper
+            # Gear) goes back to its own player's pile.
+            home = getattr(card, "home_player_id", None)
+            if home is not None:
+                card.home_player_id = None
+            owner = home or card.owning_player_id or self.player_id
             # Prism Star: a discard becomes a Lost Zone move.
             target_area = (discard_area_name(card.archetype_id)
                            if area_name == "discard" else area_name)
@@ -2076,6 +2093,7 @@ class EffectContext:
         deck = self.board.find_player_area(pid, "deck")
         if not deck:
             return
+        cards = await self._divert_removed_gear(cards)
         cards = [c for c in cards if not stuck_in_discard(c)]
         cards = self._depart_legends(cards, "deck")
         for card in cards:
