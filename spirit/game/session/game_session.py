@@ -311,6 +311,9 @@ class GameSession:
         # entity_id -> damage-counter multiplier while Poisoned (10 * count
         # dealt each checkup; default 1).
         self.poison_counters: Dict[str, int] = {}
+        # entity_id -> damage counters a Confused tails puts on it (3 unless
+        # an effect said otherwise -- Lanturn's Disorienting Flash).
+        self.confusion_counters: Dict[str, int] = {}
         # entity_id -> turn number Paralyzed was applied (cures after the
         # checkup following the OWNER's next turn, not the same turn).
         self.paralyzed_since: Dict[str, int] = {}
@@ -1602,6 +1605,7 @@ class GameSession:
         self.sleep_checkup_coins.pop(entity_id, None)
         self.poison_counters.pop(entity_id, None)
         self.paralyzed_since.pop(entity_id, None)
+        self.confusion_counters.pop(entity_id, None)
 
     async def _carry_poison(self, pokemon, counters: int = 1):
         """Re-marks `pokemon` Poisoned (same counters per checkup) after an
@@ -6775,7 +6779,8 @@ class GameSession:
         if heads:
             return True
         knocked_out = await self._apply_raw_damage(
-            attacker, 30, GameSequence.HURT_FROM_CONFUSION.value
+            attacker, 10 * self.confusion_counters.get(attacker.entity_id, 3),
+            GameSequence.HURT_FROM_CONFUSION.value
         )
         if knocked_out:
             await self._resolve_raw_knockout(attacker)

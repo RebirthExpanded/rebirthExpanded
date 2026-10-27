@@ -707,6 +707,7 @@ class EffectContext:
         condition: SpecialConditions,
         checkup_coins: int = 1,
         poison_counters: int = 1,
+        confusion_counters: int = 3,
     ) -> bool:
         """Applies a Special Condition (Asleep etc.); returns False if shielded.
 
@@ -758,6 +759,11 @@ class EffectContext:
             self.session.sleep_checkup_coins[target.entity_id] = checkup_coins
         elif condition == SpecialConditions.POISONED:
             self.session.poison_counters[target.entity_id] = poison_counters
+        elif condition == SpecialConditions.CONFUSED:
+            if confusion_counters != 3:
+                self.session.confusion_counters[target.entity_id] = confusion_counters
+            else:
+                self.session.confusion_counters.pop(target.entity_id, None)
         elif condition == SpecialConditions.PARALYZED:
             self.session.paralyzed_since[target.entity_id] = self.session.turn_state.turn_number
         # The executor diffs the full new array; its ctor requires a "Target" data effect.
@@ -1635,6 +1641,14 @@ class EffectContext:
             await self.discard_cards(gear)
         return [c for c in cards if c not in gear]
 
+    def _put_in_hand_blocked(self, card: CardEntity, owner: str) -> bool:
+        """An in-play card a passive keeps out of the hand (Mentally Calm)."""
+        holder = carrier_pokemon(card)
+        if holder is None or holder not in self.board.pokemon_in_play(owner):
+            return False
+        return any(passive.blocks_put_in_hand(card, carrier)
+                   for passive, carrier in active_passives(self.board))
+
     async def put_in_hand(self, cards: List[CardEntity], reveal: bool = True):
         """Moves cards (from deck/discard/etc.) into their owner's hand.
 
@@ -1651,6 +1665,8 @@ class EffectContext:
             if not hand:
                 continue
             if self._energy_removal_blocked(card):
+                continue
+            if self._put_in_hand_blocked(card, owner):
                 continue
             # Slime Mold Colony: an Ability or Trainer of the pile's owner
             # can't lift a card out of their own discard pile.

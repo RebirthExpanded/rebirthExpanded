@@ -1,0 +1,60 @@
+"""Duraludon (SV085 69 -- JP SV7 072; English PRE/69, SCR/106). Japanese art.
+"""
+
+from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
+from spirit.game.data_utils import Ability, Activations, Attack, PokemonCardDef, Triggers
+
+from spirit.game.card_effects import attacks_common as ac
+from spirit.game.attributes import AttrID, CLIENT_SPECIAL_CONDITION_NAMES
+
+from spirit.game.session.passives import effective_max_hp
+
+
+def _counters(board, pokemon) -> int:
+    return max(0, effective_max_hp(board, pokemon) - pokemon.get_attribute(AttrID.HP, 0)) // 10
+
+
+def _own(ctx) -> int:
+    return _counters(ctx.board, ctx.attacker)
+
+
+def _defender_counters(ctx) -> int:
+    return _counters(ctx.board, ctx.defender) if ctx.defender is not None else 0
+
+
+card = PokemonCardDef(
+    guid="34d8449b-8637-587e-9546-bf075ddb9971",
+    key="SV085",
+    name="com.direwolfdigital.cake.data.archetypes.pokemon.Duraludon.Name",
+    display_name="Duraludon",
+    searchable_by=["Duraludon", "Basic"],
+    subtypes=["Basic"],
+    collector_number=69,
+    set_code="SV085",
+    regulation_mark="H",
+    rarity=Rarities.Common,
+    hp=130,
+    elements=[PokemonTypes.METAL],
+    stage=PokemonStage.BASIC,
+    retreat_cost=2,
+    weakness_type=PokemonTypes.FIRE,
+    resistance_type=PokemonTypes.GRASS,
+    resistance_amount=30,
+    family_id=884,
+    abilities=[
+        Attack(
+            title="Hammer In",
+            game_text="",
+            cost={PokemonTypes.METAL: 1},
+            damage=30,
+        ),
+        Attack(
+            title="Raging Hammer",
+            game_text="This attack does 10 more damage for each damage counter on this Pokémon.",
+            cost={PokemonTypes.METAL: 2, PokemonTypes.COLORLESS: 1},
+            damage=80,
+            damage_operator="+",
+            effect=ac.damage_per(_own, 10, base=80),
+        ),
+    ],
+)

@@ -569,6 +569,11 @@ class Passive:
         """True to forbid moving damage counters between Pokémon (Patrat)."""
         return False
 
+    def blocks_put_in_hand(self, card: BoardEntity, carrier: BoardEntity) -> bool:
+        """True to keep an in-play card (a Pokemon or anything attached to
+        one) from being put into its owner's hand (Milotic's Mentally Calm)."""
+        return False
+
     def blocks_discard(self, card: BoardEntity, carrier: BoardEntity) -> bool:
         """True to keep `card` from being discarded by an opponent's effect."""
         return False
