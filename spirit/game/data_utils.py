@@ -510,6 +510,15 @@ class Triggers:
     # This Pokemon moved into the Active spot (Cinderace Libero); fires at
     # most once per entity per turn.
     ON_MOVE_TO_ACTIVE = "on_move_to_active"
+    # Another of the owner's Pokemon moved into the Active spot during the
+    # owner's turn (Latios's Lustrous Assist); ctx carries moved_pokemon.
+    ON_ALLY_MOVE_TO_ACTIVE = "on_ally_move_to_active"
+    # One of the opponent's Pokemon moved into their Active spot during the
+    # opponent's turn (Mismagius ex's Swirling Prose); ctx carries moved_pokemon.
+    ON_OPPONENT_MOVE_TO_ACTIVE = "on_opponent_move_to_active"
+    # The opponent's Active Pokemon moved to their Bench during their turn
+    # (Team Rocket's Dugtrio's Holes); ctx carries moved_pokemon.
+    ON_OPPONENT_MOVE_TO_BENCH = "on_opponent_move_to_bench"
     # This Pokemon moved from its owner's Active Spot to their Bench during
     # the owner's own turn (Palafin's Zero to Hero): retreat or a switch.
     ON_MOVE_TO_BENCH = "on_move_to_bench"

@@ -5001,6 +5001,22 @@ class GameSession:
             return
         await self._fire_triggered_abilities(
             pokemon.owning_player_id, pokemon, Triggers.ON_MOVE_TO_BENCH)
+        # The other side watching it (Team Rocket's Dugtrio's Holes).
+        def _setup(c, moved=pokemon):
+            c.moved_pokemon = moved
+        others = [pid for pid in self.board_state.player_ids if pid != pokemon.owning_player_id]
+        await self._fire_watchers(others, Triggers.ON_OPPONENT_MOVE_TO_BENCH, _setup,
+                                  pokemon.owning_player_id)
+
+    async def _fire_watchers(self, player_ids, trigger, ctx_setup, chooser_id, exclude=None):
+        """`trigger` on every in-play Pokemon of `player_ids` (but `exclude`),
+        honoring each Ability's trigger_applies."""
+        entries = [(pid, watcher, ability)
+                   for pid in player_ids
+                   for watcher in list(self.board_state.pokemon_in_play(pid)) if watcher is not exclude
+                   for ability in self._abilities_of(watcher) if ability.has_trigger(trigger)]
+        if entries:
+            await self._run_simultaneous_triggers(entries, ctx_setup, chooser_id)
 
     async def fire_move_to_active_triggers(self, pokemon):
         """ON_MOVE_TO_ACTIVE (Cinderace Libero, Wyrdeer V, Iron Valiant ex),
@@ -5018,6 +5034,14 @@ class GameSession:
         owner_id = pokemon.owning_player_id
         if not owner_id or owner_id != ts.active_player_id:
             return
+        # Benched allies watching the move (Latios's Lustrous Assist).
+        def _ally_setup(c, moved=pokemon):
+            c.moved_pokemon = moved
+        await self._fire_watchers([owner_id], Triggers.ON_ALLY_MOVE_TO_ACTIVE, _ally_setup,
+                                  owner_id, exclude=pokemon)
+        # The other side watching it (Mismagius ex's Swirling Prose).
+        others = [pid for pid in self.board_state.player_ids if pid != owner_id]
+        await self._fire_watchers(others, Triggers.ON_OPPONENT_MOVE_TO_ACTIVE, _ally_setup, owner_id)
         if pokemon.entity_id in ts.on_move_to_active_fired:
             return
         ts.on_move_to_active_fired.add(pokemon.entity_id)
@@ -5895,6 +5919,14 @@ class GameSession:
         for stadium in list(stadium_area.children if stadium_area else []):
             entries.extend((player_id, stadium, a) for a in self._abilities_of(stadium)
                            if a.has_trigger(Triggers.ON_POKEMON_EVOLVED))
+        # In-play Pokemon watching every evolution (Team Rocket's Ampharos's
+        # Darkest Impulse) ride the same watch.
+        for watcher_pid in self.board_state.player_ids:
+            for watcher in list(self.board_state.pokemon_in_play(watcher_pid)):
+                if watcher is card:
+                    continue
+                entries.extend((watcher_pid, watcher, a) for a in self._abilities_of(watcher)
+                               if a.has_trigger(Triggers.ON_POKEMON_EVOLVED))
         await self._run_simultaneous_triggers(entries, _evolve_setup, player_id,
                                               shown_card=card)
         # Mega Evolution rule: "When 1 of your Pokemon becomes a Mega Evolution

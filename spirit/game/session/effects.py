@@ -204,6 +204,8 @@ class EffectContext:
         # ON_ALLY_EVOLVED trigger inputs (set via ctx_setup).
         self.evolved_pokemon: Optional[CardEntity] = None
         self.evolved_from: Optional[PokemonEntity] = None
+        # ON_*_MOVE_TO_ACTIVE / ON_OPPONENT_MOVE_TO_BENCH watcher input.
+        self.moved_pokemon: Optional[PokemonEntity] = None
         # ON_POKEMON_BENCHED trigger inputs (set via ctx_setup).
         self.benching_player_id: Optional[str] = None
         self.benched_pokemon: Optional[PokemonEntity] = None
