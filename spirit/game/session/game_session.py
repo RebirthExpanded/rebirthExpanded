@@ -141,7 +141,7 @@ from .passives import (
     mega_evolution_ends_turn, retreat_energy_destination,
     sleep_checkup_coin_count, tool_slots_free,
     coin_flips_forced_tails, tool_suppressed, special_energy_suppressed,
-    trainer_play_blocked,
+    trainer_play_blocked, retreat_flip_title,
 )
 from .legal_actions import (
     trainer_play_target_ids,
@@ -4011,6 +4011,14 @@ class GameSession:
             f"[Session {self.game_id}] Sleep check for {active.entity_id}: "
             f"{'woke up' if woke else 'still Asleep'} ({flips})."
         )
+        # Good Sleep (Snorlax): still Asleep after the flip heals all damage.
+        if not woke and any(p.heals_when_stays_asleep(active, c)
+                            for p, c in active_passives(self.board_state)):
+            missing = effective_max_hp(self.board_state, active) - active.get_attribute(AttrID.HP, 0)
+            if missing > 0:
+                heal_ctx = EffectContext(self, active.owning_player_id or player_id, active, None)
+                if await heal_ctx.heal(missing, target=active):
+                    await self._flush_effect_runs(heal_ctx)
 
     async def _broadcast_shuffle_deck(self, player_id: str):
         """Shuffles a player's deck server-side and plays the shuffle animation on both clients.
@@ -6474,6 +6482,25 @@ class GameSession:
             )
             return
 
+        # Slimy Sliding (Goodra): the retreating side flips first; tails
+        # pays nothing and switches nothing, but the retreat is spent.
+        slide = retreat_flip_title(self.board_state, card)
+        if slide:
+            flip = random.choice([0, 1])
+            if coin_flips_forced_tails(self.board_state, player_id):
+                flip = 1
+            await self.send_game_sequence(
+                list(self.players.values()), GameSequence.POKE_ABILITY,
+                [self._build_msg(
+                    OutboundMsg.MULTIPLE_COIN_FLIP_WITH_CONTEXT_EFFECT.value,
+                    {"gameID": self.game_id, "resultLst": [flip], "title": {"id": slide},
+                     "source": card.entity_id, "targets": [card.entity_id]},
+                )],
+            )
+            if flip == 1:
+                self.turn_state.retreated = True
+                return
+
         # The Retreat executor (N.P) requires the Retreating/NewActive data
         # effects, applies both Pokemon moves data-only (it plays the swap
         # animations itself), and WrapSequences the energy discards.
@@ -6663,19 +6690,20 @@ class GameSession:
         not happen (no damage, no lock/VSTAR bookkeeping; the turn still
         ends). PokeAbility bracket: M.s runs the L.x flip with no condition
         pop-in (FlipToWakeUp would stamp the Asleep pop-in)."""
-        flip = random.choice([0, 1])
+        coins = self.turn_state.attack_flip_coin_count(attacker.entity_id)
+        flips = [random.choice([0, 1]) for _ in range(max(1, coins))]
         if coin_flips_forced_tails(self.board_state, player_id):
-            flip = 1  # Contrary: the opponent's in-turn coins are all tails
-        heads = flip == 0
-        self.stat_add(player_id, "headsflipped", 1 if heads else 0)
-        self.stat_add(player_id, "tailsflipped", 0 if heads else 1)
+            flips = [1] * len(flips)  # Contrary: the opponent's in-turn coins are all tails
+        heads = all(f == 0 for f in flips)
+        self.stat_add(player_id, "headsflipped", sum(1 for f in flips if f == 0))
+        self.stat_add(player_id, "tailsflipped", sum(1 for f in flips if f == 1))
         await self.send_game_sequence(
             list(self.players.values()), GameSequence.POKE_ABILITY,
             [self._build_msg(
                 OutboundMsg.MULTIPLE_COIN_FLIP_WITH_CONTEXT_EFFECT.value,
                 {
                     "gameID": self.game_id,
-                    "resultLst": [flip],
+                    "resultLst": flips,
                     "title": {"id": title or TEXT_ATTACK_FLIP_CHECK},
                     "gameText": {"id": TEXT_ATTACK_FLIP_PROCEEDS if heads
                                  else TEXT_ATTACK_FLIP_FAILS},

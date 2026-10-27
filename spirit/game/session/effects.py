@@ -901,7 +901,7 @@ class EffectContext:
 
     def require_attack_flip(self, target: Optional[PokemonEntity],
                             through_turn: Optional[int] = None,
-                            title: Optional[str] = None) -> None:
+                            title: Optional[str] = None, coins: int = 1) -> None:
         """Smokescreen: "if the Defending Pokemon tries to attack ... flip a
         coin. If tails, that attack doesn't happen" (default: through the
         opponent's next turn; cleared when the target leaves the Active)."""
@@ -910,6 +910,7 @@ class EffectContext:
         self.session.turn_state.set_attack_flip_check(
             target.entity_id, through_turn,
             title if title is not None else (self.ability.title if self.ability else ""),
+            coins=coins,
         )
 
     def require_trainer_flip(self, player_id: str, through_turn: Optional[int] = None,

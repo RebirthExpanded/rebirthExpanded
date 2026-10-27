@@ -564,13 +564,19 @@ class TurnState:
         return self.turn_number <= self.attach_restrictions.get(entity_id, -1)
 
     def set_attack_flip_check(self, entity_id: str, through_turn: Optional[int] = None,
-                              title: str = ""):
+                              title: str = "", coins: int = 1):
         """Requires a coin flip before `entity_id` attacks (tails = the attack
-        doesn't happen); default lifetime: through the opponent's next turn."""
+        doesn't happen); default lifetime: through the opponent's next turn.
+        coins > 1: every coin must be heads (Octillery's Jet of Ink)."""
         self.attack_flip_checks[entity_id] = (
             self.turn_number + 1 if through_turn is None else through_turn,
             title,
+            coins,
         )
+
+    def attack_flip_coin_count(self, entity_id: str) -> int:
+        entry = self.attack_flip_checks.get(entity_id)
+        return entry[2] if entry is not None and len(entry) > 2 else 1
 
     def attack_flip_check(self, entity_id: str) -> Optional[str]:
         """The flip title when `entity_id` must flip to attack this turn, else None."""
@@ -914,7 +920,21 @@ def compute_legal_actions(
                         target_infos,
                     ))
             elif trainer_type == TrainerType.STADIUM.value:
-                if not state.stadium_played and not _same_stadium_in_play(board, card):
+                # Ange Floette: only by discarding a named Stadium in play, and
+                # playable the same turn that Stadium was played.
+                required = getattr(definition, "replaces_stadium", None)
+                if required is not None:
+                    stadium_area = board.find_global_area("activeStadium")
+                    names = [getattr(def_for(c.archetype_id), "display_name", None)
+                             for c in (stadium_area.children if stadium_area else [])]
+                    played_it = any(getattr(def_for(aid), "display_name", None) == required
+                                    for aid, _n, _t in state.trainers_played)
+                    if required in names and (not state.stadium_played or played_it):
+                        entries.append(_target_map_entry(
+                            game_id, card.entity_id,
+                            action_id_for(card.entity_id, "stadium"), ACTION_PLAY_STADIUM,
+                        ))
+                elif not state.stadium_played and not _same_stadium_in_play(board, card):
                     entries.append(_target_map_entry(
                         game_id, card.entity_id,
                         action_id_for(card.entity_id, "stadium"), ACTION_PLAY_STADIUM,

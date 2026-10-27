@@ -254,6 +254,16 @@ class Passive:
         Attack's own condition, and turn-scoped ones on TurnState.lock_attack."""
         return False
 
+    def heals_when_stays_asleep(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
+        """True to heal all damage from `pokemon` when it remains Asleep
+        through Pokemon Checkup (Snorlax's Good Sleep)."""
+        return False
+
+    def retreat_flip_title(self, pokemon: PokemonEntity, carrier: BoardEntity) -> Optional[str]:
+        """A title when `pokemon` retreating must first flip a coin, tails
+        cancelling the retreat (Goodra's Slimy Sliding); None otherwise."""
+        return None
+
     def blocks_retreat(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
         """True to forbid `pokemon` from retreating (Octolock, Flygon)."""
         return False
@@ -1399,6 +1409,15 @@ def attack_effects_blocked(board: BoardState, target: PokemonEntity,
         passive.blocks_attack_effects(target, carrier, source)
         for passive, carrier in active_passives(board)
     )
+
+
+def retreat_flip_title(board: BoardState, pokemon: PokemonEntity) -> Optional[str]:
+    """The first passive asking for a retreat flip (they don't stack)."""
+    for passive, carrier in active_passives(board):
+        title = passive.retreat_flip_title(pokemon, carrier)
+        if title:
+            return title
+    return None
 
 
 def retreat_blocked(board: BoardState, pokemon: PokemonEntity) -> bool:
