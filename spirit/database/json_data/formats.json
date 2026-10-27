@@ -25,12 +25,23 @@
         "SVP",
         "ME6",
         "ME6A",
-        "MEP"
+        "MEP",
+        "MEM",
+        "MP",
+        "MF",
+        "MEE",
+        "MEZ",
+        "MP1"
       ],
       "allSets": false,
       "bannedCards": [],
       "extraLegalCards": [],
-      "legalFrom": {}
+      "legalFrom": {},
+      "legalRegulations": [
+        "H",
+        "I",
+        "J"
+      ]
     },
     {
       "key": "Expanded",
@@ -237,12 +248,23 @@
         "ME6",
         "ME6A",
         "MEP",
-        "SVP"
+        "SVP",
+        "MEM",
+        "MP",
+        "MF",
+        "MEE",
+        "MEZ",
+        "MP1"
       ],
       "allSets": false,
       "bannedCards": [],
       "extraLegalCards": [],
-      "legalFrom": {}
+      "legalFrom": {},
+      "legalRegulations": [
+        "H",
+        "I",
+        "J"
+      ]
     }
   ]
 }

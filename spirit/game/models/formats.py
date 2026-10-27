@@ -28,6 +28,7 @@ class GameFormat:
         banned_cards: Optional[List[str]] = None,
         extra_legal_cards: Optional[List[str]] = None,
         legal_from: Optional[Dict[str, int]] = None,
+        legal_regulations: Optional[List[str]] = None,
     ):
         self.key = key
         self.guid = str(guid).lower()
@@ -39,6 +40,9 @@ class GameFormat:
         self.extra_legal_cards = [str(c) for c in (extra_legal_cards or [])]
         # set_code -> epoch ms when the set becomes legal (0/absent = always).
         self.legal_from = {str(k): int(v) for k, v in (legal_from or {}).items()}
+        # Regulation marks legal whatever set the card is in (Standard: every
+        # H, I and J card, the Japan-only sets' and old-set reprints' too).
+        self.legal_regulations = [str(r).upper() for r in (legal_regulations or [])]
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "GameFormat":
@@ -59,6 +63,9 @@ class GameFormat:
         legal_from = data.get("legalFrom", {})
         if not isinstance(legal_from, dict):
             raise ValueError(f"format '{key}': 'legalFrom' must be an object")
+        regulations = data.get("legalRegulations", [])
+        if not isinstance(regulations, list) or not all(isinstance(r, str) for r in regulations):
+            raise ValueError(f"format '{key}': 'legalRegulations' must be a list of marks")
         return cls(
             key=key,
             guid=str(guid),
@@ -68,6 +75,7 @@ class GameFormat:
             banned_cards=data.get("bannedCards", []),
             extra_legal_cards=data.get("extraLegalCards", []),
             legal_from=legal_from,
+            legal_regulations=regulations,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -80,6 +88,7 @@ class GameFormat:
             "bannedCards": list(self.banned_cards),
             "extraLegalCards": list(self.extra_legal_cards),
             "legalFrom": dict(self.legal_from),
+            **({"legalRegulations": list(self.legal_regulations)} if self.legal_regulations else {}),
         }
 
     def allows_set(self, set_code: Optional[str]) -> bool:

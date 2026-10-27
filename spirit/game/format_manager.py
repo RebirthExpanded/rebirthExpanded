@@ -8,6 +8,7 @@ from spirit.game.attributes import AttrID, CardType, DeckFormat
 from spirit.game.models.formats import GameFormat, FORMAT_WIRE_NAMES
 from spirit.game.set_utils import card_script_counts
 from spirit.game.scripts.cards import loader as card_loader
+from spirit.game.data_utils import def_for
 
 FORMATS_PATH = os.path.abspath(os.path.join(
     os.path.dirname(__file__), '..', 'database', 'json_data', 'formats.json'
@@ -201,7 +202,12 @@ class FormatManager:
         if guid in extra:
             return True
         set_code = card.get_attribute_value(AttrID.SET_KEY) or card.key
-        return fmt.allows_set(set_code)
+        if fmt.allows_set(set_code):
+            return True
+        if fmt.legal_regulations:
+            mark = getattr(def_for(card.guid), "regulation_mark", None)
+            return bool(mark) and mark.upper() in fmt.legal_regulations
+        return False
 
     def is_card_legal(self, format_guid: str, card, now_ms: Optional[int] = None) -> bool:
         if not self.is_card_eventually_legal(format_guid, card):
