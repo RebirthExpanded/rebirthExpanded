@@ -569,6 +569,18 @@ class Passive:
         """True to forbid moving damage counters between Pokémon (Patrat)."""
         return False
 
+    def blocks_attack_counters(self, target: PokemonEntity, attacker: PokemonEntity,
+                               carrier: BoardEntity) -> bool:
+        """True to keep the effect of `attacker`'s attack from placing damage
+        counters on `target` (Jirachi's Stellar Veil). Damage is not counters."""
+        return False
+
+    def blocks_trainer_recycle(self, card: BoardEntity, player_id: str,
+                               carrier: BoardEntity) -> bool:
+        """True to keep `player_id`'s Item/Supporter from putting Trainer
+        `card` from their discard pile into their deck (Sand Screen)."""
+        return False
+
     def blocks_put_in_hand(self, card: BoardEntity, carrier: BoardEntity) -> bool:
         """True to keep an in-play card (a Pokemon or anything attached to
         one) from being put into its owner's hand (Milotic's Mentally Calm)."""

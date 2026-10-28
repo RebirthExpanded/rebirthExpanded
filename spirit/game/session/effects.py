@@ -349,6 +349,10 @@ class EffectContext:
             return False
         if not (self.is_attack_effect() or self.is_ability_effect()):
             return False
+        if self.is_attack_effect() and self.attacker is not None and any(
+                passive.blocks_attack_counters(target, self.attacker, carrier)
+                for passive, carrier in active_passives(self.board)):
+            return True
         return damage_counters_blocked(self.board, target)
 
     def _trainer_blocked(self, player_or_entity) -> bool:
@@ -2105,6 +2109,16 @@ class EffectContext:
                 {"gameID": self.game_id, "entityID": deck.entity_id},
             ), bracket=GameSequence.GROUPED_MOVE.value)
 
+    def _trainer_recycle_blocked(self, card: CardEntity) -> bool:
+        """A Trainer leaving its owner's discard pile for the deck through
+        that player's own Item/Supporter, under an opposing lock (Sandshrew's
+        Sand Screen)."""
+        if not (self.is_trainer_effect and is_trainer_card(card)
+                and card._containing_area_name() == "discard"):
+            return False
+        return any(passive.blocks_trainer_recycle(card, self.player_id, carrier)
+                   for passive, carrier in active_passives(self.board))
+
     async def shuffle_into_deck(self, cards: List[CardEntity],
                                 player_id: Optional[str] = None):
         """Moves cards into their owner's deck, then shuffles it."""
@@ -2118,6 +2132,8 @@ class EffectContext:
         for card in cards:
             if self._trainer_blocked(card) or self._energy_removal_blocked(card) \
                     or self._player_attack_effect_blocked(card):
+                continue
+            if self._trainer_recycle_blocked(card):
                 continue
             holder = self._tool_holder_before_move(card)
             position = len(deck.children)
