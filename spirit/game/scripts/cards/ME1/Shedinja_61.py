@@ -31,8 +31,9 @@ class FragileHuskPassive(Passive):
     def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
         if pokemon is not carrier_pokemon(carrier):
             return count
-        attacker = getattr(ctx, "ko_attacker", None)
-        if (getattr(ctx, "ko_from_attack", False) and attacker is not None
+        attacker = getattr(ctx, "attacker", None)
+        by_damage = ctx.is_attack_effect() and pokemon.entity_id in getattr(ctx, "attack_damage", {})
+        if (by_damage and attacker is not None
                 and attacker.owning_player_id != pokemon.owning_player_id
                 and "ex" in (subtypes_for(attacker.archetype_id) or [])):
             return 0
