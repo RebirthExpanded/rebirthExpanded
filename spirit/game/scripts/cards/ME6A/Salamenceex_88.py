@@ -4,15 +4,15 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.card_effects.attacks_common import mill_attack
-from spirit.game.session.effects import is_basic_pokemon, is_pokemon_of_type
+from spirit.game.session.effects import is_pokemon_card, is_pokemon_of_type
 from spirit.game.session.passives import effective_bench_capacity
 
 
 async def booming_call(ctx):
-    """Up to 3 [N] Basic Pokemon from your discard pile onto your Bench."""
+    """Up to 3 [N] Pokemon (any Stage) from your discard pile onto your Bench."""
     space = effective_bench_capacity(ctx.board, ctx.player_id) - len(ctx.my_bench())
     pool = [c for c in ctx.discard_pile()
-            if is_basic_pokemon(c) and is_pokemon_of_type(c, PokemonTypes.DRAGON)]
+            if is_pokemon_card(c) and is_pokemon_of_type(c, PokemonTypes.DRAGON)]
     if space <= 0 or not pool:
         return
     picks = await ctx.choose_cards(pool, min(3, space, len(pool)), minimum=0,

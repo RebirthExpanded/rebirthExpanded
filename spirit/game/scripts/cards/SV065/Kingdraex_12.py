@@ -12,13 +12,13 @@ def _of_type(pokemon, t) -> bool:
     return t.value in (pokemon.get_attribute(AttrID.POKEMON_TYPES) or [])
 
 from spirit.game.attributes import PokemonTypes as _PT
-from spirit.game.session.effects import is_basic_pokemon
+from spirit.game.session.effects import is_pokemon_card
 from spirit.game.session.passives import effective_bench_capacity
 
 
 async def kings_order(ctx):
     space = effective_bench_capacity(ctx.board, ctx.player_id) - len(ctx.my_bench())
-    pool = [c for c in ctx.discard_pile() if is_basic_pokemon(c) and _of_type(c, PokemonTypes.WATER)]
+    pool = [c for c in ctx.discard_pile() if is_pokemon_card(c) and _of_type(c, PokemonTypes.WATER)]
     if space <= 0 or not pool:
         return
     picks = await ctx.choose_cards(pool, min(3, space, len(pool)), minimum=0,

@@ -7,14 +7,14 @@ from spirit.game.data_utils import Ability, Activations, Attack, PokemonCardDef,
 from spirit.game.attributes import SpecialConditions
 from spirit.game.card_effects import attacks_common as ac
 
-from spirit.game.session.effects import is_basic_pokemon
+from spirit.game.session.effects import is_pokemon_card
 from spirit.game.session.passives import effective_bench_capacity
 
 
 async def revival_blessing(ctx):
     if effective_bench_capacity(ctx.board, ctx.player_id) - len(ctx.my_bench()) <= 0:
         return
-    pool = [c for c in ctx.discard_pile() if is_basic_pokemon(c)]
+    pool = [c for c in ctx.discard_pile() if is_pokemon_card(c)]
     if pool:
         picks = await ctx.choose_cards(pool, 1, minimum=1, prompt="Choose a Pokémon to put onto your Bench")
         if picks:
