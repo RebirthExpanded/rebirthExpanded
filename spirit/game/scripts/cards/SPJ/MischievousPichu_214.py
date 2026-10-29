@@ -7,9 +7,8 @@ from spirit.game.data_utils import Ability, Activations, Attack, PokemonCardDef,
 async def _slapstick_party(ctx):
     heads = (await ctx.flip_coins(1, "Slapstick Party"))[0]
     targets = ctx.opponent_pokemon_in_play() if heads else ctx.my_pokemon_in_play()
-    active = ctx.opponent_active()
     for p in list(targets):
-        await ctx.deal_damage(10, target=p, apply_modifiers=bool(heads and p is active))
+        await ctx.deal_damage(10, target=p)
 
 
 card = PokemonCardDef(

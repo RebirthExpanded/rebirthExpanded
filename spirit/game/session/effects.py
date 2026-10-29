@@ -501,8 +501,9 @@ class EffectContext:
         """Damages a Pokemon (default: the attack's printed damage onto the
         opponent's Active) and returns the final amount after modifiers.
 
-        Weakness/Resistance apply only to the opponent's Active by default
-        (bench damage in the TCG is unmodified unless the card says otherwise).
+        Weakness/Resistance apply to the opponent's Active by default, and
+        always to your own Active when an attack damages it (bench damage in
+        the TCG is unmodified unless the card says otherwise).
         ignore_target_effects (Max Miracle) skips passives riding the target.
         ignore_weakness (Spit Innocently) skips only the Weakness stage;
         ignore_resistance (Buster Swing) skips only the Resistance stage.
@@ -523,6 +524,11 @@ class EffectContext:
             apply_modifiers = target is self.opponent_active()
         if is_attack is None:
             is_attack = self.is_attack_effect()
+        # An attack's damage to your own Active Pokemon (recoil, "all of your
+        # Pokemon" spreads) always applies Weakness/Resistance, whatever the
+        # caller passed -- Weakness-changing effects make this matter.
+        if is_attack and not as_counters and target is self.my_active():
+            apply_modifiers = True
         # Turn-scoped Max Miracle flag on the attacker (Phoebe).
         if not ignore_target_effects and self.attacker is not None \
                 and self.attacker.entity_id in \
