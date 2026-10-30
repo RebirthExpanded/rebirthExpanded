@@ -7,6 +7,7 @@ the bottom accept both the trainer (board, player_id) and the ability
 (board, player_id, pokemon) call shapes.
 """
 
+import re
 from typing import Callable, List, Optional
 
 from spirit.game.attributes import AttrID
@@ -16,6 +17,7 @@ from spirit.game.session.effects import (
     stuck_in_discard,
     full_stack,
     is_basic_pokemon,
+    is_pokemon_card,
     is_trainer_card,
 )
 from spirit.game.session.passives import (effective_bench_capacity,
@@ -920,3 +922,92 @@ async def rock_paper_scissors(ctx) -> bool:
             return (mine - theirs) % 3 == 1
         prompt = "It's a tie! Rock-Paper-Scissors: choose your play."
     return False
+
+
+# --- Cedric Juniper's height guess ------------------------------------------
+
+# Sets whose Pokemon cards print the Pokedex height (HT: 5'07"): everything
+# through the Sun & Moon era. Newer cards don't print one.
+_HEIGHT_PRINTED_SETS = re.compile(
+    r"^(BASE|BW|XY|SM|HGSS|COL|SF|DV|SL|DM|GUM|HF|HMC|TATM|TwentiethAnn"
+    r"|Promo_BW|Promo_XY|Promo_SM)")
+# Rule-box cards print no Pokedex line; a Prism Star card does print one.
+_NO_HEIGHT_SUBTYPES = {"EX", "MEGA", "GX", "TAG TEAM", "BREAK", "V", "VMAX",
+                       "VSTAR", "V-UNION", "ex", "SV_Mega", "Radiant", "LEGEND"}
+_HEIGHT_NAME_ALIASES = {"nidoranfemale": "nidoranf", "nidoranmale": "nidoranm",
+                        "flabb": "flabebe"}
+
+
+def printed_height(card) -> Optional[tuple]:
+    """The (feet, inches) a Pokemon card prints as its height, or None when
+    the card prints none (rule box, a newer set) or the species is unknown.
+    The species comes from the EVOLUTION_LOGIC_NAME, falling back to the
+    longest species name it ends with (Ash's Pikachu, Shining Mew)."""
+    from spirit.game.card_effects.pokedex_heights import HEIGHT_DM
+    from spirit.game.data_utils import subtypes_for
+    if not is_pokemon_card(card):
+        return None
+    definition = def_for(card.archetype_id)
+    if definition is None or not _HEIGHT_PRINTED_SETS.match(getattr(definition, "key", "") or ""):
+        return None
+    if _NO_HEIGHT_SUBTYPES & set(subtypes_for(card.archetype_id)):
+        return None
+    spec = definition.extra_attributes.get(str(AttrID.EVOLUTION_LOGIC_NAME.value)) or {}
+    name = re.sub(r"[^a-z0-9]", "", str(spec.get("value") or "").lower())
+    if name.endswith("prismstar"):
+        name = name[:-len("prismstar")]
+    if name == "nidoran":  # both genders share the logic name; the display name tells
+        display = getattr(definition, "display_name", "") or ""
+        name = "nidoranm" if "♂" in display else "nidoranf"
+    name = _HEIGHT_NAME_ALIASES.get(name, name)
+    dm = HEIGHT_DM.get(name)
+    if dm is None:
+        tails = [k for k in HEIGHT_DM if len(k) >= 3 and name.endswith(k)]
+        dm = HEIGHT_DM[max(tails, key=len)] if tails else None
+    if dm is None:
+        return None
+    return divmod(int(round(dm * 3.937)), 12)
+
+
+cedric_juniper_condition = requires_hand(lambda c: printed_height(c) is not None,
+                                         exclude_self=False)
+
+
+async def cedric_juniper(ctx):
+    """Cedric Juniper: put a Pokemon from your hand face down and name it;
+    your opponent guesses its height. Right: they draw 3; wrong: you draw 3.
+    The Pokemon goes back to the hand. Only a card that prints a height can
+    be chosen. The guess is feet in two steps (tens, then the exact foot)
+    and inches; an AI opponent guesses at random."""
+    import random
+    from spirit.game.session.ai_player import AIPlayer
+
+    matches = [c for c in ctx.hand() if printed_height(c) is not None]
+    if not matches:
+        return
+    picks = await ctx.choose_cards(matches, 1, minimum=1,
+                                   prompt="Choose a Pokémon to put face down")
+    if not picks:
+        return
+    chosen = picks[0]
+    name = getattr(def_for(chosen.archetype_id), "display_name", None) or "Pokémon"
+    is_ai = isinstance(ctx.session.players.get(ctx.opponent_id), AIPlayer)
+
+    async def ask(prompt, values):
+        if is_ai:
+            return random.choice(values)
+        labels = [str(v) for v in values]
+        return values[await ctx.choose(prompt, labels, player_id=ctx.opponent_id,
+                                       use_panel=False)]
+
+    tens = await ask(f"Your opponent's Pokémon is {name}. Guess its height: feet?",
+                     ["0-9", "10-19", "20-29", "30-39", "40-49"])
+    low = int(tens.split("-")[0])
+    feet = await ask(f"Guess {name}'s height: how many feet?", list(range(low, low + 10)))
+    inches = await ask(f"Guess {name}'s height: {feet} feet and how many inches?",
+                       list(range(12)))
+    await ctx.reveal_cards([chosen], to_player=ctx.opponent_id)
+    if printed_height(chosen) == (feet, inches):
+        await ctx.draw_cards(3, ctx.opponent_id)
+    else:
+        await ctx.draw_cards(3)
