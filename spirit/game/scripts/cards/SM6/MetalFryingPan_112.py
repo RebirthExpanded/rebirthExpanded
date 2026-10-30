@@ -30,14 +30,14 @@ class MetalFryingPanPassive(TakesLessPassive):
 
 
 card = PokemonToolCardDef(
-    guid="48946b6b-891a-56f3-83c1-2f2dd57da5ec",
-    key="SM8",
+    guid="dd1ad1f3-11e3-5e46-9781-a025c22491c6",
+    key="SM6",
     name="com.direwolfdigital.cake.data.archetypes.trainer.MetalFryingPan.Name",
     display_name="Metal Frying Pan",
     searchable_by=["Metal Frying Pan", "Item", "Pokémon Tool", "MetalFryingPan"],
     subtypes=["Item", "Pokémon Tool"],
-    collector_number=144,
-    set_code="SM8",
+    collector_number=112,
+    set_code="SM6",
     rarity=Rarities.Uncommon,
     passive=MetalFryingPanPassive(),
 )
