@@ -9,19 +9,15 @@ Fighting x2, no resistance, retreat 2.
   Tantrum     [CCC] 120   This Pokemon is now Confused.
 
 Crazy Code is Inferno Fandango's shape: one use keeps attaching until the
-player declines. A Special Energy that names who may carry it (Rapid
-Strike Energy, Team Rocket's Energy) offers only those Pokemon.
+player declines. Any of your Pokemon may take the card: one that names who
+may carry it (Burning Energy, Rapid Strike Energy) attaches for a moment
+and is then discarded by its own "if it is attached to anything else" rule.
 """
 
 from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities, SpecialConditions
 from spirit.game.card_effects.attacks_common import condition_attack
-from spirit.game.data_utils import Ability, Activations, Attack, PokemonCardDef, def_for
+from spirit.game.data_utils import Ability, Activations, Attack, PokemonCardDef
 from spirit.game.session.effects import is_special_energy
-
-
-def _legal_holders(ctx, energy):
-    attach_to = getattr(def_for(energy.archetype_id), "attach_to", None)
-    return [p for p in ctx.my_pokemon_in_play() if attach_to is None or attach_to(p)]
 
 
 def _crazy_code_condition(board, player_id, pokemon=None) -> bool:
@@ -38,10 +34,8 @@ async def crazy_code(ctx):
             pool, 1, minimum=0, prompt="Choose a Special Energy card to attach (or Done)")
         if not picks:
             return
-        holders = _legal_holders(ctx, picks[0])
-        if not holders:
-            return
-        target = await ctx.choose_pokemon(holders, "Choose a Pokémon to attach the Energy to")
+        target = await ctx.choose_pokemon(
+            ctx.my_pokemon_in_play(), "Choose a Pokémon to attach the Energy to")
         if target is None:
             return
         await ctx.attach_energy(picks[0], target)
