@@ -44,6 +44,7 @@ from .passives import (
     ability_locked,
     abilities_disabled,
     attack_effects_blocked,
+    gx_attacks_blocked,
     tool_attach_blocked,
     attacking_blocked,
     out_of_play_ability_locked,
@@ -137,6 +138,12 @@ class TurnState:
     vstar_used: Set[str] = field(default_factory=set)
     # Players who already used their once-per-game GX attack.
     gx_used: Set[str] = field(default_factory=set)
+    # Who picks the next new Active, per owner: {owner: chooser}
+    # (Hypno Hypnotic Pendulum). Consumed by the promotion itself.
+    promotion_chooser: Dict[str, str] = field(default_factory=dict)
+    # {player: turn number} during which that player may attach any number
+    # of Energy cards from hand (Dragonair's Dragon's Wish).
+    unlimited_energy_attach: Dict[str, int] = field(default_factory=dict)
     # player_id -> [predicate(pokemon)]: Pokemon that may use a GX attack
     # THIS turn even though the player already used theirs (Misty &
     # Lorelei's "your [W] Pokemon"). Cleared every begin_turn.
@@ -493,6 +500,8 @@ class TurnState:
                     board, pokemon, block.get("source")):
                 continue
             return False
+        if board is not None and pokemon is not None                 and gx_attacks_blocked(board, player_id, pokemon):
+            return False
         if player_id not in self.gx_used:
             return True
         return any(pred(pokemon) for pred in self.gx_reuse.get(player_id, []))
@@ -504,6 +513,13 @@ class TurnState:
         """Clear Vision-GX: `player_id` can't use GX attacks for the rest of
         the game (per-attacker shields against `source` excepted)."""
         self.gx_blocks.append({"player_id": player_id, "source": source})
+
+    def allow_unlimited_energy_attach(self, player_id: str, turn_number: int):
+        """`player_id` may attach any number of Energy from hand during `turn_number`."""
+        self.unlimited_energy_attach[player_id] = turn_number
+
+    def energy_attach_unlimited(self, player_id: str) -> bool:
+        return self.unlimited_energy_attach.get(player_id) == self.turn_number
 
     def mark_entered_play(self, entity_id: str):
         self.entered_play_turn[entity_id] = self.turn_number
@@ -847,7 +863,8 @@ def compute_legal_actions(
                 ))
 
         elif isinstance(card, EnergyEntity):
-            if state.energy_attached or not in_play_ids:
+            if (state.energy_attached and not state.energy_attach_unlimited(player_id)) \
+                    or not in_play_ids:
                 continue
             # A hand-play block can name Energy cards too (Ruler of the
             # Night: no Special Energy from the hand).

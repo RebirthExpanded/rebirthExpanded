@@ -2465,6 +2465,10 @@ class GameSession:
         # reads board position, so the carrier must still be top-level in-play;
         # was_active is captured here too (Radiant Jirachi's Active-spot gate).
         ko_triggers: List[Tuple[PokemonEntity, str, Ability, bool]] = []
+        # The Energy each KO'd Pokemon had attached (Shining Ho-Oh's Golden
+        # Wing moves some of it from the discard pile afterwards).
+        ko_energies = {p.entity_id: list(self.board_state.attached_energies(p))
+                       for p in ctx.knockouts}
         for pokemon in ctx.knockouts:
             owner_id = pokemon.owning_player_id
             if owner_id is None or ability_locked(self.board_state, pokemon):
@@ -2531,6 +2535,10 @@ class GameSession:
         prize_plans: List[Tuple[str, int, str]] = []
         ally_triggers: List[Tuple[PokemonEntity, str, Ability, PokemonEntity, bool]] = []
         self_triggers: List[Tuple[PokemonEntity, str, Ability, bool, bool]] = []
+        # ON_OPPONENT_KNOCKED_OUT (Hypno Hypnotic Pendulum): the KO'd
+        # Pokemon was its owner's Active; fires after the stack leaves play
+        # and before promotion.
+        opp_ko_triggers: List[Tuple[PokemonEntity, str, Ability, PokemonEntity]] = []
         for pokemon in ctx.knockouts:
             owner_id = pokemon.owning_player_id
             if owner_id is None:
@@ -2603,6 +2611,22 @@ class GameSession:
                         continue
                     ally_triggers.append(
                         (ally, owner_id, ability, pokemon, ko_from_attack))
+            if was_active:
+                opp_id = self._opponent_id(owner_id)
+                for watcher in self.board_state.pokemon_in_play(opp_id):
+                    if watcher in ctx.knockouts:
+                        continue
+                    locked = ability_locked(self.board_state, watcher)
+                    for entry in watcher.get_attribute(AttrID.PIE_ABILITIES) or []:
+                        if not isinstance(entry, dict):
+                            continue
+                        ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
+                        if ability is None or not ability.has_trigger(
+                                Triggers.ON_OPPONENT_KNOCKED_OUT):
+                            continue
+                        if locked and not ability.is_granted:
+                            continue
+                        opp_ko_triggers.append((watcher, opp_id, ability, pokemon))
         # ON_KNOCKED_OUT_IN_PLAY / ON_ALLY_KNOCKED_OUT fire pre-discard: the
         # KO'd stack is still on board with its energies attached (the
         # Batons and Exp. Share move Energy off it).
@@ -2666,6 +2690,7 @@ class GameSession:
                 _damage_ko(pokemon)
                 and ctx.attacker is not None
                 and ctx.attacker.owning_player_id != owner_id)
+            pokemon.ko_attacker = ctx.attacker if pokemon.ko_by_opposing_attack_damage else None
             # Lost City-style passives (Lost Zone) redirect the KO'd Pokemon
             # stack; energy/tools always fall to the discard pile -- unless
             # the effect that Knocked it Out routes the whole stack itself
@@ -2679,8 +2704,11 @@ class GameSession:
                 # City's Lost Zone): with more than one, the Knocked Out
                 # Pokemon's owner chooses which replaces the discard pile.
                 options = []
+                whole = set()
                 for p, c in active_passives(self.board_state):
                     d = p.knockout_destination(pokemon, c)
+                    if d and p.knockout_whole_stack(pokemon, c):
+                        whole.add(d)
                     if d and d not in [o[0] for o in options]:
                         label = getattr(def_for(getattr(c, "archetype_id", None)), "display_name", None) or d
                         options.append((d, label))
@@ -2692,6 +2720,7 @@ class GameSession:
                         [label for _, label in options], player_id=owner_id)
                     if isinstance(index, int) and 0 <= index < len(options):
                         dest_name = options[index][0]
+                whole_stack = dest_name in whole
             dest_area = self.board_state.find_player_area(owner_id, dest_name) or discard
             stack = [pokemon] + _stack_descendants(pokemon)
             # Every destination is decided while the stack is still in play:
@@ -2839,12 +2868,27 @@ class GameSession:
                         c.ko_attacker = _attacker
                         c.was_active_at_ko = _was_active
                         c.ko_pokemon = _victim
+                        c.ko_energies = ko_energies.get(_victim.entity_id, [])
 
                     post_entries.append(self._ko_entry(
                         owner_id, pokemon, ability, _setup, ko_from_attack,
                         _ko_depth, collect=trigger_ctxs))
                 await self._run_ko_effects_in_order(post_entries, order_chooser,
                                                     order_shown)
+
+        for watcher, watcher_id, ability, victim in opp_ko_triggers:
+            from_attack = _damage_ko(victim) and ctx.attacker is not None \
+                and ctx.attacker.owning_player_id != victim.owning_player_id
+
+            def _opp_setup(c, _victim=victim, _from_attack=from_attack):
+                c.ko_pokemon = _victim
+                c.was_active_at_ko = True
+                c.ko_from_attack = _from_attack
+                c.ko_attacker = ctx.attacker if _from_attack else None
+            await resolve_triggered_ability(
+                self, watcher_id, watcher, ability, ctx_setup=_opp_setup,
+                _ko_depth=_ko_depth + 1,
+            )
 
         # A player left with no Pokemon in play has lost the game right
         # here; the Prize fan and flight for that Knock Out are skipped and
@@ -3522,11 +3566,13 @@ class GameSession:
         candidates = [c for c in bench_area.children if isinstance(c, PokemonEntity)]
         if not candidates:
             return False
-        player = self.players[player_id]
+        # Hypnotic Pendulum: the opponent picks the new Active this time.
+        chooser_id = self.turn_state.promotion_chooser.pop(player_id, player_id)
+        player = self.players[chooser_id]
         picked = candidates[0]
         if not isinstance(player, AIPlayer) and len(candidates) > 1:
             offer = self._placement_offer_value(
-                player_id, PROMPT_CHOOSE_NEW_ACTIVE, candidates, TARGET_TYPE_ACTIVE
+                chooser_id, PROMPT_CHOOSE_NEW_ACTIVE, candidates, TARGET_TYPE_ACTIVE
             )
             for _ in range(MAX_SELECTION_RETRIES):
                 reply = await self.prompt_selection_message(
@@ -3540,7 +3586,7 @@ class GameSession:
                     picked = self.board_state.get_entity(card_id) or picked
                     break
                 offer = self._placement_offer_value(
-                    player_id, PROMPT_CHOOSE_NEW_ACTIVE, candidates, TARGET_TYPE_ACTIVE
+                    chooser_id, PROMPT_CHOOSE_NEW_ACTIVE, candidates, TARGET_TYPE_ACTIVE
                 )
         board.move_card(picked.entity_id, active_area.entity_id)
         self.turn_state.became_active_turn[picked.entity_id] = \
@@ -4094,6 +4140,9 @@ class GameSession:
         # Hands are dealt; the mulligan check picks up from here.
         self.game_phase = GamePhase.SETUP_PHASE
 
+    def _going_second(self, player_id: str) -> bool:
+        return self.first_player_id is not None and player_id != self.first_player_id
+
     async def run_mulligan_phase(self):
         """Reshuffles Basic-less opening hands and offers the opponent extra draws."""
         self.game_phase = GamePhase.MULLIGAN_PHASE
@@ -4105,13 +4154,13 @@ class GameSession:
         while True:
             needs_mulligan = [
                 pid for pid in self._turn_order()
-                if not board.setup_active_candidates(pid)
+                if not board.setup_active_candidates(pid, self._going_second(pid))
             ]
             if not needs_mulligan:
                 break
 
             for player_id in needs_mulligan:
-                if not board.player_has_any_basic(player_id):
+                if not board.player_has_any_basic(player_id, self._going_second(player_id)):
                     logging.error(
                         f"[Session {self.game_id}] Deck of "
                         f"{self.players[player_id].screen_name} contains no Basic "
@@ -5022,6 +5071,19 @@ class GameSession:
         if entries:
             await self._run_simultaneous_triggers(entries, ctx_setup, chooser_id)
 
+    async def fire_opponent_retreat_triggers(self, retreating_player_id: str,
+                                             retreated, new_active):
+        """ON_OPPONENT_RETREAT for the retreating player's opponent's in-play
+        Pokemon (Toxapex Toxic Spikes) after a retreat completes."""
+        def _setup(c):
+            c.retreating_player_id = retreating_player_id
+            c.retreated_pokemon = retreated
+            c.new_active = new_active
+        opp_id = self._opponent_id(retreating_player_id)
+        for pokemon in list(self.board_state.pokemon_in_play(opp_id)):
+            await self._fire_triggered_abilities(
+                opp_id, pokemon, Triggers.ON_OPPONENT_RETREAT, ctx_setup=_setup)
+
     async def fire_move_to_active_triggers(self, pokemon):
         """ON_MOVE_TO_ACTIVE (Cinderace Libero, Wyrdeer V, Iron Valiant ex),
         at most once per entity per turn regardless of how often it
@@ -5133,7 +5195,11 @@ class GameSession:
             return
         from spirit.game.card_effects.ancient_traits import ALPHA_GROWTH, has_ancient_trait
         if target.parent is None or target._containing_area_name() not in (
-                "activePokemonArea", "bench") or not has_ancient_trait(target, ALPHA_GROWTH):
+                "activePokemonArea", "bench"):
+            return
+        if not has_ancient_trait(target, ALPHA_GROWTH) and not any(
+                p.allows_second_energy_attach(target, c)
+                for p, c in active_passives(self.board_state)):
             return
         if self.turn_state.attach_restricted(target.entity_id):
             return
@@ -5689,6 +5755,13 @@ class GameSession:
         if attach_ctx is not None:
             await self._flush_effect_runs(attach_ctx)
             await self.resolve_knockouts(attach_ctx)
+
+        def _tool_setup(c):
+            c.attaching_player_id = player_id
+            c.attached_tool = card
+            c.tool_receiver = target
+        await self._fire_triggered_abilities(
+            player_id, target, Triggers.ON_TOOL_ATTACHED, ctx_setup=_tool_setup)
 
     async def _execute_use_ability(self, player_id, card, entry) -> bool:
         """Activates a Pokemon's usable ability (once-per-turn / VSTAR).
@@ -6594,6 +6667,7 @@ class GameSession:
         await self._apply_active_to_bench_counters(player_id, card)
         await self.fire_move_to_active_triggers(new_active)
         await self.fire_move_to_bench_triggers(card)
+        await self.fire_opponent_retreat_triggers(player_id, card, new_active)
         # An Active-spot change can flip suppression passives (Tool Jammer).
         await self.resync_effective_max_hp()
 
@@ -6803,7 +6877,8 @@ class GameSession:
 
         try:
             if isinstance(player, AIPlayer):
-                basics = board.setup_active_candidates(player_id)
+                basics = board.setup_active_candidates(
+                    player_id, self._going_second(player_id))
                 if basics:
                     await self._place_setup_card(player_id, basics[0].entity_id, active_area)
                 return
@@ -6812,7 +6887,8 @@ class GameSession:
             for _ in range(MAX_SELECTION_RETRIES):
                 if active_area.children:
                     break
-                basics = board.setup_active_candidates(player_id)
+                basics = board.setup_active_candidates(
+                    player_id, self._going_second(player_id))
                 if not basics:
                     logging.error(
                         f"[Session {self.game_id}] {player.screen_name} has no Basic "
@@ -6855,7 +6931,8 @@ class GameSession:
 
         try:
             if isinstance(player, AIPlayer):
-                for card in board.basic_pokemon_in_hand(player_id)[:BENCH_CAPACITY]:
+                for card in board.setup_bench_candidates(
+                        player_id, self._going_second(player_id))[:BENCH_CAPACITY]:
                     await self._place_setup_card(player_id, card.entity_id, bench_area)
                 return
 
@@ -6863,7 +6940,8 @@ class GameSession:
                 if len(bench_area.children) >= BENCH_CAPACITY:
                     logging.info(f"[Session {self.game_id}] {player.screen_name}'s bench is full.")
                     break
-                basics = board.basic_pokemon_in_hand(player_id)
+                basics = board.setup_bench_candidates(
+                    player_id, self._going_second(player_id))
                 logging.info(
                     f"[Session {self.game_id}] Offering {player.screen_name} a bench "
                     f"placement ({len(basics)} Basics in hand)."

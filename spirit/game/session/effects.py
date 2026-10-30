@@ -863,6 +863,17 @@ class EffectContext:
             TempPassive(passive, target.entity_id, expires_after_turn)
         )
 
+    def add_global_passive(self, passive, expires_after_turn: int) -> None:
+        """A player-level passive not tied to any Pokemon ("until the end of
+        your opponent's next turn, each Pokemon ... has no Abilities" -- Hex
+        Maniac); carried by the acting player's hand area until it expires."""
+        hand = self.board.find_player_area(self.player_id, "hand")
+        if hand is None:
+            return
+        self.board.temporary_passives.append(
+            TempPassive(passive, hand.entity_id, expires_after_turn, global_scope=True)
+        )
+
     def add_passive_through_opponents_turn(self, target, passive) -> None:
         """"During your opponent's next turn ..." lifetime."""
         self.add_temporary_passive(
@@ -1657,6 +1668,7 @@ class EffectContext:
         if holder is None or holder not in self.board.pokemon_in_play(owner):
             return False
         return any(passive.blocks_put_in_hand(card, carrier)
+                   or passive.blocks_return_to_hand(card, carrier, self.board)
                    for passive, carrier in active_passives(self.board))
 
     async def put_in_hand(self, cards: List[CardEntity], reveal: bool = True):
@@ -2544,6 +2556,18 @@ class EffectContext:
                 lambda e=energy, p=pokemon: self.session.fire_energy_attached_triggers(
                     self.player_id, e, p))
         await self.enforce_attachment_restrictions(pokemon)
+        # "When you attach this card from your hand to a Pokemon" (Capture,
+        # Enriching Energy) also answers an effect attaching it out of the
+        # hand (Crazy Code): resolves at once, so the drawn cards are there
+        # for the rest of the effect.
+        if from_hand and energy.parent is pokemon:
+            hook = getattr(def_for(energy.archetype_id), "on_attach", None)
+            if hook is not None and hook is not unimplemented:
+                await self.flush_choreography()
+                attach_ctx = await resolve_energy_on_attach(
+                    self.session, self.player_id, energy, pokemon)
+                if attach_ctx is not None:
+                    await self.session._flush_effect_runs(attach_ctx)
         return True
 
     async def attach_as_tool(self, card: CardEntity, pokemon: PokemonEntity) -> bool:
@@ -2574,6 +2598,11 @@ class EffectContext:
         await self.session._refresh_max_hp(pokemon, max_before)
         await self.session.refresh_granted_abilities(pokemon)
         return True
+
+    async def attach_tool(self, card: CardEntity, pokemon: PokemonEntity) -> bool:
+        """Attaches a Pokemon Tool card to `pokemon` by effect (Mawile's
+        Mining, Delibird's Happy Delivery): attach_as_tool for a Tool card."""
+        return await self.attach_as_tool(card, pokemon)
 
     async def move_energy(self, energy: CardEntity, to_pokemon: PokemonEntity) -> bool:
         """Moves an attached Energy onto another in-play Pokemon: no intro
@@ -2764,6 +2793,14 @@ class EffectContext:
         # All effects (Special Conditions, attack locks) end when a Pokemon
         # leaves the Active spot; the state-clearing lives in one shared helper.
         had_conditions = bool(old_active.get_attribute(AttrID.SPECIAL_CONDITIONS))
+        # Dust Island: a Trainer card switching out a Poisoned Active leaves
+        # the Pokemon coming in Poisoned (with the same counters).
+        poison_name = CLIENT_SPECIAL_CONDITION_NAMES[SpecialConditions.POISONED]
+        keep_poison = self.is_trainer_effect and poison_name in (
+            old_active.get_attribute(AttrID.SPECIAL_CONDITIONS) or []) and any(
+            p.keeps_condition_on_trainer_switch(old_active, poison_name, c)
+            for p, c in active_passives(board))
+        poison_n = self.session.poison_counters.get(old_active.entity_id, 1)
         self.session.clear_pokemon_effects(old_active)
         if had_conditions:
             self._queue(
@@ -2815,6 +2852,9 @@ class EffectContext:
             lambda p=new_active: self.session.fire_move_to_active_triggers(p))
         self.deferred_actions.append(
             lambda p=old_active: self.session.fire_move_to_bench_triggers(p))
+        if keep_poison:
+            await self.apply_special_condition(
+                new_active, SpecialConditions.POISONED, poison_counters=poison_n)
         return True
 
     async def flush_choreography(self):
@@ -2883,12 +2923,15 @@ class EffectContext:
 
     async def put_in_prizes(self, cards: List[CardEntity],
                             player_id: Optional[str] = None,
-                            slots: Optional[List[int]] = None) -> int:
+                            slots: Optional[List[int]] = None,
+                            append: bool = False) -> int:
         """Puts hand cards face down into the player's empty Prize slots
         (Peonia): queues the moves, AttributesReset re-hides (the owner knows
         the faces) and the pile's gap refresh; returns how many were placed.
         `slots` names the slot for each card in order (the player's choice);
-        otherwise the lowest free slots are filled first."""
+        otherwise the lowest free slots are filled first. append=True adds
+        NEW Prize cards past the current ones (Nihilego-GX's Symbiont-GX:
+        "your opponent puts that many cards ... into their Prize cards")."""
         pid = player_id or self.player_id
         session = self.session
         prize_area = self.board.find_player_area(pid, "prizePile")
@@ -2896,6 +2939,11 @@ class EffectContext:
             return 0
         dealt = self.board.prizes_dealt.get(pid, 0)
         free = self.empty_prize_slots(pid)
+        if append:
+            occupied = {c.board_slot if c.board_slot is not None else i
+                        for i, c in enumerate(prize_area.children)}
+            start = max(dealt, (max(occupied) + 1) if occupied else 0)
+            free = list(range(start, start + len(cards)))
         chosen = list(slots or [])
         placed = 0
         for card in cards:
@@ -2913,6 +2961,11 @@ class EffectContext:
                         bracket=GameSequence.GROUPED_MOVE.value)
             placed += 1
         if placed:
+            if append:
+                top = max((c.board_slot if c.board_slot is not None else i)
+                          for i, c in enumerate(prize_area.children))
+                self.board.prizes_dealt[pid] = max(
+                    self.board.prizes_dealt.get(pid, 0), top + 1)
             self._queue(session._refresh_prize_gaps(pid, prize_area),
                         bracket=GameSequence.GROUPED_MOVE.value)
         return placed

@@ -646,20 +646,49 @@ class BoardState:
         """
         return bool(self.basic_pokemon_in_hand(player_id))
 
-    def setup_active_candidates(self, player_id: str) -> List['PokemonEntity']:
-        """Cards playable as the opening Active: Basics first, then hand
-        Pokemon whose def sets setup_as_active (Luxray CZ's Explosiveness).
-        The bench offer and mid-game bench plays stay Basics-only."""
+    def _setup_from_hand_extras(self, player_id: str, going_second: bool = False
+                                ) -> List['PokemonEntity']:
+        """Non-Basic hand Pokemon legal as setup placements: setup_as_active
+        (Luxray CZ's Explosiveness), and setup_if_second when going second
+        (Manectric's Electric Start)."""
         from spirit.game.data_utils import def_for  # circular-import guard
-        candidates = self.basic_pokemon_in_hand(player_id)
+        extras: List[PokemonEntity] = []
         hand_area = self.find_player_area(player_id, "hand")
         for c in (hand_area.children if hand_area else []):
-            if isinstance(c, PokemonEntity) and c not in candidates \
-                    and getattr(def_for(c.archetype_id), "setup_as_active", False):
-                candidates.append(c)
+            if not isinstance(c, PokemonEntity):
+                continue
+            definition = def_for(c.archetype_id)
+            if getattr(definition, "setup_as_active", False) \
+                    or (going_second and getattr(definition, "setup_if_second", False)):
+                extras.append(c)
+        return extras
+
+    def setup_active_candidates(self, player_id: str, going_second: bool = False
+                                ) -> List['PokemonEntity']:
+        """Cards playable as the opening Active: Basics first, then hand
+        Pokemon whose def sets setup_as_active (Luxray CZ's Explosiveness),
+        or setup_if_second when going second (Manectric's Electric Start).
+        Mid-game bench plays stay Basics-only."""
+        candidates = self.basic_pokemon_in_hand(player_id)
+        for extra in self._setup_from_hand_extras(player_id, going_second):
+            if extra not in candidates:
+                candidates.append(extra)
         return candidates
 
-    def player_has_any_basic(self, player_id: str) -> bool:
+    def setup_bench_candidates(self, player_id: str, going_second: bool = False
+                               ) -> List['PokemonEntity']:
+        """Cards playable onto the opening Bench: Basics, plus setup_if_second
+        Pokemon when going second (Electric Start)."""
+        from spirit.game.data_utils import def_for  # circular-import guard
+        candidates = self.basic_pokemon_in_hand(player_id)
+        if going_second:
+            for extra in self._setup_from_hand_extras(player_id, True):
+                if extra not in candidates \
+                        and getattr(def_for(extra.archetype_id), "setup_if_second", False):
+                    candidates.append(extra)
+        return candidates
+
+    def player_has_any_basic(self, player_id: str, going_second: bool = False) -> bool:
         """True if the player has a Basic Pokemon anywhere in deck or hand.
 
         Guards the mulligan loop against decks that can never produce a legal
@@ -671,9 +700,12 @@ class BoardState:
             for c in (area.children if area else []):
                 if self._is_basic_pokemon(c):
                     return True
-                if isinstance(c, PokemonEntity) \
-                        and getattr(def_for(c.archetype_id), "setup_as_active", False):
-                    return True
+                if isinstance(c, PokemonEntity):
+                    definition = def_for(c.archetype_id)
+                    if getattr(definition, "setup_as_active", False):
+                        return True
+                    if going_second and getattr(definition, "setup_if_second", False):
+                        return True
         return False
 
     def pokemon_in_play(self, player_id: str) -> List['PokemonEntity']:

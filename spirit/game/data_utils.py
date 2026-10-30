@@ -160,6 +160,7 @@ def reprint(
             passive=getattr(base, "passive", None),
             unplayable_from_hand=getattr(base, "unplayable_from_hand", False),
             setup_as_active=bool(getattr(base, "setup_as_active", False)),
+            setup_if_second=bool(getattr(base, "setup_if_second", False)),
             bench_from_hand=getattr(base, "bench_from_hand", None),
         )
 
@@ -353,6 +354,12 @@ def counts_as_item(archetype_id: Optional[str]) -> bool:
     return _attr_value(definition, AttrID.TRAINER_TYPE) == TrainerType.ITEM.value
 
 
+def looks_like_gx_attack(title: str, game_text: str) -> bool:
+    """SM GX attacks: the title ends in 'GX' and the text carries the GX
+    reminder -- what an Attack without an explicit `gx=` falls back to."""
+    return (title or "").rstrip().endswith("GX")         and "more than 1 GX attack" in (game_text or "")
+
+
 def subtypes_for(archetype_id: Optional[str]) -> List[str]:
     definition = def_for(archetype_id)
     return definition.subtypes if definition else []
@@ -360,6 +367,14 @@ def subtypes_for(archetype_id: Optional[str]) -> List[str]:
 
 def is_prism_star(archetype_id) -> bool:
     return "Prism Star" in subtypes_for(archetype_id)
+
+
+def is_ultra_beast(archetype_id: Optional[str]) -> bool:
+    return "Ultra Beast" in subtypes_for(archetype_id)
+
+
+def is_tag_team(archetype_id: Optional[str]) -> bool:
+    return "TAG TEAM" in subtypes_for(archetype_id)
 
 
 def discard_area_name(archetype_id) -> str:
@@ -572,6 +587,17 @@ class Triggers:
     # draw, which is the card's "(Place damage counters after the effect of
     # Roxie.)".
     ON_DISCARDED_BY_ROXIE = "on_discarded_by_roxie"
+    # An opposing Active Pokemon was Knocked Out (Hypno Hypnotic Pendulum).
+    # Fires after the KO'd stack leaves play and before promotion; ctx
+    # carries ko_pokemon / was_active_at_ko / ko_from_attack / ko_attacker.
+    ON_OPPONENT_KNOCKED_OUT = "on_opponent_knocked_out"
+    # The OPPOSING player's Active retreated (Toxapex Toxic Spikes); ctx
+    # carries retreating_player_id / retreated_pokemon / new_active.
+    ON_OPPONENT_RETREAT = "on_opponent_retreat"
+    # A Pokemon Tool was attached from hand to this Pokemon (Tapu Lele
+    # Charmed Charm); ctx carries attaching_player_id / attached_tool /
+    # tool_receiver.
+    ON_TOOL_ATTACHED = "on_tool_attached"
 
 
 class Activations:
@@ -719,13 +745,15 @@ class Attack(Ability):
         ability_type: AbilityTypes = AbilityTypes.ATTACK,
         effect: Optional[Any] = None,
         vstar: bool = False,
-        gx: bool = False,
+        gx: Optional[bool] = None,
         locks_next_turn: bool = False,
         condition: Optional[Callable] = None,
         usable_first_turn: bool = False,
         usable_despite_conditions: bool = False,
         usable_from_bench: bool = False,
     ):
+        if gx is None:
+            gx = looks_like_gx_attack(title, game_text)
         super().__init__(title, game_text, ability_type, effect, vstar=vstar,
                          gx=gx, condition=condition)
         self.cost = cost or {}
@@ -930,6 +958,7 @@ class PokemonCardDef(CardDefinition):
         passive: Optional[Any] = None,
         unplayable_from_hand: Any = False,
         setup_as_active: bool = False,
+        setup_if_second: bool = False,
         bench_from_hand: Optional[Callable[..., bool]] = None,
         foil: Optional[Foil] = None
     ):
@@ -947,6 +976,9 @@ class PokemonCardDef(CardDefinition):
         # Luxray CZ's Explosiveness: may be placed as the opening Active
         # despite its stage (setup only; bench plays stay Basics-only).
         self.setup_as_active = setup_as_active
+        # Manectric Electric Start: if you go second, may be placed as the
+        # opening Active or onto the Bench despite its stage (setup only).
+        self.setup_if_second = setup_if_second
         # Luxray PAL's Swelling Flash: an evolved Pokemon whose hand Ability
         # lets it be PUT onto the Bench -- (board, player_id, card) -> bool,
         # asked when the legal actions are built. It is an Ability, so a lock

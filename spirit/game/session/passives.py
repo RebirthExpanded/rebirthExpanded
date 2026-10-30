@@ -61,6 +61,9 @@ class TempPassive:
     expires_after_turn: Optional[int] = None
     # Granted by an attack (Pokemon Ranger removes these and nothing else).
     from_attack: bool = False
+    # A player-level passive (Hex Maniac): the carrier is the acting
+    # player's hand area, which is never "in play", so it is kept anyway.
+    global_scope: bool = False
 
 
 class DamageCalc:
@@ -207,6 +210,13 @@ class Passive:
         shields that only answer to certain attackers (Alolan Persian-GX);
         shields that do not care ignore it.
         """
+        return self.blocks_attack_effects_from(target, source, carrier)
+
+    def blocks_attack_effects_from(self, target: PokemonEntity,
+                                   attacker: Optional[PokemonEntity],
+                                   carrier: BoardEntity) -> bool:
+        """The SM set modules' name for blocks_attack_effects (attacker
+        before carrier); the default blocks_attack_effects asks it."""
         return False
 
     def blocks_granted_abilities(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
@@ -252,6 +262,10 @@ class Passive:
         Disgusting Pollen, Slaking ex's Born to Slack). `board` comes along
         because these read the whole table. Per-attack refusals belong on the
         Attack's own condition, and turn-scoped ones on TurnState.lock_attack."""
+        return self.blocks_attacks(pokemon, carrier)
+
+    def blocks_attacks(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
+        """The SM set modules' name for blocks_attacking (no board)."""
         return False
 
     def heals_when_stays_asleep(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
@@ -297,6 +311,11 @@ class Passive:
         passive (Magnezone's Dual Brains: 2). 0 = no opinion; the largest
         answer wins, the rule's own 1 is the floor -- two Dual Brains do not
         make 3."""
+        return self.supporter_limit(player_id, carrier)
+
+    def supporter_limit(self, player_id: str, carrier: BoardEntity) -> int:
+        """The SM set modules' name for supporter_play_limit (Lt. Surge's
+        Strategy: 3)."""
         return 0
 
     def retreats_despite_conditions(self, pokemon: PokemonEntity,
@@ -551,6 +570,11 @@ class Passive:
     def blocks_damage_counters(self, target: PokemonEntity, carrier: BoardEntity) -> bool:
         """True to prevent damage counters (not attack damage) on `target`
         (Battle Cage's benched-Pokémon shield)."""
+        return self.prevents_damage_counters(target, carrier)
+
+    def prevents_damage_counters(self, target: PokemonEntity, carrier: BoardEntity,
+                                 source_player_id: Optional[str] = None) -> bool:
+        """The SM set modules' name for blocks_damage_counters (Sky Pillar)."""
         return False
 
     def blocks_own_trainer_effect(self, target: BoardEntity, trainer_card: BoardEntity,
@@ -581,6 +605,32 @@ class Passive:
         `card` from their discard pile into their deck (Sand Screen)."""
         return False
 
+    def blocks_return_to_hand(self, card: BoardEntity, carrier: BoardEntity,
+                              board: Optional[BoardState] = None) -> bool:
+        """blocks_put_in_hand with the board along (Mr. Mime's "Pokemon with
+        damage counters on them can't be put into your opponent's hand")."""
+        return False
+
+    def allows_second_energy_attach(self, pokemon: PokemonEntity,
+                                    carrier: BoardEntity) -> bool:
+        """True to let the owner attach a second Energy card from hand to
+        `pokemon` right after the first (Primarina's Harmonics), the way
+        alpha Growth does."""
+        return False
+
+    def knockout_whole_stack(self, pokemon: PokemonEntity, carrier: BoardEntity) -> bool:
+        """True when this passive's knockout_destination takes the attached
+        cards along too (Tyranitar-GX's Lost Out); Lost City leaves them in
+        the discard pile."""
+        return False
+
+    def keeps_condition_on_trainer_switch(self, pokemon: PokemonEntity, condition: str,
+                                          carrier: BoardEntity) -> bool:
+        """True to put the named Special Condition of an Active that a
+        Trainer card switched out onto the Pokemon that came in (Dust
+        Island: Poisoned)."""
+        return False
+
     def blocks_put_in_hand(self, card: BoardEntity, carrier: BoardEntity) -> bool:
         """True to keep an in-play card (a Pokemon or anything attached to
         one) from being put into its owner's hand (Milotic's Mentally Calm)."""
@@ -594,6 +644,11 @@ class Passive:
         """True to keep `player_id` from putting cards from THEIR discard
         pile into their hand with an Ability or Trainer card (Toedscruel's
         Slime Mold Colony). Attacks are not named, so they still can."""
+        return False
+
+    def blocks_gx_attacks(self, player_id: str, pokemon: PokemonEntity,
+                          carrier: BoardEntity) -> bool:
+        """Whether `player_id`'s `pokemon` can't use GX attacks."""
         return False
 
     def blocks_tool_attach(self, player_id: str, carrier: BoardEntity) -> bool:
@@ -976,7 +1031,7 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
     # Effect-granted temporary passives; dead carriers are silently skipped.
     for temp in getattr(board, "temporary_passives", None) or []:
         carrier = board.get_entity(temp.carrier_entity_id)
-        if carrier is None or not _carrier_in_play(carrier):
+        if carrier is None or not (temp.global_scope or _carrier_in_play(carrier)):
             continue
         triples.append((temp.passive, carrier, False))
     # Mutual Ability locks (Klefki vs Flutter Mane): the one that started
@@ -1692,6 +1747,15 @@ def trainer_play_blocked(board: BoardState, player_id: str, card: BoardEntity) -
     """Whether a continuous passive forbids playing `card` from hand."""
     return any(
         passive.blocks_trainer_play(card, player_id, carrier)
+        for passive, carrier in active_passives(board)
+    )
+
+
+def gx_attacks_blocked(board: BoardState, player_id: str,
+                       pokemon: PokemonEntity) -> bool:
+    """Whether a passive forbids `player_id`'s `pokemon` from using GX attacks."""
+    return any(
+        passive.blocks_gx_attacks(player_id, pokemon, carrier)
         for passive, carrier in active_passives(board)
     )
 

@@ -276,6 +276,26 @@ async def marnie(ctx):
     await ctx.draw_cards(4, ctx.opponent_id)
 
 
+def play_targets(opponent=False, bench_only=False):
+    """play_targets factory: the player's (or the opponent's) Benched
+    Pokemon, plus the Active unless `bench_only`."""
+    def targets(board, player_id, card):
+        pid = _other_player(board, player_id) if opponent else player_id
+        if pid is None:
+            return []
+        out = list(_bench_pokemon(board, pid))
+        if not bench_only:
+            active = board.active_pokemon(pid)
+            if active is not None:
+                out.insert(0, active)
+        return out
+    return targets
+
+
+def opponent_play_targets(bench_only=False):
+    return play_targets(opponent=True, bench_only=bench_only)
+
+
 def opponent_bench_play_targets(board, player_id, card):
     """Play targets of a single-target gust: the opponent's Benched Pokemon
     (drag the card onto the one to switch in)."""
