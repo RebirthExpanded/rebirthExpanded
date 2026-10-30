@@ -46,7 +46,7 @@ card = PokemonCardDef(
             cost={PokemonTypes.DARKNESS: 2, PokemonTypes.COLORLESS: 2},
             damage=80,
             damage_operator="+",
-            effect=bonus_if(named_in_play('Xerneas', 'Xerneas-EX', side='opponent'), 40),
+            effect=bonus_if(named_in_play('Xerneas', 'XerneasEX', side='opponent'), 40),
         ),
     ],
 )

@@ -42,7 +42,7 @@ card = PokemonCardDef(
             cost={PokemonTypes.FAIRY: 2, PokemonTypes.COLORLESS: 2},
             damage=80,
             damage_operator="+",
-            effect=bonus_if(named_in_play('Yveltal', 'Yveltal-EX', side='opponent'), 40),
+            effect=bonus_if(named_in_play('Yveltal', 'YveltalEX', side='opponent'), 40),
         ),
     ],
 )
