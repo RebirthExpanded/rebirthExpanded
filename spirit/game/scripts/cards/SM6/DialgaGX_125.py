@@ -61,6 +61,8 @@ card = PokemonCardDef(
     key="SM6",
     name="Dialga-GX",
     display_name="Dialga-GX",
+    searchable_by=["Dialga-GX", "Basic", "GX", "DialgaGX"],
+    subtypes=["Basic", "GX"],
     collector_number=125,
     set_code="SM6",
     # Rare Holo GX per the printed card; it was filed as RareUltra, which is
