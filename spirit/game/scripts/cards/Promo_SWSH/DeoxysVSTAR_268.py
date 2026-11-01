@@ -15,7 +15,7 @@ def _bench_v(pokemon) -> bool:
 
 
 def _both_actives_energy(ctx) -> int:
-    return sum(len(ctx.attached_energies(p)) for p in (ctx.attacker, ctx.opponent_active()) if p is not None)
+    return sum(ctx.energy_units_on(p) for p in (ctx.attacker, ctx.opponent_active()) if p is not None)
 
 
 card = PokemonCardDef(

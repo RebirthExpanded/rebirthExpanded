@@ -37,7 +37,7 @@ async def frilled_generator(ctx):
 
 
 async def powerful_bolt(ctx):
-    n = len(ctx.attached_energies(ctx.attacker))
+    n = ctx.energy_units_on(ctx.attacker)
     heads = sum(1 for r in await ctx.flip_coins(n, "Powerful Bolt") if r) if n else 0
     if heads:
         await ctx.deal_damage(70 * heads)

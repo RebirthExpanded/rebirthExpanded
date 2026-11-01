@@ -10,7 +10,7 @@ def _named(card, *names):
 
 async def _tag_team_spark(ctx):
     """20 more for each Energy attached to your Magmortar."""
-    counts = [len(ctx.attached_energies(p)) for p in ctx.my_pokemon_in_play()
+    counts = [ctx.energy_units_on(p) for p in ctx.my_pokemon_in_play()
               if _named(p, "Magmortar")]
     await ctx.deal_damage(20 + 20 * (max(counts) if counts else 0))
 

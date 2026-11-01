@@ -9,7 +9,7 @@ from spirit.game.card_effects import attacks_common as ac
 
 
 async def powerful_dance(ctx):
-    n = len(ctx.attached_energies(ctx.attacker))
+    n = ctx.energy_units_on(ctx.attacker)
     heads = sum(1 for r in await ctx.flip_coins(n, "Powerful Dance") if r) if n else 0
     if heads:
         await ctx.deal_damage(90 * heads)

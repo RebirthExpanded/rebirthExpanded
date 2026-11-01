@@ -5,10 +5,10 @@ from spirit.game.attributes import PokemonStage, PokemonTypes, Rarities
 from spirit.game.data_utils import Ability, Activations, Attack, PokemonCardDef, Triggers
 
 async def barrage_oclock(ctx):
-    n = len(ctx.attached_energies(ctx.attacker))
+    n = ctx.energy_units_on(ctx.attacker)
     d = ctx.opponent_active()
     if d is not None:
-        n += len(ctx.attached_energies(d))
+        n += ctx.energy_units_on(d)
     heads = sum(1 for r in await ctx.flip_coins(n, "Barrage O'Clock") if r) if n else 0
     if heads:
         await ctx.deal_damage(60 * heads)

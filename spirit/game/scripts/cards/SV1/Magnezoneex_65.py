@@ -8,7 +8,7 @@ from spirit.game.card_effects import attacks_common as ac
 
 
 async def energy_crush(ctx):
-    n = sum(len(ctx.attached_energies(p)) for p in ctx.opponent_pokemon_in_play())
+    n = sum(ctx.energy_units_on(p) for p in ctx.opponent_pokemon_in_play())
     if n:
         await ctx.deal_damage(50 * n)
 

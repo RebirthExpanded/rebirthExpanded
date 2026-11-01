@@ -16,7 +16,7 @@ async def _hyper_hypnosis(ctx):
 
 async def _maxamar(ctx):
     """Flip a coin for each Energy attached: 60 times the number of heads."""
-    n = len(ctx.attached_energies(ctx.attacker))
+    n = ctx.energy_units_on(ctx.attacker)
     results = await ctx.flip_coins(n, ctx.ability.title) if n else []
     await ctx.deal_damage(60 * sum(1 for r in results or [] if r))
 

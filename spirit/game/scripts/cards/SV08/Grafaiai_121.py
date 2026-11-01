@@ -20,7 +20,7 @@ async def mischievous_painting(ctx):
 
 
 async def energized_graffiti(ctx):
-    n = sum(len(ctx.attached_energies(p)) for p in ctx.opponent_pokemon_in_play())
+    n = sum(ctx.energy_units_on(p) for p in ctx.opponent_pokemon_in_play())
     if n:
         await ctx.deal_damage(40 * n)
 

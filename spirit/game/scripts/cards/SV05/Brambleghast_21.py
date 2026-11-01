@@ -23,7 +23,7 @@ class ResilientSoulPassive(Passive):
 
 
 async def powerful_needles(ctx):
-    n = len(ctx.attached_energies(ctx.attacker))
+    n = ctx.energy_units_on(ctx.attacker)
     heads = sum(1 for r in await ctx.flip_coins(n, "Powerful Needles") if r) if n else 0
     if heads:
         await ctx.deal_damage(80 * heads)
