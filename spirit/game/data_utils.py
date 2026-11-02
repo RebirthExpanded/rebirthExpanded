@@ -1303,8 +1303,8 @@ class FossilItemCardDef(ItemCardDef):
     offers its PIE abilities like a Basic while in play.
 
     `setup_only` is Snorlax Doll: it may be put into play only while setting
-    up (Active or Bench, and it then satisfies the mulligan check), never
-    from the hand during the game.
+    up (Active or Bench; a hand with it and no true Basic may mulligan or
+    not, the player's choice), never from the hand during the game.
     """
     plays_as_pokemon = True
 

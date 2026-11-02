@@ -234,6 +234,10 @@ PROMPT_WAIT_OPPONENT_ACTIVE = "Please wait while your opponent chooses an Active
 PROMPT_WAIT_OPPONENT_SETUP = "Please wait while your opponent finishes setting up."
 PROMPT_WAIT_OPPONENT_DECISION = "Please wait while your opponent makes a decision."
 PROMPT_MULLIGAN_EXTRA_DRAW = "Your opponent had no Basic Pokémon. Would you like to draw an extra card?"
+# No true Basic, but a card that may be put into play while setting up
+# (Snorlax Doll, Quick-Start-style Abilities): the mulligan is optional.
+PROMPT_KEEP_HAND_NO_BASIC = ("Your hand has no Basic Pokémon, but you may put a card into play "
+                             "while setting up. Keep this hand? (No: mulligan)")
 
 # MulliganRevealArea does string.Format(prompt, pileCount) for its subheader.
 TEXT_MULLIGAN_REVEAL_PROMPT = "Hands revealed: {0}"

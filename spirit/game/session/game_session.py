@@ -56,6 +56,7 @@ from .constants import (
     PROMPT_WAIT_OPPONENT_SETUP,
     PROMPT_WAIT_OPPONENT_DECISION,
     PROMPT_MULLIGAN_EXTRA_DRAW,
+    PROMPT_KEEP_HAND_NO_BASIC,
     PROMPT_ANOTHER_ATTACK,
     PROMPT_TAKE_PRIZE,
     PROMPT_CHOOSE_NEW_ACTIVE,
@@ -4155,6 +4156,7 @@ class GameSession:
             needs_mulligan = [
                 pid for pid in self._turn_order()
                 if not board.setup_active_candidates(pid, self._going_second(pid))
+                or await self._chooses_optional_mulligan(pid)
             ]
             if not needs_mulligan:
                 break
@@ -4216,6 +4218,23 @@ class GameSession:
 
         await self._reveal_mulligans(reveal_piles)
         await self._offer_extra_draws(mulligan_counts)
+
+    async def _chooses_optional_mulligan(self, player_id: str) -> bool:
+        """A hand whose only setup placements are non-Basics (Snorlax Doll,
+        Talonflame's / Luxray's / Cinderace's Abilities, Electric Start when
+        going second) may still mulligan: the player chooses. Never offered
+        when the deck holds no true Basic, which would loop forever."""
+        board = self.board_state
+        if board.basic_pokemon_in_hand(player_id):
+            return False
+        if not any(board._is_basic_pokemon(c) for c in
+                   board.find_player_area(player_id, "deck").children):
+            return False
+        picked = await self.prompt_player_choice(
+            player_id, PROMPT_KEEP_HAND_NO_BASIC,
+            [PROMPT_YES, PROMPT_NO], PROMPT_SORT_MULLIGAN,
+        )
+        return picked == 1
 
     async def _broadcast_draw(self, player_id: str, count: int):
         """Draws cards server-side and animates them in a Draw bracket on both clients.

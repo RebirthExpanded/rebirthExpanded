@@ -12,8 +12,9 @@ it."
 
 Lillie's Poke Doll's shape (no Prize, can't retreat) with the fossils'
 discard and Rare Fossil's Special Condition immunity. setup_only offers it
-as an opening Active or Bench placement -- so a hand whose only "Basic" is
-the doll needs no mulligan -- and never as a play from the hand afterwards.
+as an opening Active or Bench placement -- a hand whose only "Basic" is
+the doll may mulligan or keep, the player's choice -- and never as a play
+from the hand afterwards.
 """
 
 from spirit.game.attributes import Rarities
