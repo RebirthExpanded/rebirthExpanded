@@ -1301,12 +1301,18 @@ class FossilItemCardDef(ItemCardDef):
     grouping, Item locks, mulligan/setup exclusion); plays_as_pokemon makes
     the board entity a PokemonEntity so it benches, evolves, takes damage and
     offers its PIE abilities like a Basic while in play.
+
+    `setup_only` is Snorlax Doll: it may be put into play only while setting
+    up (Active or Bench, and it then satisfies the mulligan check), never
+    from the hand during the game.
     """
     plays_as_pokemon = True
 
-    def __init__(self, hp: int, passive: Optional[Any] = None, **kwargs):
+    def __init__(self, hp: int, passive: Optional[Any] = None, setup_only: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.passive = passive
+        self.setup_placeable = setup_only
+        self.unplayable_from_hand = setup_only
         self.extra_attributes.update({
             str(AttrID.HP.value): {"type": "int", "value": hp},
             str(AttrID.STAGE.value): {"type": "int", "value": PokemonStage.BASIC.value},

@@ -649,8 +649,8 @@ class BoardState:
     def _setup_from_hand_extras(self, player_id: str, going_second: bool = False
                                 ) -> List['PokemonEntity']:
         """Non-Basic hand Pokemon legal as setup placements: setup_as_active
-        (Luxray CZ's Explosiveness), and setup_if_second when going second
-        (Manectric's Electric Start)."""
+        (Luxray CZ's Explosiveness), setup_placeable (Snorlax Doll), and
+        setup_if_second when going second (Manectric's Electric Start)."""
         from spirit.game.data_utils import def_for  # circular-import guard
         extras: List[PokemonEntity] = []
         hand_area = self.find_player_area(player_id, "hand")
@@ -659,6 +659,7 @@ class BoardState:
                 continue
             definition = def_for(c.archetype_id)
             if getattr(definition, "setup_as_active", False) \
+                    or getattr(definition, "setup_placeable", False) \
                     or (going_second and getattr(definition, "setup_if_second", False)):
                 extras.append(c)
         return extras
@@ -677,15 +678,17 @@ class BoardState:
 
     def setup_bench_candidates(self, player_id: str, going_second: bool = False
                                ) -> List['PokemonEntity']:
-        """Cards playable onto the opening Bench: Basics, plus setup_if_second
-        Pokemon when going second (Electric Start)."""
+        """Cards playable onto the opening Bench: Basics, setup_placeable cards
+        (Snorlax Doll), plus setup_if_second Pokemon when going second
+        (Electric Start)."""
         from spirit.game.data_utils import def_for  # circular-import guard
         candidates = self.basic_pokemon_in_hand(player_id)
-        if going_second:
-            for extra in self._setup_from_hand_extras(player_id, True):
-                if extra not in candidates \
-                        and getattr(def_for(extra.archetype_id), "setup_if_second", False):
-                    candidates.append(extra)
+        for extra in self._setup_from_hand_extras(player_id, going_second):
+            definition = def_for(extra.archetype_id)
+            if extra not in candidates and (
+                    getattr(definition, "setup_placeable", False)
+                    or (going_second and getattr(definition, "setup_if_second", False))):
+                candidates.append(extra)
         return candidates
 
     def player_has_any_basic(self, player_id: str, going_second: bool = False) -> bool:
@@ -702,7 +705,8 @@ class BoardState:
                     return True
                 if isinstance(c, PokemonEntity):
                     definition = def_for(c.archetype_id)
-                    if getattr(definition, "setup_as_active", False):
+                    if getattr(definition, "setup_as_active", False) \
+                            or getattr(definition, "setup_placeable", False):
                         return True
                     if going_second and getattr(definition, "setup_if_second", False):
                         return True
