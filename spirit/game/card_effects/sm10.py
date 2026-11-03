@@ -4,14 +4,14 @@ Card scripts stay thin data definitions; reprints import from here.
 """
 
 from spirit.game.attributes import (
-    AbilityTypes, AttrID, CLIENT_SPECIAL_CONDITION_NAMES, CardType,
+    AbilityTypes, AttrID, CLIENT_SPECIAL_CONDITION_NAMES,
     PokemonTypes, SpecialConditions, TrainerType,
 )
 from spirit.game.data_utils import (
     Ability, Activations, Attack, Triggers, def_for, evolves_from,
     is_tag_team, is_ultra_beast, subtypes_for,
 )
-from spirit.game.models.board import BoardState, EnergyEntity, PokemonEntity
+from spirit.game.models.board import PokemonEntity
 from spirit.game.session.constants import BENCH_CAPACITY
 from spirit.game.session.effects import (
     full_stack,
@@ -655,18 +655,18 @@ async def battery(ctx):
         holders, "Choose a Vikavolt or Vikavolt-GX to attach this as Energy")
     if target is None:
         return
+    # The Charjabug card itself wears an Energy's attributes while attached,
+    # as Electrode's Buzzap Thunder does; clear_pokemon_effects strips them
+    # when it leaves play.
     source = ctx.source
-    BoardState.masquerade_as(
-        source, EnergyEntity,
-        {
-            AttrID.CARD_TYPE.value: CardType.ENERGY.value,
-            AttrID.ENERGY_INFO.value: {
-                "options": [[PokemonTypes.LIGHTNING.value, PokemonTypes.LIGHTNING.value]],
-            },
-            AttrID.IS_SPECIAL_ENERGY.value: True,
-        },
-    )
-    await ctx.attach_energy(source, target)
+    source.acts_as_energy = True
+    source.set_attribute(AttrID.ENERGY_INFO, {
+        "options": [[PokemonTypes.LIGHTNING.value, PokemonTypes.LIGHTNING.value]]})
+    source.set_attribute(AttrID.IS_SPECIAL_ENERGY, True)
+    if not await ctx.attach_energy(source, target):
+        source.acts_as_energy = False
+        source.set_attribute(AttrID.ENERGY_INFO, None)
+        source.set_attribute(AttrID.IS_SPECIAL_ENERGY, False)
 
 
 def battery_condition(board, player_id, pokemon=None) -> bool:
