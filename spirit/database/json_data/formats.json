@@ -151,7 +151,9 @@
         "Promo_SV",
         "Promo_SWSH",
         "SPJ",
-        "SMPJ"
+        "SMPJ",
+        "BWPJ",
+        "XYPJ"
       ],
       "allSets": false,
       "bannedCards": [

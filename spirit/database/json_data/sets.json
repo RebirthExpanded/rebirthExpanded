@@ -2109,6 +2109,36 @@
     "promo": true
   },
   {
+    "name": "BWPJ",
+    "externalId": "BWPJ",
+    "number": 1405,
+    "count": 1,
+    "filter": true,
+    "block": "BW",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": true
+  },
+  {
+    "name": "XYPJ",
+    "externalId": "XYPJ",
+    "number": 1410,
+    "count": 1,
+    "filter": true,
+    "block": "XY",
+    "legalFormats": [
+      "98c83df9-ec82-4193-84a8-104115ce4e25",
+      "6a1dec5a-34db-4cee-a503-4ee759304135"
+    ],
+    "featuredArchetypes": [],
+    "visibleUnfilterable": false,
+    "promo": true
+  },
+  {
     "name": "SV3",
     "externalId": "OBF",
     "number": 1140,
