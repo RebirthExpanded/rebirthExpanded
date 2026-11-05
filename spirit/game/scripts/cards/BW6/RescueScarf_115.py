@@ -1,6 +1,6 @@
 from spirit.game.data_utils import PokemonToolCardDef
 from spirit.game.attributes import Rarities
-from spirit.game.session.passives import Passive, carrier_pokemon
+from spirit.game.session.passives import Passive, carrier_pokemon, ko_by_opposing_attack_damage
 
 
 class RescueScarfPassive(Passive):
@@ -9,12 +9,10 @@ class RescueScarfPassive(Passive):
     the discard pile (the engine routes non-Pok\u00e9mon cards there)."""
 
     def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
-        # Evaluated pre-move with the KO ctx: remember attack KOs only.
+        # Evaluated pre-move with the KO ctx: remember KOs by attack DAMAGE
+        # only -- damage counters or a direct Knock Out from an attack don't.
         if carrier_pokemon(carrier) is pokemon:
-            attacker = getattr(ctx, "attacker", None)
-            pokemon._rescue_scarf_ko = bool(
-                ctx.is_attack_effect() and attacker is not None
-                and attacker.owning_player_id != pokemon.owning_player_id)
+            pokemon._rescue_scarf_ko = ko_by_opposing_attack_damage(ctx, pokemon)
         return count
 
     def knockout_destination(self, pokemon, carrier):

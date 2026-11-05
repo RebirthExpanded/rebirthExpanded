@@ -289,7 +289,7 @@ class DurableBladePassive(Passive):
     def knockout_destination(self, pokemon, carrier):
         if carrier_pokemon(carrier) is not pokemon:
             return None
-        if getattr(pokemon, "ko_by_opponent_attack_damage", False):
+        if getattr(pokemon, "ko_by_opposing_attack_damage", False):
             return "hand"
         return None
 

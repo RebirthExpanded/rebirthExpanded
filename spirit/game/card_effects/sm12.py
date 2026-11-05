@@ -24,7 +24,9 @@ from spirit.game.session.effects import (
     is_supporter_card,
     is_trainer_card,
 )
-from spirit.game.session.passives import Passive, carrier_pokemon, effective_max_hp
+from spirit.game.session.passives import (
+    Passive, carrier_pokemon, effective_max_hp, ko_by_opposing_attack_damage,
+)
 from spirit.game.card_effects.attacks_common import (
     _printed,
     bonus_if,
@@ -693,7 +695,7 @@ class AlteredCreationPassive(Passive):
     def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
         if not self.extra_prize:
             return count
-        if not ctx.is_attack_effect():
+        if not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
         if ctx.attacker is None or ctx.attacker.owning_player_id != self.owner_id:
             return count
@@ -853,10 +855,7 @@ class IslandChallengeAmuletPassive(Passive):
         holder = carrier_pokemon(carrier)
         if holder is not pokemon or not is_gx_or_ex(pokemon):
             return count
-        if not ctx.is_attack_effect():
-            return count
-        attacker = getattr(ctx, "attacker", None)
-        if attacker is None or attacker.owning_player_id == pokemon.owning_player_id:
+        if not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
         return max(0, count - 1)
 

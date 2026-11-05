@@ -1,16 +1,13 @@
 from spirit.game.data_utils import PokemonToolCardDef
 from spirit.game.attributes import Rarities
-from spirit.game.session.passives import Passive, carrier_pokemon
+from spirit.game.session.passives import Passive, carrier_pokemon, ko_by_opposing_attack_damage
 
 
 class BillowingSmokePassive(Passive):
     def prize_destination(self, pokemon, ctx, carrier):
         if carrier_pokemon(carrier) is not pokemon:
             return None
-        if not ctx.is_attack_effect():
-            return None
-        attacker = getattr(ctx, "attacker", None)
-        if attacker is None or attacker.owning_player_id == pokemon.owning_player_id:
+        if not ko_by_opposing_attack_damage(ctx, pokemon):
             return None
         return "discard"
 

@@ -1,12 +1,12 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability
 from spirit.game.attributes import AttrID, CLIENT_SPECIAL_CONDITION_NAMES, PokemonTypes, PokemonStage, Rarities, SpecialConditions
 from spirit.game.card_effects.attacks_common import condition_attack
-from spirit.game.session.passives import Passive
+from spirit.game.session.passives import Passive, ko_by_opposing_attack_damage
 
 
 class AllJustADreamPassive(Passive):
     def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
-        if pokemon is not carrier or not ctx.is_attack_effect():
+        if pokemon is not carrier or not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
         attacker = getattr(ctx, "attacker", None)
         if attacker is None or attacker.owning_player_id == pokemon.owning_player_id:

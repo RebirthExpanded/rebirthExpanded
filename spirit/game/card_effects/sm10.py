@@ -27,6 +27,7 @@ from spirit.game.session.effects import (
 )
 from spirit.game.session.passives import (
     Passive, active_passives, carrier_pokemon, effective_max_hp,
+    ko_by_opposing_attack_damage,
 )
 from spirit.game.card_effects.attacks_common import (
     _printed,
@@ -442,7 +443,7 @@ class BeastBringerPassive(Passive):
         holder = carrier_pokemon(carrier)
         if holder is None or getattr(ctx, "attacker", None) is not holder:
             return count
-        if not ctx.is_attack_effect():
+        if not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
         if not is_ultra_beast(holder.archetype_id):
             return count

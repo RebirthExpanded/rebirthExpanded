@@ -1,11 +1,11 @@
 from spirit.game.data_utils import PokemonCardDef, Attack, Ability, is_pokemon_v
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
-from spirit.game.session.passives import Passive
+from spirit.game.session.passives import Passive, ko_by_opposing_attack_damage
 
 
 class ElderTreeBarrierPassive(Passive):
     def modify_prizes_for_knockout(self, pokemon, ctx, count, carrier):
-        if pokemon is not carrier or not ctx.is_attack_effect():
+        if pokemon is not carrier or not ko_by_opposing_attack_damage(ctx, pokemon):
             return count
         attacker = ctx.attacker
         if attacker is None or attacker.owning_player_id == pokemon.owning_player_id:
