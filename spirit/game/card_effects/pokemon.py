@@ -30,7 +30,7 @@ from spirit.game.session.passives import (
     ability_locked, bench_space,
     Passive, carrier_pokemon, effective_bench_capacity,
 )
-from spirit.game.models.board import PokemonEntity
+from spirit.game.models.board import PokemonEntity, is_stacked_pokemon
 
 
 # --- Dunsparce (FST): Mysterious Nest -----------------------------------
@@ -1236,7 +1236,7 @@ def devolvable(pokemon) -> bool:
     """An evolved in-play Pokemon with its previous stage tucked underneath."""
     evolves_from = pokemon.get_attribute(AttrID.EVOLUTION_LOGIC_FROM)
     return bool(evolves_from) and any(
-        isinstance(c, PokemonEntity)
+        is_stacked_pokemon(c)
         and c.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == evolves_from
         for c in pokemon.children
     )
@@ -1257,7 +1257,7 @@ def devolve_depth(pokemon) -> int:
     """
     stages = {}
     for card in pokemon.children:
-        if isinstance(card, PokemonEntity):
+        if is_stacked_pokemon(card):
             stages.setdefault(
                 card.get_attribute(AttrID.EVOLUTION_LOGIC_NAME), card)
     depth, current = 0, pokemon
@@ -1444,7 +1444,7 @@ def tucked_under(pokemon) -> list:
     stack = list(pokemon.children)
     while stack:
         entity = stack.pop()
-        if isinstance(entity, PokemonEntity) and not getattr(entity, "acts_as_tool", False):
+        if is_stacked_pokemon(entity):
             out.append(entity)
             stack.extend(entity.children)
     return out

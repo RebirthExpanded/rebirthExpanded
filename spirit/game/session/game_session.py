@@ -86,6 +86,7 @@ from spirit.network.message_names import OutboundMsg
 from spirit.game.game_sequence_packets import NestedSequence
 from spirit.game.attributes import (
     AttrID,
+    CardType,
     CLIENT_SPECIAL_CONDITION_NAMES,
     DeckFormat,
     GameSequence,
@@ -112,7 +113,7 @@ def _persist_match_result(account_id: str, coins: int, is_winner: bool,
         award_match_points(account_id, is_winner)
 from spirit.game.models.board import (
     BoardEntity, BoardState, EnergyEntity, PokemonEntity, LegendHalfEntity, LegendPokemonEntity,
-    CompositePartEntity, CompositePokemonEntity,
+    CompositePartEntity, CompositePokemonEntity, is_stacked_pokemon,
 )
 from spirit.game.session import legends
 from spirit.game.visualizations import (
@@ -332,6 +333,9 @@ class GameSession:
         self._effective_max_seen: Dict[str, int] = {}
         # Energy entities whose ENERGY_INFO was rewritten to live options.
         self._energy_info_synced: set = set()
+        # Pokemon cards attached "as a Special Energy card" whose client
+        # entity is (or was) an Energy: reintroduce_former_energy.
+        self.acting_energy_ids: set = set()
         # Per-player EOG summary counters (playmat.endgame.stat.* suffixes).
         self.game_stats: Dict[str, Dict[str, int]] = {
             pid: {} for pid in pairing["players"].keys()
@@ -1677,6 +1681,37 @@ class GameSession:
              self._condition_attr_msg(pokemon)],
         )
 
+    @staticmethod
+    def revert_acting_energy(card):
+        """Takes a Pokemon card's Energy guise off (EffectContext.
+        attach_as_energy put it on): a Pokemon card again. The client still
+        holds it as an Energy entity until reintroduce_former_energy."""
+        card.acts_as_energy = False
+        card.set_attribute(AttrID.CARD_TYPE, CardType.POKEMON.value)
+        card.set_attribute(AttrID.ENERGY_INFO, None)
+        card.set_attribute(AttrID.IS_SPECIAL_ENERGY, False)
+
+    async def reintroduce_former_energy(self):
+        """Re-introduces each Pokemon card that has stopped being an Energy
+        (it left play) to every viewer who can see its face, so the client
+        takes the Pokemon entity name and CARD_TYPE back: otherwise a
+        Charjabug discarded by Electricannon would still drag from the
+        hand as an Energy. A viewer it is hidden from learns it on its
+        next intro (draw, play) anyway."""
+        for entity_id in list(self.acting_energy_ids):
+            card = self.board_state.get_entity(entity_id)
+            if card is not None and getattr(card, "acts_as_energy", False):
+                continue
+            self.acting_energy_ids.discard(entity_id)
+            if card is None:
+                continue
+            viewers = [player for pid, player in self._unique_recipients()
+                       if not card.is_hidden_from(pid)]
+            if viewers:
+                await self.send_game_sequence(
+                    viewers, GameSequence.SERIAL_SEQUENCE.value,
+                    [self._entity_introduced_msg(card)])
+
     def clear_pokemon_effects(self, pokemon) -> bool:
         """Wipes every effect that ends when a Pokemon leaves the Active spot
         or play entirely: Special Conditions (attr + bookkeeping), attack and
@@ -1693,9 +1728,7 @@ class GameSession:
         # A Pokemon card that was attached "as a Special Energy card"
         # (Buzzap Thunder) is a Pokemon card again once it leaves play.
         if getattr(pokemon, "acts_as_energy", False):
-            pokemon.acts_as_energy = False
-            pokemon.set_attribute(AttrID.ENERGY_INFO, None)
-            pokemon.set_attribute(AttrID.IS_SPECIAL_ENERGY, False)
+            self.revert_acting_energy(pokemon)
         # A Pokemon card attached "as a Pokemon Tool" (Wonder Lock) is a
         # Pokemon card again once it leaves the Pokemon it rode.
         if getattr(pokemon, "acts_as_tool", False):
@@ -2729,11 +2762,13 @@ class GameSession:
             # speaks through a passive, and the first move would silence it.
             destinations = {}
             for entity in stack:
-                area = dest_area if (whole_stack or isinstance(entity, PokemonEntity)) else discard
+                # A Pokemon card riding as an Energy or Tool is an attached
+                # card: it goes where the attachments go.
+                area = dest_area if (whole_stack or is_stacked_pokemon(entity)) else discard
                 # A card the other player put there (Team Flare Hyper Gear)
                 # goes to its owner's discard pile.
                 foreign = getattr(entity, "home_player_id", None)
-                if foreign and foreign != owner_id and not isinstance(entity, PokemonEntity):
+                if foreign and foreign != owner_id and not is_stacked_pokemon(entity):
                     entity.home_player_id = None
                     destinations[entity.entity_id] =                         self.board_state.find_player_area(foreign, "discard") or discard
                     continue
@@ -4446,6 +4481,7 @@ class GameSession:
             await self._wait_for_connection_resume()
             await self._run_state_unit(self._refresh_dynamic_attacks(active_id))
             await self._run_state_unit(self.sync_energy_info())
+            await self._run_state_unit(self.reintroduce_former_energy())
             target_map = compute_legal_actions(
                 self.board_state, self.turn_state, active_id, self.game_id
             )
@@ -5416,7 +5452,7 @@ class GameSession:
             return None
         wanted = pokemon.get_attribute(AttrID.EVOLUTION_LOGIC_FROM)
         for child in pokemon.children:
-            if isinstance(child, PokemonEntity)                     and child.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == wanted:
+            if is_stacked_pokemon(child)                     and child.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == wanted:
                 return child
         return None
 
@@ -6061,7 +6097,7 @@ class GameSession:
         evolves_from = pokemon.get_attribute(AttrID.EVOLUTION_LOGIC_FROM)
         prev = next(
             (c for c in pokemon.children
-             if isinstance(c, PokemonEntity)
+             if is_stacked_pokemon(c)
              and c.get_attribute(AttrID.EVOLUTION_LOGIC_NAME) == evolves_from),
             None,
         )

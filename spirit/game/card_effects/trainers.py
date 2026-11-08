@@ -6,7 +6,7 @@ from spirit.game.session.passives import ko_by_opposing_attack_damage
 from spirit.game.attributes import (
     AttrID, CardType, CLIENT_POKEMON_TYPE_NAMES, PokemonStage, PokemonTypes, TrainerType,
 )
-from spirit.game.models.board import PokemonEntity
+from spirit.game.models.board import PokemonEntity, is_stacked_pokemon
 from spirit.game.data_utils import (
     Ability, Activations, Attack, def_for, has_rule_box, is_pokemon_v,
     subtypes_for, Triggers,
@@ -1810,7 +1810,7 @@ class MemoryCapsulePassive(Passive):
             return []
         attacks = []
         for child in pokemon.children:
-            if not isinstance(child, PokemonEntity):
+            if not is_stacked_pokemon(child):
                 continue
             for ability in getattr(def_for(child.archetype_id), "abilities", None) or []:
                 if isinstance(ability, Attack):

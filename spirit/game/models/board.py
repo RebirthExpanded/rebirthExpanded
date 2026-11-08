@@ -246,6 +246,16 @@ class PokemonEntity(CardEntity):
         self.attribute_originals[AttrID.HP.value] = hp_val
 
     def get_entity_name(self) -> str:
+        # A Pokemon card attached "as a Special Energy card" (Buzzap
+        # Thunder, Battery) must reach the client as an Energy: its
+        # AttachmentCoordinator draws a child in the Energy row only when
+        # EntityUtil.IsEnergy -- the entity name is Energy's -- and tucks
+        # any other Pokemon child away as a previous Evolution. The client
+        # takes the name from each EntityIntroduced (EntityComponent.
+        # Introduce sets it), so the attach's intro carries this one and
+        # GameSession.reintroduce_former_energy sends the Pokemon name back.
+        if getattr(self, "acts_as_energy", False):
+            return "com.direwolfdigital.cake.rules.entities.Energy"
         return "com.direwolfdigital.cake.rules.entities.Pokemon"
 
     def serialize_attributes(self) -> List[Dict[str, Any]]:
@@ -259,6 +269,8 @@ class PokemonEntity(CardEntity):
         and that drag never reaches the bench target, so TRAINER_TYPE is
         left out for the client too."""
         serialized = super().serialize_attributes()
+        if getattr(self, "acts_as_energy", False):
+            return serialized
         if self.attributes.get(AttrID.CARD_TYPE.value) != CardType.POKEMON.value:
             serialized = [e for e in serialized if e["name"] != AttrID.TRAINER_TYPE.value]
             for entry in serialized:
@@ -266,6 +278,16 @@ class PokemonEntity(CardEntity):
                     entry["value"] = entry["originalValue"] = entry["modValue"] = \
                         CardType.POKEMON.value
         return serialized
+
+
+def is_stacked_pokemon(entity) -> bool:
+    """A Pokemon card in a stack that is one of the Pokemon's own stages
+    (a previous Evolution) -- not a Pokemon card riding along as an
+    attachment, "as a Special Energy card" (Buzzap Thunder, Battery) or
+    "as a Pokemon Tool" (Wonder Lock)."""
+    return (isinstance(entity, PokemonEntity)
+            and not getattr(entity, "acts_as_energy", False)
+            and not getattr(entity, "acts_as_tool", False))
 
 
 class CompositePartEntity(CardEntity):

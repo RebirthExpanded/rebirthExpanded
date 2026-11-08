@@ -14,8 +14,8 @@ The pool's first card that becomes an Energy card. Nothing is spawned or
 swapped: the Electrode card ITSELF is Knocked Out (the opponent takes a
 Prize for it), and once that knockout has resolved it is lifted out of the
 discard pile onto the chosen Pokemon wearing an Energy's attributes --
-ENERGY_INFO providing [L][L], the Special Energy flag, and acts_as_energy,
-which is what attached_energies and the retreat payment read. The moment
+Energy CARD_TYPE, ENERGY_INFO providing [L][L], the Special Energy flag,
+and acts_as_energy (EffectContext.attach_as_energy). The moment
 it leaves play again (discarded, scooped, its holder Knocked Out),
 clear_pokemon_effects strips all of that and it is an Electrode card in
 whatever pile it lands in, as the rules have it.
@@ -25,7 +25,7 @@ Pokemon can change the board; the attach itself waits for the knockout to
 resolve, in the ability's deferred actions.
 """
 
-from spirit.game.attributes import (AttrID, PokemonStage, PokemonTypes,
+from spirit.game.attributes import (PokemonStage, PokemonTypes,
                                     Rarities)
 from spirit.game.data_utils import (Ability, Activations, Attack,
                                     PokemonCardDef)
@@ -60,14 +60,9 @@ async def buzzap_thunder(ctx):
         # taken. Only a holder still in play can wear it.
         if holder not in ctx.board.pokemon_in_play(ctx.player_id):
             return
-        electrode.acts_as_energy = True
-        electrode.set_attribute(AttrID.ENERGY_INFO, {
-            "options": [[PokemonTypes.LIGHTNING.value, PokemonTypes.LIGHTNING.value]]})
-        electrode.set_attribute(AttrID.IS_SPECIAL_ENERGY, True)
-        if not await ctx.attach_energy(electrode, holder):
-            electrode.acts_as_energy = False
-            electrode.set_attribute(AttrID.ENERGY_INFO, None)
-            electrode.set_attribute(AttrID.IS_SPECIAL_ENERGY, False)
+        if not await ctx.attach_as_energy(
+                electrode, holder,
+                [[PokemonTypes.LIGHTNING.value, PokemonTypes.LIGHTNING.value]]):
             return
         await ctx.flush_choreography()
     ctx.deferred_actions.append(_attach)

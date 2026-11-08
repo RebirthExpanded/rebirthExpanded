@@ -2599,6 +2599,27 @@ class EffectContext:
         await self.session.refresh_granted_abilities(pokemon)
         return True
 
+    async def attach_as_energy(self, card: PokemonEntity, pokemon: PokemonEntity,
+                               options: List[List[int]]) -> bool:
+        """Attaches a Pokemon card to `pokemon` "as a Special Energy card"
+        providing `options` (Electrode's Buzzap Thunder, Charjabug's
+        Battery). The card wears an Energy's CARD_TYPE, ENERGY_INFO and
+        Special flag while attached, so every "Energy card" / "[L] Energy"
+        check reads it as one, and reaches the client as an Energy entity;
+        clear_pokemon_effects takes all of it off when it leaves play."""
+        if card is None or pokemon is None:
+            return False
+        card.acts_as_energy = True
+        card.set_attribute(AttrID.CARD_TYPE, CardType.ENERGY.value)
+        card.set_attribute(AttrID.ENERGY_INFO, {"options": [list(o) for o in options]})
+        card.set_attribute(AttrID.IS_SPECIAL_ENERGY, True)
+        self.session.acting_energy_ids.add(card.entity_id)
+        if await self.attach_energy(card, pokemon):
+            return True
+        self.session.revert_acting_energy(card)
+        self.session.acting_energy_ids.discard(card.entity_id)
+        return False
+
     async def attach_tool(self, card: CardEntity, pokemon: PokemonEntity) -> bool:
         """Attaches a Pokemon Tool card to `pokemon` by effect (Mawile's
         Mining, Delibird's Happy Delivery): attach_as_tool for a Tool card."""
