@@ -6,6 +6,7 @@ from spirit.game.data_utils import Ability, Activations, Attack, PokemonCardDef,
 
 from spirit.game.session.passives import Passive, carrier_pokemon
 from spirit.game.card_effects import attacks_common as ac
+from spirit.game.card_effects.passives_common import ability_counters_reach_attacker
 from spirit.game.attributes import AttrID, CLIENT_SPECIAL_CONDITION_NAMES
 
 
@@ -22,6 +23,8 @@ class SpitefulSwirlPassive(Passive):
         if target.owning_player_id != me.owning_player_id or ctx.board.active_pokemon(target.owning_player_id) is not target:
             return None
         if PokemonTypes.DARKNESS.value not in (target.get_attribute(AttrID.POKEMON_TYPES) or []):
+            return None
+        if not ability_counters_reach_attacker(ctx.board, attacker):
             return None
         await ctx.deal_damage(10, target=attacker, apply_modifiers=False, as_counters=True, is_attack=False)
         return None

@@ -327,8 +327,23 @@ class EffectContext:
         )
 
     def is_ability_effect(self) -> bool:
-        """Whether this ctx resolves a Pokemon Ability (not an attack/trainer)."""
-        return self.ability is not None and not self.is_attack_effect()
+        """Whether this ctx resolves a Pokemon Ability (not an attack/trainer).
+
+        A trigger a Tool or Special Energy grants its holder (Rocky Helmet,
+        Spiky Energy) runs through the Ability machinery but is that card's
+        own effect, not an Ability: Fusion Strike Energy and Stealthy Hood
+        don't stop it. The granted Abilities proper are the activated ones
+        (Forest Seal Stone's Star Alchemy)."""
+        if self.ability is None or self.is_attack_effect():
+            return False
+        return not (self.ability.is_granted and self.ability.trigger is not None)
+
+    def _tool_trigger_effect(self) -> bool:
+        """A trigger an attached Pokemon Tool grants (Rocky Helmet): the
+        Tool's, so a Trainer's, effect."""
+        return bool(self.ability is not None and self.ability.is_granted
+                    and self.ability.trigger is not None
+                    and getattr(self.ability, "granted_by_tool", False))
 
     def effects_blocked(self, target: PokemonEntity) -> bool:
         """Whether an opposing attack/Ability EFFECT on `target` is shielded
@@ -1692,7 +1707,8 @@ class EffectContext:
                 continue
             # Slime Mold Colony: an Ability or Trainer of the pile's owner
             # can't lift a card out of their own discard pile.
-            if card._containing_area_name() == "discard"                     and owner == self.player_id                     and (self.is_trainer_effect or self.is_ability_effect())                     and discard_recovery_blocked(self.board, owner):
+            if card._containing_area_name() == "discard"                     and owner == self.player_id                     and (self.is_trainer_effect or self.is_ability_effect()
+                         or self._tool_trigger_effect())                     and discard_recovery_blocked(self.board, owner):
                 logging.info(
                     f"[Effects {self.game_id}] Recovery of {card.entity_id} from "
                     f"the discard pile blocked by a passive.")

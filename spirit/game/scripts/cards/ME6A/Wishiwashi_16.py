@@ -5,7 +5,8 @@ from spirit.game.data_utils import PokemonCardDef, Attack, Ability, Activations
 from spirit.game.attributes import PokemonTypes, PokemonStage, Rarities
 from spirit.game.data_utils import def_for
 from spirit.game.card_effects.attacks_common import flip_or_nothing
-from spirit.game.card_effects.passives_common import is_in_active_spot
+from spirit.game.card_effects.passives_common import (
+    ability_counters_reach_attacker, is_in_active_spot)
 from spirit.game.session.passives import Passive
 
 
@@ -22,7 +23,7 @@ class CounterattackGroupingPassive(Passive):
         if getattr(def_for(target.archetype_id), "display_name", None) not in ("Wishiwashi", "Wishiwashi ex"):
             return None
         attacker = calc.attacker
-        if attacker is not None:
+        if attacker is not None and ability_counters_reach_attacker(ctx.board, attacker):
             await ctx.deal_damage(30, target=attacker, apply_modifiers=False, as_counters=True)
         return None
 

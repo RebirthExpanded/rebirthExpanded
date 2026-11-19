@@ -86,6 +86,7 @@ def _clone_ability(ability: "Ability") -> "Ability":
             self_knockout=ability.self_knockout,
         )
     clone.is_granted = ability.is_granted
+    clone.granted_by_tool = getattr(ability, "granted_by_tool", False)
     return clone
 
 
@@ -695,6 +696,10 @@ class Ability:
         # True when granted by an attached Tool (Forest Seal Stone): the ability
         # lives on the tool, not the Pokemon, so Path to the Peak can't lock it.
         self.is_granted: bool = False
+        # Granted by a Pokemon Tool (a Trainer card) rather than a Special
+        # Energy: a triggered one is that Trainer's effect (Slime Mold
+        # Colony stops its discard-pile recovery).
+        self.granted_by_tool: bool = False
 
     def on_use(self, fn: Callable) -> Callable:
         """Decorator alternative to the effect= parameter."""
@@ -1389,6 +1394,7 @@ class PokemonToolCardDef(TrainerCardDef):
             if not a.ability_id:
                 a.ability_id = ability_id_for(self.guid, idx)
             a.is_granted = True
+            a.granted_by_tool = True
             ABILITIES_BY_ID[a.ability_id] = a
 
 class EnergyCardDef(CardDefinition):

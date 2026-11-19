@@ -18,6 +18,8 @@ from spirit.game.attributes import AttrID, TrainerType
 from spirit.game.data_utils import def_for
 from spirit.game.session.passives import (
     Passive,
+    ability_effects_blocked,
+    damage_counters_blocked,
     out_of_play_ability_locked,
     TurnDamageModifier,
     carrier_pokemon,
@@ -40,6 +42,17 @@ def _protects_pred(protects) -> Callable[[Any, Any], bool]:
     if protects in (None, "carrier"):
         return lambda target, carrier: carrier_pokemon(carrier) is target
     raise ValueError(f"protects must be 'carrier', 'team' or a callable: {protects!r}")
+
+
+def ability_counters_reach_attacker(board, attacker) -> bool:
+    """Whether an Ability that answers an attack by putting damage counters
+    on the Attacking Pokemon (Spiteful Swirl, Counterattack Grouping) gets
+    through. It runs inside the attack's own damage step, so the attack
+    ctx's shield checks see the attacker's side acting on itself; ask the
+    Ability-effect shields (Fusion Strike Energy, Stealthy Hood) and the
+    damage-counter ones here instead."""
+    return not (ability_effects_blocked(board, attacker)
+                or damage_counters_blocked(board, attacker))
 
 
 def is_in_active_spot(pokemon) -> bool:
