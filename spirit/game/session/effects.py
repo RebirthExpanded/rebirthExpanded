@@ -55,6 +55,7 @@ from .passives import (
     ability_effects_blocked,
     abilities_disabled,
     ability_locked,
+    live_abilities,
     active_passives,
     active_to_bench_counters,
     attack_coin_reroll_offered,
@@ -343,7 +344,7 @@ class EffectContext:
         Tool's, so a Trainer's, effect."""
         return bool(self.ability is not None and self.ability.is_granted
                     and self.ability.trigger is not None
-                    and getattr(self.ability, "granted_by_tool", False))
+                    and getattr(self.ability, "granted_by", None) == "tool")
 
     def effects_blocked(self, target: PokemonEntity) -> bool:
         """Whether an opposing attack/Ability EFFECT on `target` is shielded
@@ -3577,16 +3578,12 @@ async def _fire_damaged_by_attack_triggers(session, ctx: EffectContext):
         owner_id = pokemon.owning_player_id
         if owner_id is None:
             continue
-        locked = ability_locked(board, pokemon)
-        for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
-            if not isinstance(entry, dict):
-                continue
-            ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
-            if ability is None or not ability.has_trigger(Triggers.ON_DAMAGED_BY_ATTACK):
-                continue
-            if locked and not ability.is_granted:
-                continue
-            snapshot.append((pokemon, owner_id, ability, dealt, pre_hit))
+        # Its own Abilities answer to Ability locks; what a Tool or Special
+        # Energy grants (Rocky Helmet, Spiky Energy) to their own suppressors.
+        for ability in live_abilities(board, pokemon,
+                                      printed_locked=ability_locked(board, pokemon)):
+            if ability.has_trigger(Triggers.ON_DAMAGED_BY_ATTACK):
+                snapshot.append((pokemon, owner_id, ability, dealt, pre_hit))
     # Several "when damaged" effects on one Pokemon (Rocky Helmet, Lucky
     # Helmet and Spiky Energy on a Toolbox Sigilyph) go off together: that
     # Pokemon's owner orders the ones that apply (official Q&A). All of them

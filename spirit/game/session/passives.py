@@ -986,14 +986,22 @@ def _collect_passives(board: BoardState) -> List[Tuple[Passive, BoardEntity, boo
                 if not isinstance(entry, dict):
                     continue
                 ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
-                if ability is not None and ability.passive is not None:
-                    # A Tool-granted ability's passive rides the tool, not the
-                    # Pokemon, so Path to the Peak can't switch it off; an
-                    # Ancient Trait is not an Ability at all, and Garbotoxin,
-                    # Silent Lab and Path to the Peak each name Abilities.
-                    lockable = (not ability.is_granted
-                                and ability.ability_type != AbilityTypes.ANCIENT_TRAIT)
+                # A granted one rides the card that grants it (below).
+                if ability is not None and ability.passive is not None                         and not ability.is_granted:
+                    # An Ancient Trait is not an Ability at all, and
+                    # Garbotoxin, Silent Lab and Path to the Peak each name
+                    # Abilities.
+                    lockable = ability.ability_type != AbilityTypes.ANCIENT_TRAIT
                     triples.append((ability.passive, pokemon, lockable))
+            # A passive an attached Tool / Special Energy grants rides that
+            # card, not the Pokemon: Path to the Peak can't switch it off,
+            # and the Tool / Special Energy suppressors (Jamming Tower,
+            # Temple of Sinnoh) filter it in active_passives.
+            for child in pokemon.children:
+                for ability in getattr(def_for(child.archetype_id),
+                                       "granted_abilities", None) or []:
+                    if ability.passive is not None:
+                        triples.append((ability.passive, child, False))
             for attachment in _descendants(pokemon):
                 # Tucked pre-evolutions contribute nothing; a Pokemon card
                 # attached "as a Pokemon Tool" (Klefki's Wonder Lock) is a
@@ -1317,6 +1325,56 @@ def tool_suppressed(board: BoardState, tool: BoardEntity) -> bool:
     """Whether an attached Tool is neutralized (Tool Jammer): gates its
     granted_abilities in PIE_ABILITIES, not just its passive hooks."""
     return _suppressed_tool(_collect_passives(board), tool)
+
+
+def attached_card_grants(board: BoardState, pokemon: PokemonEntity) -> List[Tuple[BoardEntity, Any]]:
+    """(card, Ability) for what the cards attached to `pokemon` grant it
+    right now, read off the cards themselves (PIE_ABILITIES is only
+    re-synced for the turn player's Active, so a Stadium played since would
+    not show there). Each kind answers to its own suppressors:
+      - a Pokemon Tool (Rocky Helmet, Forest Seal Stone): Jamming Tower,
+        Tool Jammer -- suppresses_tool;
+      - a Special Energy (Spiky Energy): Temple of Sinnoh, Spectral Breach
+        -- suppresses_special_energy.
+    Neither answers to the other's, nor to an Ability lock."""
+    out: List[Tuple[BoardEntity, Any]] = []
+    triples = None
+    for child in pokemon.children:
+        grants = getattr(def_for(child.archetype_id), "granted_abilities", None)
+        if not grants:
+            continue
+        if triples is None:
+            triples = _collect_passives(board)
+        kind = grants[0].granted_by
+        if kind == "tool" and _suppressed_tool(triples, child):
+            continue
+        if kind == "energy" and _suppressed_special_energy(triples, child):
+            continue
+        out.extend((child, a) for a in grants)
+    return out
+
+
+def live_abilities(board: BoardState, pokemon: PokemonEntity,
+                   printed_locked: bool = False) -> List[Any]:
+    """The Abilities and granted triggers `pokemon` has right now: its own
+    rows from PIE_ABILITIES (left out when `printed_locked`), then what its
+    attached Tools and Special Energy grant (attached_card_grants)."""
+    out: List[Any] = []
+    seen: Set[str] = set()
+    if not printed_locked:
+        for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
+            if not isinstance(entry, dict):
+                continue
+            ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
+            if ability is None or ability.is_granted or ability.ability_id in seen:
+                continue
+            seen.add(ability.ability_id)
+            out.append(ability)
+    for _card, ability in attached_card_grants(board, pokemon):
+        if ability.ability_id not in seen:
+            seen.add(ability.ability_id)
+            out.append(ability)
+    return out
 
 
 def granted_extra_attacks(board: BoardState, pokemon: PokemonEntity) -> List[Any]:

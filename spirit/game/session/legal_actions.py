@@ -42,6 +42,7 @@ from .passives import (
     granted_extra_attacks_with_owner,
     ability_disabled,
     ability_locked,
+    live_abilities,
     abilities_disabled,
     attack_effects_blocked,
     gx_attacks_blocked,
@@ -1009,12 +1010,11 @@ def _ability_entries(
     entries = []
     for pokemon in in_play:
         locked = ability_locked(board, pokemon)
-        for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
-            if not isinstance(entry, dict):
-                continue
-            ability_id = entry.get("abilityID")
-            ability = ABILITIES_BY_ID.get(ability_id) if ability_id else None
-            if ability is None or ability.activation not in (
+        # Its own rows, then the grants read live off its Tools / Special
+        # Energy (a jammed Forest Seal Stone offers nothing).
+        for ability in live_abilities(board, pokemon):
+            ability_id = ability.ability_id
+            if ability.activation not in (
                     Activations.ONCE_PER_TURN, Activations.UNLIMITED):
                 continue
             # Hand/discard-only abilities (Pyukumuku, Beedrill, Gengar) are

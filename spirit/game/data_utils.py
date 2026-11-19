@@ -86,7 +86,7 @@ def _clone_ability(ability: "Ability") -> "Ability":
             self_knockout=ability.self_knockout,
         )
     clone.is_granted = ability.is_granted
-    clone.granted_by_tool = getattr(ability, "granted_by_tool", False)
+    clone.granted_by = getattr(ability, "granted_by", None)
     return clone
 
 
@@ -696,10 +696,12 @@ class Ability:
         # True when granted by an attached Tool (Forest Seal Stone): the ability
         # lives on the tool, not the Pokemon, so Path to the Peak can't lock it.
         self.is_granted: bool = False
-        # Granted by a Pokemon Tool (a Trainer card) rather than a Special
-        # Energy: a triggered one is that Trainer's effect (Slime Mold
-        # Colony stops its discard-pile recovery).
-        self.granted_by_tool: bool = False
+        # Which kind of attached card grants it: "tool" (a Pokemon Tool, a
+        # Trainer card -- Jamming Tower and Tool Jammer switch it off) or
+        # "energy" (a Special Energy -- Temple of Sinnoh and Spectral
+        # Breach do). A triggered grant is that card's own effect, not an
+        # Ability. See passives.attached_card_grants.
+        self.granted_by: Optional[str] = None
 
     def on_use(self, fn: Callable) -> Callable:
         """Decorator alternative to the effect= parameter."""
@@ -1394,7 +1396,7 @@ class PokemonToolCardDef(TrainerCardDef):
             if not a.ability_id:
                 a.ability_id = ability_id_for(self.guid, idx)
             a.is_granted = True
-            a.granted_by_tool = True
+            a.granted_by = "tool"
             ABILITIES_BY_ID[a.ability_id] = a
 
 class EnergyCardDef(CardDefinition):
@@ -1491,6 +1493,7 @@ class EnergyCardDef(CardDefinition):
             if not a.ability_id:
                 a.ability_id = ability_id_for(guid, idx)
             a.is_granted = True
+            a.granted_by = "energy"
             ABILITIES_BY_ID[a.ability_id] = a
         # The card's own triggers while it is NOT attached (Treasure Energy's
         # ON_TAKEN_AS_PRIZE window) -- registered for the session's trigger

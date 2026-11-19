@@ -132,7 +132,7 @@ from .effects import (
 from .passives import (
     energy_provided_options,
     putting_into_play_blocked,
-    abilities_disabled, ability_locked, active_passives, active_to_bench_counters,
+    abilities_disabled, ability_locked, active_passives, attached_card_grants, live_abilities, active_to_bench_counters,
     burn_recovery_blocked, discard_destination_for,
     effective_bench_capacity, effective_max_hp,
     effective_retreat_cost, effective_turn_draw, energy_attach_taxer, evolve_heal_amount,
@@ -2505,15 +2505,13 @@ class GameSession:
                        for p in ctx.knockouts}
         for pokemon in ctx.knockouts:
             owner_id = pokemon.owning_player_id
-            if owner_id is None or ability_locked(self.board_state, pokemon):
+            if owner_id is None:
                 continue
             was_active = self.board_state.active_pokemon(owner_id) is pokemon
-            for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
-                if not isinstance(entry, dict):
-                    continue
-                ability_id = entry.get("abilityID")
-                ability = ABILITIES_BY_ID.get(ability_id) if ability_id else None
-                if ability is not None and ability.has_trigger(Triggers.ON_KNOCKED_OUT):
+            for ability in live_abilities(
+                    self.board_state, pokemon,
+                    printed_locked=ability_locked(self.board_state, pokemon)):
+                if ability.has_trigger(Triggers.ON_KNOCKED_OUT):
                     ko_triggers.append((pokemon, owner_id, ability, was_active))
 
         # Special-energy leave-play hooks (Gift Energy's draw) snapshotted with
@@ -2546,11 +2544,13 @@ class GameSession:
         no_prize_kos = set()
         for pokemon in list(ctx.knockouts):
             owner_id = pokemon.owning_player_id
-            if owner_id is None or ability_locked(self.board_state, pokemon):
+            if owner_id is None:
                 continue
-            for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
-                ability = ABILITIES_BY_ID.get(entry.get("abilityID"))                     if isinstance(entry, dict) else None
-                if ability is None or ability.effect is None                         or not ability.has_trigger(Triggers.ON_KNOCKED_OUT_REPLACEMENT):
+            for ability in live_abilities(
+                    self.board_state, pokemon,
+                    printed_locked=ability_locked(self.board_state, pokemon)):
+                if ability.effect is None \
+                        or not ability.has_trigger(Triggers.ON_KNOCKED_OUT_REPLACEMENT):
                     continue
                 rep_ctx = EffectContext(self, owner_id, pokemon, ability)
                 rep_ctx.ko_pokemon = pokemon
@@ -2619,29 +2619,19 @@ class GameSession:
             # it as Tools, so a lock on its Abilities does not reach them).
             own_locked = ability_locked(self.board_state, pokemon)
             was_active = self.board_state.active_pokemon(owner_id) is pokemon
-            for entry in pokemon.get_attribute(AttrID.PIE_ABILITIES) or []:
-                if not isinstance(entry, dict):
-                    continue
-                ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
-                if ability is None \
-                        or not ability.has_trigger(Triggers.ON_KNOCKED_OUT_IN_PLAY):
-                    continue
-                if own_locked and not ability.is_granted:
+            for ability in live_abilities(self.board_state, pokemon,
+                                          printed_locked=own_locked):
+                if not ability.has_trigger(Triggers.ON_KNOCKED_OUT_IN_PLAY):
                     continue
                 self_triggers.append(
                     (pokemon, owner_id, ability, ko_from_attack, was_active))
             for ally in self.board_state.pokemon_in_play(owner_id):
                 if ally is pokemon or ally in ctx.knockouts:
                     continue
-                locked = ability_locked(self.board_state, ally)
-                for entry in ally.get_attribute(AttrID.PIE_ABILITIES) or []:
-                    if not isinstance(entry, dict):
-                        continue
-                    ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
-                    if ability is None \
-                            or not ability.has_trigger(Triggers.ON_ALLY_KNOCKED_OUT):
-                        continue
-                    if locked and not ability.is_granted:
+                for ability in live_abilities(
+                        self.board_state, ally,
+                        printed_locked=ability_locked(self.board_state, ally)):
+                    if not ability.has_trigger(Triggers.ON_ALLY_KNOCKED_OUT):
                         continue
                     ally_triggers.append(
                         (ally, owner_id, ability, pokemon, ko_from_attack))
@@ -2650,15 +2640,10 @@ class GameSession:
                 for watcher in self.board_state.pokemon_in_play(opp_id):
                     if watcher in ctx.knockouts:
                         continue
-                    locked = ability_locked(self.board_state, watcher)
-                    for entry in watcher.get_attribute(AttrID.PIE_ABILITIES) or []:
-                        if not isinstance(entry, dict):
-                            continue
-                        ability = ABILITIES_BY_ID.get(entry.get("abilityID"))
-                        if ability is None or not ability.has_trigger(
-                                Triggers.ON_OPPONENT_KNOCKED_OUT):
-                            continue
-                        if locked and not ability.is_granted:
+                    for ability in live_abilities(
+                            self.board_state, watcher,
+                            printed_locked=ability_locked(self.board_state, watcher)):
+                        if not ability.has_trigger(Triggers.ON_OPPONENT_KNOCKED_OUT):
                             continue
                         opp_ko_triggers.append((watcher, opp_id, ability, pokemon))
         # ON_KNOCKED_OUT_IN_PLAY / ON_ALLY_KNOCKED_OUT fire pre-discard: the
@@ -4812,17 +4797,29 @@ class GameSession:
         return ends_turn
 
     def _abilities_of(self, card) -> list:
-        """The card's PIE_ABILITIES plus its definition's declared abilities."""
+        """The card's PIE_ABILITIES plus its definition's declared abilities.
+        For a Pokemon in play, what its Tools / Special Energy grant is read
+        live off those cards instead (attached_card_grants): a suppressed
+        one (Jamming Tower, Temple of Sinnoh) is left out."""
         seen = set()
         abilities = []
+        in_play = isinstance(card, PokemonEntity) and card.owning_player_id is not None \
+            and card in self.board_state.pokemon_in_play(card.owning_player_id)
         for entry in card.get_attribute(AttrID.PIE_ABILITIES) or []:
             if not isinstance(entry, dict):
                 continue
             ability_id = entry.get("abilityID")
             ability = ABILITIES_BY_ID.get(ability_id) if ability_id else None
+            if ability is not None and in_play and ability.is_granted:
+                continue
             if ability is not None and ability_id not in seen:
                 seen.add(ability_id)
                 abilities.append(ability)
+        if in_play:
+            for _child, ability in attached_card_grants(self.board_state, card):
+                if ability.ability_id not in seen:
+                    seen.add(ability.ability_id)
+                    abilities.append(ability)
         for ability in getattr(def_for(card.archetype_id), "abilities", None) or []:
             if ability.ability_id not in seen:
                 seen.add(ability.ability_id)
