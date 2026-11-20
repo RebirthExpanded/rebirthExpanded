@@ -928,6 +928,8 @@ async def rock_paper_scissors(ctx) -> bool:
 
 # Sets whose Pokemon cards print the Pokedex height (HT: 5'07"): everything
 # through the Sun & Moon era. Newer cards don't print one.
+# The Sun & Moon era and earlier: every non-Rule-Box card prints a height.
+# Newer sets print one too, but not on their full-art prints.
 _HEIGHT_PRINTED_SETS = re.compile(
     r"^(BASE|BW|XY|SM|HGSS|COL|SF|DV|SL|DM|GUM|HF|HMC|TATM|TwentiethAnn"
     r"|Promo_BW|Promo_XY|Promo_SM)")
@@ -940,15 +942,24 @@ _HEIGHT_NAME_ALIASES = {"nidoranfemale": "nidoranf", "nidoranmale": "nidoranm",
 
 def printed_height(card) -> Optional[tuple]:
     """The (feet, inches) a Pokemon card prints as its height, or None when
-    the card prints none (rule box, a newer set) or the species is unknown.
-    The species comes from the EVOLUTION_LOGIC_NAME, falling back to the
-    longest species name it ends with (Ash's Pikachu, Shining Mew)."""
+    the card prints none or the species is unknown.
+
+    Every non-Rule-Box Pokemon prints its Pokedex line -- the Sun & Moon era
+    and earlier, and regulation A onward too -- except the full-art prints
+    of the newer sets (Art Rare, gold Secret Rare, full-art promos), listed
+    in no_printed_height.NO_PRINTED_HEIGHT: even with the same attacks as
+    the regular card, their art covers the line. The species comes from the
+    EVOLUTION_LOGIC_NAME, falling back to the longest species name it ends
+    with (Ash's Pikachu, Team Rocket's Meowth, Shining Mew)."""
+    from spirit.game.card_effects.no_printed_height import NO_PRINTED_HEIGHT
     from spirit.game.card_effects.pokedex_heights import HEIGHT_DM
     from spirit.game.data_utils import subtypes_for
     if not is_pokemon_card(card):
         return None
     definition = def_for(card.archetype_id)
-    if definition is None or not _HEIGHT_PRINTED_SETS.match(getattr(definition, "key", "") or ""):
+    if definition is None:
+        return None
+    if not _HEIGHT_PRINTED_SETS.match(getattr(definition, "key", "") or "")             and definition.guid.lower() in NO_PRINTED_HEIGHT:
         return None
     if _NO_HEIGHT_SUBTYPES & set(subtypes_for(card.archetype_id)):
         return None
@@ -956,10 +967,13 @@ def printed_height(card) -> Optional[tuple]:
     name = re.sub(r"[^a-z0-9]", "", str(spec.get("value") or "").lower())
     if name.endswith("prismstar"):
         name = name[:-len("prismstar")]
-    if name == "nidoran":  # both genders share the logic name; the display name tells
+    if name.endswith("nidoran"):  # both genders share the logic name; the display name tells
         display = getattr(definition, "display_name", "") or ""
-        name = "nidoranm" if "♂" in display else "nidoranf"
-    name = _HEIGHT_NAME_ALIASES.get(name, name)
+        name = name[:-len("nidoran")] + ("nidoranm" if "♂" in display else "nidoranf")
+    for alias, species in _HEIGHT_NAME_ALIASES.items():
+        if name.endswith(alias):  # Team Rocket's Nidoran♀ -> ...nidoranfemale
+            name = name[:-len(alias)] + species
+            break
     dm = HEIGHT_DM.get(name)
     if dm is None:
         tails = [k for k in HEIGHT_DM if len(k) >= 3 and name.endswith(k)]
