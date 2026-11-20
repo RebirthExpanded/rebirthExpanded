@@ -32,7 +32,8 @@
         "MEE",
         "MEZ",
         "MP1",
-        "SVPJ"
+        "SVPJ",
+        "M7"
       ],
       "allSets": false,
       "bannedCards": [],
@@ -154,7 +155,8 @@
         "SMPJ",
         "BWPJ",
         "XYPJ",
-        "SMD"
+        "SMD",
+        "M7"
       ],
       "allSets": false,
       "bannedCards": [
@@ -262,7 +264,8 @@
         "MEE",
         "MEZ",
         "MP1",
-        "SVPJ"
+        "SVPJ",
+        "M7"
       ],
       "allSets": false,
       "bannedCards": [],

@@ -1281,7 +1281,8 @@ def attack_usable(
             and not definition.condition(board, player_id, active):
         return False
     # Cost-modifying passives (e.g. Excited Heart) apply here.
-    cost = effective_attack_cost(board, active, cost_dict or {})
+    cost = effective_attack_cost(board, active, cost_dict or {},
+                                 attack_title=getattr(definition, "title", None))
     return attack_cost_satisfied(cost, energies, board)
 
 

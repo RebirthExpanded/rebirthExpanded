@@ -1492,10 +1492,17 @@ def compute_damage(
 
 
 def effective_attack_cost(
-    board: BoardState, pokemon: PokemonEntity, cost: Dict[str, int]
+    board: BoardState, pokemon: PokemonEntity, cost: Dict[str, int],
+    attack_title: Optional[str] = None,
 ) -> Dict[str, int]:
-    """An attack's cost after cost-modifying passives (e.g. Excited Heart)."""
+    """An attack's cost after cost-modifying passives (e.g. Excited Heart).
+
+    A passive that names one attack (Hawlucha: "Guts Fight" costs less)
+    sets only_attack_title and is skipped for every other attack."""
     for passive, carrier in active_passives(board):
+        only = getattr(passive, "only_attack_title", None)
+        if only is not None and only != attack_title:
+            continue
         cost = passive.modify_attack_cost(dict(cost), pokemon, carrier, board)
     return cost
 
